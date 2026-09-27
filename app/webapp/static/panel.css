@@ -361,15 +361,17 @@ body.has-sub{overflow:hidden}
 .shead .stop{position:static}
 .shead.lifted{box-shadow:0 10px 18px -12px rgba(10,22,51,.35)}
 .sub{scroll-padding-top:calc(var(--shead-h, 60px) + 14px)}
-.pv{--pv-h:26vh; background:var(--pg-bg, var(--surface-sunk)); border-bottom:1px solid var(--line); padding:8px 16px 12px; display:flex; flex-direction:column; gap:8px}
-.pv.big{--pv-h:52vh}
-.pv-row{display:flex; align-items:center; justify-content:space-between; gap:8px}
+.pv{background:var(--pg-bg, var(--surface-sunk)); border-bottom:1px solid var(--line); padding:8px 16px 12px; display:flex; flex-direction:column; gap:8px}
+.pv-row{display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:26px}
 .pv-tag{display:inline-flex; align-items:center; gap:6px; height:22px; padding:0 9px; border-radius:11px; background:var(--surface); border:1px solid var(--line); font-size:11px; font-weight:700; color:var(--ink-2)}
 .pv-tag .dot{width:6px; height:6px; background:var(--success)}
-.pv-size{display:inline-flex; align-items:center; gap:4px; height:26px; padding:0 10px; border-radius:13px; background:var(--surface); border:1px solid var(--line); font-size:11.5px; font-weight:700; color:var(--ink-2)}
+.pv-size{display:none; align-items:center; gap:4px; height:26px; padding:0 10px; border-radius:13px; background:var(--surface); border:1px solid var(--line); font-size:11.5px; font-weight:700; color:var(--ink-2)}
+.pv.scaled .pv-size{display:inline-flex}
 .pv-size .ico{width:14px; height:14px}
-.pv-box{border-radius:var(--radius-lg); overflow:hidden; max-height:var(--pv-h); transition:max-height .3s var(--ease)}
-.pv-box > .pg-page{min-height:0; padding:6px 0 !important; background:transparent}
+.pv-box{position:relative; overflow:hidden; border-radius:var(--radius-lg); transition:height .25s var(--ease)}
+.pv.page .pv-box{transition:none}
+.pv-stage{transform-origin:top center}
+.pv-stage.pg-page{min-height:0; padding:0 !important; background:transparent; overflow:visible}
 .pv-box .pv-page{height:100%; display:flex; flex-direction:column; border-radius:var(--radius-lg); border:1px solid var(--line); overflow:hidden; padding:0 0 10px !important; background:var(--pg-bg)}
 .pv-box .pv-page > .pg-blocks{flex:1 1 auto; min-height:0; overflow:hidden; width:100%; padding:12px 12px 0}
 .pv-box .pv-page .pg-header{position:static; margin:0}

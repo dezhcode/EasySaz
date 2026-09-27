@@ -940,25 +940,41 @@
   }
   /* پیش‌نمایش زندهٔ بالای زیرصفحه */
   /* پیش‌نمایش زندهٔ بالای زیرصفحه. همراه نوار بالا پین می‌شود (.shead) تا
-     فرم زیرش اسکرول بخورد و تغییرها همیشه دیده شوند. «بزرگ‌تر» قاب را بلندتر
-     می‌کند؛ ارتفاع سرِ پین‌شده در --shead-h است تا فیلدِ فوکوس‌شده زیرش نرود. */
-  function livePv(el, draw, label) {
-    const pv = h('div', 'pv');
+     فرم زیرش اسکرول بخورد و تغییرها همیشه دیده شوند.
+     fit (پیش‌فرض): قاب هم‌اندازهٔ خود کامپوننت است؛ اگر کامپوننت از سقف
+     قاب بلندتر باشد، کامل و به‌تناسب کوچک می‌شود، هیچ‌وقت بریده نمی‌شود.
+     «بزرگ‌تر» سقف را بالا می‌برد (فقط وقتی کامپوننت کوچک شده باشد پیداست).
+     page: پیش‌نمایش کل صفحه با ارتفاع ثابت (ظاهر، نوار بالا و پایین). */
+  function livePv(el, draw, label, page) {
+    const pv = h('div', 'pv' + (page ? ' page' : ''));
     const row = h('div', 'pv-row');
     const tag = h('span', 'pv-tag');
     tag.append(h('i', 'dot'), document.createTextNode(label || 'پیش‌نمایش زنده'));
     const size = h('button', 'pv-size');
     size.type = 'button';
+    const box = h('div', 'pv-box');
+    const stage = page ? box : h('div', 'pv-stage');
+    if (!page) box.appendChild(stage);
+    const fit = () => {
+      if (page) return;
+      stage.style.transform = '';
+      const natural = stage.offsetHeight;
+      if (!natural) return;
+      const cap = Math.round(window.innerHeight * (pv.classList.contains('big') ? 0.56 : 0.34));
+      const k = natural > cap ? cap / natural : 1;
+      stage.style.transform = k < 1 ? `scale(${k})` : '';
+      box.style.height = Math.ceil(natural * k) + 'px';
+      pv.classList.toggle('scaled', k < 1 || pv.classList.contains('big'));
+    };
     const setSize = big => {
       pv.classList.toggle('big', big);
       size.textContent = '';
       size.append(ico(big ? 'up' : 'down'), document.createTextNode(big ? 'کوچک‌تر' : 'بزرگ‌تر'));
       size.setAttribute('aria-expanded', big ? 'true' : 'false');
+      fit();
     };
-    setSize(!!S.pvBig);
     size.addEventListener('click', () => { S.pvBig = !pv.classList.contains('big'); setSize(S.pvBig); haptic(); });
     row.append(tag, size);
-    const box = h('div', 'pv-box');
     pv.append(row, box);
     const stop = el.querySelector(':scope > .stop');
     const head = h('div', 'shead');
@@ -966,15 +982,20 @@
     else el.appendChild(head);
     if (stop) head.appendChild(stop);
     head.appendChild(pv);
-    if (window.ResizeObserver) new ResizeObserver(() => el.style.setProperty('--shead-h', head.offsetHeight + 'px')).observe(head);
+    if (window.ResizeObserver) {
+      new ResizeObserver(() => el.style.setProperty('--shead-h', head.offsetHeight + 'px')).observe(head);
+      // تصویرها دیرتر بار می‌شوند و اندازهٔ کامپوننت عوض می‌شود
+      if (!page) new ResizeObserver(fit).observe(stage);
+    }
     el.addEventListener('scroll', () => head.classList.toggle('lifted', el.scrollTop > 4), { passive: true });
-    const redraw = () => draw(box);
+    const redraw = () => { draw(stage); requestAnimationFrame(fit); };
+    setSize(!!S.pvBig);
     redraw();
     return redraw;
   }
   /* صفحهٔ فعلی مینی‌اپ با سربرگ و نوار پایین، در قاب کوتاه */
   function pagePreview(box, height) {
-    box.style.height = 'min(' + height + 'px, var(--pv-h))';
+    box.style.height = 'min(' + height + 'px, 30vh)';
     box.textContent = '';
     const inner = h('div', 'pv-page');
     box.appendChild(inner);
@@ -2067,7 +2088,7 @@
     const set = (k, v) => { theme[k] = v; changed(); };
     push((el, pg) => {
       subTop(el, S.app.name, 'ظاهر', [savedMark()]);
-      const redraw = livePv(el, box => pagePreview(box, 290), 'کل مینی‌اپ، زنده');
+      const redraw = livePv(el, box => pagePreview(box, 290), 'کل مینی‌اپ، زنده', true);
       const body = h('div', 'sbody');
       el.appendChild(body);
       secLabel(body, 'رنگ اصلی', 'بقیهٔ رنگ‌ها خودکار ساخته می‌شوند');
@@ -2125,7 +2146,7 @@
   function framePage() {
     push((el, pg) => {
       subTop(el, S.app.name, 'نوار بالا و نوار پایین', [savedMark()]);
-      const redraw = livePv(el, box => pagePreview(box, 210), 'قاب مینی‌اپ، زنده');
+      const redraw = livePv(el, box => pagePreview(box, 210), 'قاب مینی‌اپ، زنده', true);
       const body = h('div', 'sbody');
       el.appendChild(body);
       secLabel(body, 'نوار بالا', 'اسم و لوگو، بالای همهٔ صفحه‌ها');

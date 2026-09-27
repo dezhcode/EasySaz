@@ -284,7 +284,10 @@
 .pg-herobox--cover.pg-align-center{align-items:center; justify-content:center}
 .pg-herobox--cover .pg-herobox-in{width:100%}
 .pg-cover-img{position:absolute; inset:0; border-radius:0}
-.pg-cover-img.pg-empty{background:color-mix(in srgb, var(--pg-on-accent) 12%, var(--pg-accent)); color:var(--pg-on-accent); align-content:start; padding-top:18px}
+.pg-cover-img.pg-empty{background:color-mix(in srgb, var(--pg-on-accent) 12%, var(--pg-accent)); color:var(--pg-on-accent);
+  display:flex; align-items:flex-start; justify-content:flex-end; gap:6px; padding:12px 14px; opacity:.9}
+.pg-cover-img.pg-empty .pg-ico{width:16px; height:16px}
+.pg-cover-img.pg-empty .pg-img-hint{font-size:11.5px; line-height:16px}
 .pg-herobox--cover:has(.pg-cover-img.pg-empty){color:var(--pg-on-accent)}
 .pg-cover-shade{position:absolute; inset:0; background:rgba(8, 12, 24, .48)}
 .pg-herobox--cover .pg-pass-chip{background:rgba(255, 255, 255, .18)}

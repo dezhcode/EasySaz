@@ -183,6 +183,17 @@
     menu: 'M4 6h16M4 12h16M4 18h10',
     shop: 'M3 9h18l-1.5 11H4.5zM8 9V6a4 4 0 0 1 8 0v3',
     star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8L3.5 9.7l5.9-.9z',
+    ticket: 'M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4zM14 5v12',
+    sliders: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4',
+    steps: 'M6 4v16M6 6h.01M6 12h.01M6 18h.01M10 6h9M10 12h9M10 18h6',
+    download: 'M12 4v11M7 10l5 5 5-5M5 20h14',
+    chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+    android: 'M7 10h10v8H7zM7 10a5 5 0 0 1 10 0M8.5 6L7 4M15.5 6L17 4M10 8v.01M14 8v.01',
+    ios: 'M15.5 3.5c-1 .1-2.2.8-2.8 1.6-.6.7-1 1.8-.9 2.8 1.1.1 2.2-.6 2.8-1.4.6-.8 1-1.9.9-3zM12 8.3c-.8 0-2.1-1-3.3-1C6.7 7.4 5 9 5 11.9c0 1.8.7 3.7 1.5 5 .7 1.1 1.4 2.1 2.4 2.1s1.3-.6 2.6-.6 1.5.6 2.6.6 1.7-1 2.3-1.9c.5-.7.8-1.5 1-2.1-2.3-.9-2.6-4.3-.2-5.6-.8-1-2-1.6-3.1-1.6-1.2 0-1.8.5-2.1.5z',
+    windows: 'M4 5.5l7-1v7H4zM13 4.2l7-1.2v8.5h-7zM4 13h7v7l-7-1zM13 13h7v8l-7-1.2z',
+    mac: 'M5 6h14v9H5zM3 18h18',
+    linux: 'M4 5h16v14H4zM8 10l3 2-3 2M13 15h3',
+    web: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z',
     info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v6M12 7.5v.01',
     chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.3A8 8 0 1 1 21 12z',
     user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1',
@@ -502,6 +513,225 @@
       grid.appendChild(c);
     });
     e.appendChild(grid);
+    return e;
+  };
+
+  /* ---------- کامپوننت‌های کاربردی به سبک عبور ---------- */
+  const fmtN = n => (Math.round(Number(n) || 0)).toLocaleString('en-US');
+  const numSpan = (v, cls) => { const e = h('span', 'pg-n' + (cls ? ' ' + cls : '')); e.textContent = String(v); return e; };
+
+  /* کارت عبور: مثل کارت سرویس عبور؛ عدد بزرگ، واحد، ریل پیشرفت و قرص دکمه */
+  R.passcard = (p, ctx) => {
+    const tone = p.tone || 'deep';
+    const e = h('section', `pg-pass pg-pass--${tone}`);
+    e.appendChild(tunnelArt());
+    const head = h('div', 'pg-pass-head');
+    head.appendChild(h('b', 'pg-pass-name', p.title));
+    if (p.status) { const st = h('span', 'pg-pass-st'); st.append(h('i'), document.createTextNode(p.status)); head.appendChild(st); }
+    e.appendChild(head);
+    const big = h('div', 'pg-pass-big');
+    big.append(numSpan(p.value || '—', 'pg-pass-num'), h('span', 'pg-pass-unit', p.unit));
+    e.appendChild(big);
+    const pr = Math.max(0, Math.min(100, Number(p.progress) || 0));
+    if (pr) {
+      const rail = h('div', 'pg-pass-rail');
+      const fill = h('span');
+      fill.style.width = pr + '%';
+      rail.appendChild(fill);
+      e.appendChild(rail);
+    }
+    const foot = h('div', 'pg-pass-foot');
+    foot.appendChild(h('span', 'pg-pass-meta', p.meta));
+    if (p.cta) {
+      const b = linkEl('a', 'pg-pass-btn', p.url, ctx);
+      b.append(h('span', '', p.cta), icon('arrow'));
+      foot.appendChild(b);
+    }
+    e.appendChild(foot);
+    return e;
+  };
+
+  /* ماشین‌حساب قیمت: مثل «سرویس دلخواه» عبور. قیمت = مقدار × قیمت واحد × درصد گزینه */
+  R.calc = (p, ctx) => {
+    const tone = p.tone || 'deep';
+    const min = Math.max(1, Number(p.min) || 1);
+    const max = Math.max(min, Number(p.max) || min);
+    const step = Math.max(1, Number(p.step) || 1);
+    const opts = (p.options || []).filter(o => o && o.label);
+    let qty = Math.max(min, Math.min(max, Number(p.start) || min));
+    let oi = 0;
+    const e = h('section', `pg-calc pg-calc--${tone}`);
+    const hero = h('div', 'pg-calc-hero');
+    hero.appendChild(tunnelArt());
+    hero.appendChild(h('span', 'pg-calc-t', p.title));
+    const sum = h('div', 'pg-calc-sum');
+    const qN = numSpan('', 'pg-calc-q');
+    const qU = h('span', 'pg-calc-u', '');
+    sum.append(qN, qU);
+    const price = h('div', 'pg-calc-price');
+    const pN = numSpan('', 'pg-calc-p');
+    const per = h('span', 'pg-calc-per', '');
+    const pw = h('div');
+    pw.append(pN, h('small', '', ' ' + (p.currency || '')));
+    price.append(pw, per);
+    hero.append(sum, price);
+    e.appendChild(hero);
+
+    const ctl = h('div', 'pg-card pg-calc-ctl');
+    const head = h('div', 'pg-calc-h');
+    const cur = h('span', 'pg-calc-cur', '');
+    head.append(h('b', '', p.label || ''), cur);
+    const range = h('input', 'pg-range');
+    range.type = 'range';
+    range.min = min; range.max = max; range.step = step; range.value = qty;
+    range.setAttribute('aria-label', p.label || 'مقدار');
+    const ticks = h('div', 'pg-calc-ticks');
+    const tickVals = [min, Math.round((min + (max - min) / 3) / step) * step, Math.round((min + 2 * (max - min) / 3) / step) * step, max]
+      .filter((v, i, a) => a.indexOf(v) === i);
+    const tickEls = tickVals.map(v => { const t = numSpan(v); ticks.appendChild(t); return [v, t]; });
+    ctl.append(head, range, ticks);
+    let optBtns = [];
+    if (opts.length) {
+      const ol = h('div', 'pg-calc-h pg-calc-h2');
+      ol.appendChild(h('b', '', p.options_label || ''));
+      const seg = h('div', 'pg-seg');
+      optBtns = opts.map((o, i) => {
+        const b = h('button', '', o.label);
+        b.type = 'button';
+        b.addEventListener('click', ev => {
+          if (ctx.editing) return;
+          ev.stopPropagation();
+          oi = i;
+          try { tg && tg.HapticFeedback.selectionChanged(); } catch (x) {}
+          update();
+        });
+        seg.appendChild(b);
+        return b;
+      });
+      ctl.append(ol, seg);
+    }
+    if (p.cta) {
+      const b = linkEl('a', 'pg-btn pg-btn--primary', p.url, ctx);
+      b.append(h('span', '', p.cta), icon('arrow'));
+      ctl.appendChild(b);
+    }
+    e.appendChild(ctl);
+
+    function update() {
+      const pct = opts.length ? (Number(opts[oi].percent) || 100) : 100;
+      const total = qty * (Number(p.rate) || 0) * pct / 100;
+      const rounded = total >= 10000 ? Math.round(total / 100) * 100 : Math.round(total);
+      qN.textContent = fmtN(qty);
+      qU.textContent = (p.unit || '') + (opts.length ? ' · ' + opts[oi].label : '');
+      pN.textContent = fmtN(rounded);
+      per.textContent = qty ? `هر ${p.unit || 'واحد'}: ${fmtN(rounded / qty)}` : '';
+      cur.textContent = `${fmtN(qty)} ${p.unit || ''}`;
+      tickEls.forEach(([v, t]) => t.classList.toggle('on', v === qty));
+      optBtns.forEach((b, i) => b.classList.toggle('on', i === oi));
+      const pc = max > min ? (qty - min) / (max - min) * 100 : 100;
+      range.style.setProperty('--pc', pc + '%');
+    }
+    range.addEventListener('input', () => {
+      qty = Number(range.value);
+      update();
+      try { tg && tg.HapticFeedback.selectionChanged(); } catch (x) {}
+    });
+    update();
+    return e;
+  };
+
+  /* راهنمای قدم‌به‌قدم: ریل تب برای هر دستگاه، خط زمان قدم‌ها و دکمهٔ دانلود */
+  R.steps = (p, ctx) => {
+    const items = (p.items || []).filter(it => it && (it.label || it.steps));
+    const e = h('section', `pg-card pg-steps pg-steps--${p.layout || 'timeline'}`);
+    if (p.title) e.appendChild(h('h2', 'pg-h2', p.title));
+    const panels = [];
+    if (items.length > 1) {
+      const rail = h('div', 'pg-seg pg-steps-tabs');
+      rail.setAttribute('role', 'tablist');
+      const btns = items.map((it, i) => {
+        const b = h('button', i === 0 ? 'on' : '', it.label);
+        b.type = 'button';
+        b.setAttribute('role', 'tab');
+        b.addEventListener('click', ev => {
+          if (!ctx.editing) ev.stopPropagation();
+          btns.forEach((x, j) => x.classList.toggle('on', j === i));
+          panels.forEach((x, j) => { x.hidden = j !== i; });
+          try { tg && tg.HapticFeedback.selectionChanged(); } catch (x) {}
+        });
+        rail.appendChild(b);
+        return b;
+      });
+      e.appendChild(rail);
+    }
+    items.forEach((it, i) => {
+      const panel = h('div', 'pg-steps-panel');
+      panel.hidden = i !== 0;
+      const ol = h('ol', 'pg-steps-list');
+      const lines = String(it.steps || '').split('\n').map(x => x.trim()).filter(Boolean);
+      lines.forEach((line, k) => {
+        const [t, d] = line.split('|').map(x => (x || '').trim());
+        const li = h('li', k === lines.length - 1 && lines.length > 1 ? 'last' : '');
+        const dot = h('span', 'pg-step-d');
+        if (k === lines.length - 1 && lines.length > 1) dot.appendChild(icon('check'));
+        else dot.textContent = String(k + 1);
+        const tx = h('div', 'pg-step-t');
+        tx.appendChild(h('b', '', t));
+        if (d) tx.appendChild(h('p', '', d));
+        li.append(dot, tx);
+        ol.appendChild(li);
+      });
+      panel.appendChild(ol);
+      if (safeUrl(it.url)) {
+        const b = linkEl('a', 'pg-btn pg-btn--soft pg-steps-dl', it.url, ctx);
+        b.append(icon('download'), h('span', '', it.app ? `دانلود ${it.app}` : 'دانلود'));
+        panel.appendChild(b);
+      }
+      panels.push(panel);
+      e.appendChild(panel);
+    });
+    if (p.note) {
+      const w = h('div', 'pg-steps-note');
+      w.append(icon('notice'), h('span', '', p.note));
+      e.appendChild(w);
+    }
+    return e;
+  };
+
+  /* برنامه‌ها: دکمه‌های دانلود با آیکن دستگاه؛ «پیشنهادی» رنگ اصلی */
+  const PLATFORM = { android: 'اندروید', ios: 'آیفون', windows: 'ویندوز', mac: 'مک', linux: 'لینوکس', web: 'وب' };
+  R.apps = (p, ctx) => {
+    const rows = p.layout === 'rows';
+    const e = h('section', 'pg-group');
+    if (p.title) e.appendChild(h('h2', 'pg-h2 pg-h2--out', p.title));
+    const box = h('div', rows ? 'pg-card pg-apps pg-apps--rows' : 'pg-apps pg-apps--chips');
+    (p.items || []).forEach(it => {
+      const a = linkEl('a', 'pg-app' + (it.best ? ' pg-app--best' : ''), it.url, ctx);
+      const ic = h('span', 'pg-app-ic');
+      ic.appendChild(icon(it.platform || 'web'));
+      const tx = h('span', 'pg-app-txt');
+      tx.appendChild(h('b', '', it.name || PLATFORM[it.platform] || ''));
+      if (it.note || rows) tx.appendChild(h('small', '', it.note || PLATFORM[it.platform] || ''));
+      a.append(ic, tx);
+      if (it.best) a.appendChild(h('span', 'pg-app-best', 'پیشنهادی'));
+      if (rows) a.appendChild(icon('download', 'pg-app-go'));
+      box.appendChild(a);
+    });
+    e.appendChild(box);
+    return e;
+  };
+
+  /* آمار: چند عدد مهم؛ نوار (در یک کارت) یا کاشی */
+  R.stats = p => {
+    const items = (p.items || []).filter(it => it && (it.value || it.label));
+    const tiles = p.layout === 'tiles';
+    const e = h('section', tiles ? 'pg-stats pg-stats--tiles' : 'pg-card pg-stats pg-stats--strip');
+    e.style.setProperty('--n', Math.max(1, items.length));
+    items.forEach(it => {
+      const c = h('div', tiles ? 'pg-card pg-stat' : 'pg-stat');
+      c.append(numSpan(it.value, 'pg-stat-v'), h('span', 'pg-stat-l', it.label));
+      e.appendChild(c);
+    });
     return e;
   };
 

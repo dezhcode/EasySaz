@@ -20,7 +20,7 @@
       features: ['۱۰ مینی‌اپ', 'تا ۱۰۰ کامپوننت در ۱۲ صفحه', 'همهٔ کامپوننت‌ها', 'بدون نشان ایزی‌ساز'] },
   ];
   // همان کامپوننت‌هایی که در app/blocks.py پریمیوم‌اند
-  const PREMIUM = ['cards', 'pricing', 'gallery', 'features'];
+  const PREMIUM = ['cards', 'pricing', 'gallery', 'features', 'passcard', 'calc'];
 
   function sample() {
     return {

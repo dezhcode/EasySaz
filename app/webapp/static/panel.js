@@ -686,6 +686,34 @@
     return wrap;
   }
 
+  /* عدد صحیح (قیمت، کمترین و بیشترین و …): رقم فارسی هم قبول است؛ با بیرون آمدن از فیلد به بازهٔ مجاز می‌چسبد */
+  function numberControl(field, value, onChange) {
+    const id = 'f' + (++fieldSeq);
+    const wrap = h('div', 'field');
+    const label = h('label', 'label', field.label);
+    label.htmlFor = id;
+    const input = h('input', 'ltr num-in');
+    input.id = id;
+    input.inputMode = 'numeric';
+    input.autocomplete = 'off';
+    const clamp = n => Math.max(field.min != null ? field.min : 0, Math.min(field.max != null ? field.max : 1e9, n));
+    const parse = t => Number(String(t).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[^\d]/g, ''));
+    input.value = String(value != null ? value : field.default);
+    input.addEventListener('input', () => {
+      const t = input.value.trim();
+      if (!t) return;
+      const n = parse(t);
+      if (!isNaN(n)) onChange(clamp(n));
+    });
+    input.addEventListener('blur', () => {
+      const n = clamp(parse(input.value) || (field.default != null ? field.default : 0));
+      input.value = String(n);
+      onChange(n);
+    });
+    wrap.append(label, input);
+    return wrap;
+  }
+
   /* رنگ اختصاصی: «از صفحه» یا یکی از رنگ‌های آماده */
   function colorControl(field, value, onChange) {
     const wrap = h('div', 'field');
@@ -803,7 +831,7 @@
   function control(field, value, onChange) {
     if (field.type === 'select') return selectControl(field, value, onChange);
     if (field.type === 'bool') return switchControl(field, value, onChange);
-    if (field.type === 'int') return intControl(field, value, onChange);
+    if (field.type === 'int') return field.unit === 'px' ? intControl(field, value, onChange) : numberControl(field, value, onChange);
     if (field.type === 'color') return colorControl(field, value, onChange);
     if (field.type === 'image') return imageControl(field, value, onChange);
     const id = 'f' + (++fieldSeq);

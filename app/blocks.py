@@ -291,6 +291,130 @@ SCHEMA: dict[str, dict[str, Any]] = {
                  {"emoji": "🛡️", "title": "مطمئن", "desc": "پشتیبانی واقعی"},
              ]},
         ],
+    },    # ---------- کامپوننت‌های کاربردی به سبک عبور ----------
+    "passcard": {
+        "cat": "shop",
+        "title": "کارت عبور",
+        "icon": "ticket",
+        "desc": "کارت اشتراک، عضویت یا پیشنهاد ویژه با نوار پیشرفت",
+        "premium": True,
+        "fields": [
+            {"key": "tone", "label": "رنگ کارت", "type": "select", "look": True, "default": "deep",
+             "options": [["deep", "عمیق"], ["accent", "رنگی"], ["light", "روشن"]]},
+            {"key": "title", "label": "عنوان کارت", "type": "text", "max": 40, "default": "پلن طلایی"},
+            {"key": "status", "label": "برچسب وضعیت", "type": "text", "max": 24, "default": "پرفروش"},
+            {"key": "value", "label": "عدد بزرگ", "type": "text", "max": 12, "default": "100"},
+            {"key": "unit", "label": "واحد کنار عدد", "type": "text", "max": 24, "default": "گیگ · ۹۰ روز"},
+            {"key": "progress", "label": "نوار پیشرفت (۰ تا ۱۰۰، صفر یعنی بدون نوار)", "type": "int", "min": 0, "max": 100, "default": 0},
+            {"key": "meta", "label": "متن پایین کارت", "type": "text", "max": 60, "default": "۳۹۰ هزار تومان"},
+            {"key": "cta", "label": "متن دکمه", "type": "text", "max": 20, "default": "خرید"},
+            {"key": "url", "label": "لینک دکمه", "type": "url", "default": ""},
+        ],
+    },
+    "calc": {
+        "cat": "shop",
+        "title": "ماشین‌حساب قیمت",
+        "icon": "sliders",
+        "desc": "مقدار را با اسلایدر انتخاب کنند و قیمت را زنده ببینند",
+        "premium": True,
+        "fields": [
+            {"key": "tone", "label": "رنگ کارت", "type": "select", "look": True, "default": "deep",
+             "options": [["deep", "عمیق"], ["light", "روشن"]]},
+            {"key": "title", "label": "عنوان", "type": "text", "max": 40, "default": "سرویس دلخواه"},
+            {"key": "label", "label": "اسم مقدار", "type": "text", "max": 24, "default": "حجم"},
+            {"key": "unit", "label": "واحد", "type": "text", "max": 12, "default": "گیگ"},
+            {"key": "min", "label": "کمترین", "type": "int", "min": 1, "max": 100000, "default": 5},
+            {"key": "max", "label": "بیشترین", "type": "int", "min": 1, "max": 100000, "default": 100},
+            {"key": "step", "label": "گام", "type": "int", "min": 1, "max": 10000, "default": 5},
+            {"key": "start", "label": "مقدار اول", "type": "int", "min": 1, "max": 100000, "default": 20},
+            {"key": "rate", "label": "قیمت هر واحد", "type": "int", "min": 0, "max": 100000000, "default": 3500},
+            {"key": "currency", "label": "واحد پول", "type": "text", "max": 12, "default": "تومان"},
+            {"key": "options_label", "label": "اسم گزینه‌ها (مثلاً مدت)", "type": "text", "max": 20, "default": "مدت"},
+            {"key": "options", "label": "گزینه‌ها و درصد قیمت", "type": "list", "max_items": 6, "item_label": "گزینه",
+             "fields": [
+                 {"key": "label", "label": "اسم", "type": "text", "max": 20, "default": "۱ ماه"},
+                 {"key": "percent", "label": "درصد قیمت (۱۰۰ یعنی بدون تغییر)", "type": "int", "min": 1, "max": 1000, "default": 100},
+             ],
+             "default": [
+                 {"label": "۱ ماه", "percent": 100},
+                 {"label": "۳ ماه", "percent": 115},
+                 {"label": "۶ ماه", "percent": 125},
+             ]},
+            {"key": "cta", "label": "متن دکمه", "type": "text", "max": 20, "default": "خرید"},
+            {"key": "url", "label": "لینک دکمه", "type": "url", "default": ""},
+        ],
+    },
+    "steps": {
+        "cat": "write",
+        "title": "راهنمای قدم‌به‌قدم",
+        "icon": "steps",
+        "desc": "آموزش مرحله‌ای، با تب جدا برای هر دستگاه",
+        "premium": False,
+        "fields": [
+            {"key": "layout", "label": "چیدمان", "type": "select", "look": True, "default": "timeline",
+             "options": [["timeline", "خط زمان"], ["cards", "کارت‌ها"]]},
+            {"key": "title", "label": "عنوان", "type": "text", "max": 60, "default": "راهنمای شروع"},
+            {"key": "items", "label": "تب‌ها", "type": "list", "max_items": 6, "item_label": "تب",
+             "fields": [
+                 {"key": "label", "label": "اسم تب", "type": "text", "max": 20, "default": "اندروید"},
+                 {"key": "steps", "label": "قدم‌ها (هر خط یک قدم؛ «عنوان | توضیح»)", "type": "textarea", "max": 900,
+                  "default": "برنامه را نصب کن | از فروشگاه برنامه‌ها\nوارد حسابت شو | با شمارهٔ تلفن\nتمام! | حالا آماده‌ای"},
+                 {"key": "app", "label": "اسم برنامه (اختیاری)", "type": "text", "max": 30, "default": ""},
+                 {"key": "url", "label": "لینک دانلود (اختیاری)", "type": "url", "default": ""},
+             ],
+             "default": [
+                 {"label": "اندروید", "steps": "برنامه را نصب کن | از گوگل‌پلی یا لینک زیر\nربات را باز کن | دکمهٔ «شروع» را بزن\nتمام! | از منوی ربات همه‌چیز در دسترس است", "app": "", "url": ""},
+                 {"label": "آیفون", "steps": "برنامه را نصب کن | از اپ‌استور\nربات را باز کن | دکمهٔ «شروع» را بزن\nتمام! | از منوی ربات همه‌چیز در دسترس است", "app": "", "url": ""},
+             ]},
+            {"key": "note", "label": "نکتهٔ هشدار (اختیاری)", "type": "text", "max": 160, "default": ""},
+        ],
+    },
+    "apps": {
+        "cat": "act",
+        "title": "برنامه‌ها",
+        "icon": "download",
+        "desc": "دکمه‌های دانلود برنامه برای هر دستگاه",
+        "premium": False,
+        "fields": [
+            {"key": "layout", "label": "چیدمان", "type": "select", "look": True, "default": "chips",
+             "options": [["chips", "دکمه‌ها"], ["rows", "ردیف‌ها"]]},
+            {"key": "title", "label": "عنوان", "type": "text", "max": 60, "default": "دانلود برنامه"},
+            {"key": "items", "label": "برنامه‌ها", "type": "list", "max_items": 8, "item_label": "برنامه",
+             "fields": [
+                 {"key": "name", "label": "اسم برنامه", "type": "text", "max": 30, "default": "برنامه"},
+                 {"key": "platform", "label": "دستگاه", "type": "select", "default": "android",
+                  "options": [["android", "اندروید"], ["ios", "آیفون"], ["windows", "ویندوز"], ["mac", "مک"], ["linux", "لینوکس"], ["web", "وب"]]},
+                 {"key": "note", "label": "توضیح کوتاه", "type": "text", "max": 30, "default": ""},
+                 {"key": "url", "label": "لینک دانلود", "type": "url", "default": ""},
+                 {"key": "best", "label": "پیشنهادی", "type": "bool", "default": False},
+             ],
+             "default": [
+                 {"name": "اندروید", "platform": "android", "note": "", "url": "", "best": True},
+                 {"name": "آیفون", "platform": "ios", "note": "", "url": "", "best": False},
+                 {"name": "ویندوز", "platform": "windows", "note": "", "url": "", "best": False},
+             ]},
+        ],
+    },
+    "stats": {
+        "cat": "write",
+        "title": "آمار",
+        "icon": "chart",
+        "desc": "چند عدد مهم کنار هم",
+        "premium": False,
+        "fields": [
+            {"key": "layout", "label": "چیدمان", "type": "select", "look": True, "default": "strip",
+             "options": [["strip", "نوار"], ["tiles", "کاشی"]]},
+            {"key": "items", "label": "عددها", "type": "list", "max_items": 4, "item_label": "عدد",
+             "fields": [
+                 {"key": "value", "label": "عدد", "type": "text", "max": 12, "default": "۹۹٪"},
+                 {"key": "label", "label": "برچسب", "type": "text", "max": 24, "default": "رضایت"},
+             ],
+             "default": [
+                 {"value": "+12,000", "label": "کاربر راضی"},
+                 {"value": "99%", "label": "پایداری"},
+                 {"value": "24/7", "label": "پشتیبانی"},
+             ]},
+        ],
     },
 }
 
@@ -302,10 +426,10 @@ _TG_USER = re.compile(r"^@?[A-Za-z][A-Za-z0-9_]{3,31}$")
 
 # ترتیب کاتالوگ «افزودن کامپوننت»: دسته به دسته
 CATALOG_ORDER = [
-    "hero", "text", "notice", "faq",
-    "button", "links", "social",
+    "hero", "text", "notice", "faq", "steps", "stats",
+    "button", "links", "social", "apps",
     "image", "gallery",
-    "cards", "pricing", "features",
+    "cards", "pricing", "features", "passcard", "calc",
     "divider",
 ]
 
@@ -400,7 +524,7 @@ def _default_of(field: dict) -> Any:
 STYLE_FIELDS: list[dict[str, Any]] = [
     {"key": "box", "label": "قاب", "type": "select", "default": "auto",
      "options": [["auto", "پیش‌فرض"], ["card", "کارت"], ["outline", "خطی"], ["soft", "ملایم"], ["solid", "توپر"], ["plain", "بی‌قاب"]]},
-    {"key": "radius", "label": "گوشه‌ها", "type": "int", "min": 0, "max": 40, "default": None},
+    {"key": "radius", "label": "گوشه‌ها", "type": "int", "min": 0, "max": 40, "default": None, "unit": "px"},
     {"key": "pad", "label": "فاصلهٔ داخلی", "type": "select", "default": "md",
      "options": [["sm", "کم"], ["md", "معمولی"], ["lg", "زیاد"]]},
     {"key": "accent", "label": "رنگ اختصاصی", "type": "color", "default": ""},
@@ -419,6 +543,11 @@ STYLE_SUPPORT: dict[str, list[str]] = {
     "pricing": ["box", "radius", "accent"],
     "gallery": ["radius"],
     "features": ["box", "radius", "accent"],
+    "passcard": ["radius", "accent"],
+    "calc": ["radius", "accent"],
+    "steps": ["box", "radius", "accent"],
+    "apps": ["box", "accent"],
+    "stats": ["box", "radius", "accent"],
 }
 
 # ---------- سبک‌های آماده ----------
@@ -507,6 +636,30 @@ VARIANTS: dict[str, list[dict]] = {
         _v("slider", "اسلایدر", {"layout": "slider"}),
         _v("grid", "شبکه", {"layout": "grid"}),
         _v("round", "گوشه‌گرد", {"layout": "slider"}, {"radius": 32}),
+    ],
+    "passcard": [
+        _v("deep", "کارت عبور", {"tone": "deep"}),
+        _v("accent", "رنگی", {"tone": "accent"}),
+        _v("light", "روشن", {"tone": "light"}),
+    ],
+    "calc": [
+        _v("deep", "کارت عبور", {"tone": "deep"}),
+        _v("light", "روشن", {"tone": "light"}),
+    ],
+    "steps": [
+        _v("timeline", "خط زمان", {"layout": "timeline"}),
+        _v("cards", "کارت‌ها", {"layout": "cards"}),
+        _v("soft", "ملایم", {"layout": "timeline"}, {"box": "soft"}),
+    ],
+    "apps": [
+        _v("chips", "دکمه‌ها", {"layout": "chips"}),
+        _v("rows", "ردیف‌ها", {"layout": "rows"}),
+        _v("soft", "ملایم", {"layout": "rows"}, {"box": "soft"}),
+    ],
+    "stats": [
+        _v("strip", "نوار", {"layout": "strip"}),
+        _v("tiles", "کاشی", {"layout": "tiles"}),
+        _v("solid", "توپر", {"layout": "strip"}, {"box": "solid"}),
     ],
     "features": [
         _v("grid", "دوستونه", {"layout": "grid"}),

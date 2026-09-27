@@ -103,29 +103,39 @@ def shop() -> dict:
 
 
 def vpn() -> dict:
-    """به سبک عبور: کارت سرمه‌ای، پلن‌ها، راهنمای اتصال و پشتیبانی."""
-    return _tpl("vpn", "فروش سرویس اینترنت", "به سبک عبور: پلن‌ها، راهنمای اتصال و پشتیبانی", "digital", "#1D55F0", [
+    """به سبک عبور: کارت عبور، آمار، بلیت پلن‌ها، سرویس دلخواه با اسلایدر،
+    راهنمای اتصال با تب هر دستگاه، برنامه‌ها و پشتیبانی."""
+    return _tpl("vpn", "فروش سرویس اینترنت", "به سبک عبور: پلن‌ها، سرویس دلخواه، راهنمای اتصال و پشتیبانی", "digital", "#1D55F0", [
         _page("home", "خانه", "home", [
             _b("hero", {"title": "{name}", "subtitle": "اینترنت آزاد، پایدار و سریع.\nمسیرت با ماست.", "style": "pass", "align": "start", "chip": "همهٔ سرورها فعال"}),
-            _b("features", {"title": "چرا ما؟", "items": [
-                {"emoji": "⚡", "title": "سرعت بالا", "desc": "سرورهای اختصاصی"},
-                {"emoji": "🛡️", "title": "پایدار", "desc": "بدون قطعی"},
-                {"emoji": "💬", "title": "پشتیبانی", "desc": "جواب زیر ۱۰ دقیقه"},
-                {"emoji": "🎁", "title": "تست رایگان", "desc": "قبل از خرید"}]}),
+            _b("stats", {"layout": "strip", "items": [
+                {"value": "+12,000", "label": "هم‌سفر"}, {"value": "99.9%", "label": "پایداری"}, {"value": "24/7", "label": "پشتیبانی"}]}),
+            _b("passcard", {"tone": "accent", "title": "پرفروش‌ترین", "status": "۹۰ روزه", "value": "100", "unit": "گیگ · سه کاربر",
+                            "progress": 0, "meta": "۳۹۰ هزار تومان", "cta": "خرید", "url": ""}),
             _b("button", {"label": "دریافت تست رایگان", "url": ""}),
         ]),
-        _page("plans", "پلن‌ها", "shop", [
-            _b("pricing", {"title": "پلن‌ها", "items": [
+        _page("plans", "فروشگاه", "shop", [
+            _b("pricing", {"title": "پلن‌ها", "layout": "stack", "items": [
                 {"name": "یک ماهه", "price": "۱۵۰ هزار تومان", "period": "۳۰ روز", "features": "۳۰ گیگ\nدو کاربر\nهمهٔ لوکیشن‌ها", "badge": "", "url": "", "cta": "خرید"},
                 {"name": "سه ماهه", "price": "۳۹۰ هزار تومان", "period": "۹۰ روز", "features": "۱۰۰ گیگ\nسه کاربر\nهمهٔ لوکیشن‌ها", "badge": "بهترین ارزش", "url": "", "cta": "خرید"}]}),
+            _b("calc", {"tone": "deep", "title": "سرویس دلخواه", "label": "حجم", "unit": "گیگ", "min": 5, "max": 100, "step": 5, "start": 20,
+                        "rate": 3500, "currency": "تومان", "options_label": "مدت",
+                        "options": [{"label": "۱ ماه", "percent": 100}, {"label": "۲ ماه", "percent": 110}, {"label": "۳ ماه", "percent": 115}, {"label": "۶ ماه", "percent": 125}],
+                        "cta": "خرید سرویس", "url": ""}),
             _b("notice", {"text": "بعد از خرید، لینک اتصال همان لحظه در ربات تحویل می‌شود.", "tone": "info"}),
         ]),
         _page("guide", "راهنما", "info", [
-            _b("links", {"items": [
-                {"label": "اندروید", "note": "v2rayNG", "url": ""},
-                {"label": "آیفون", "note": "Streisand / V2Box", "url": ""},
-                {"label": "ویندوز", "note": "v2rayN", "url": ""},
-                {"label": "مک", "note": "V2Box", "url": ""}]}),
+            _b("steps", {"layout": "timeline", "title": "راهنمای اتصال", "items": [
+                {"label": "اندروید", "steps": "برنامه را نصب کن | v2rayNG از گوگل‌پلی یا دکمهٔ زیر\nلینک را کپی کن | از ربات، «سرویس‌های من»\nلینک را اضافه کن | + بالای برنامه ← وارد کردن از کلیپ‌بورد\nوصل شو | دکمهٔ گرد پایین صفحه", "app": "v2rayNG", "url": ""},
+                {"label": "آیفون", "steps": "برنامه را نصب کن | V2Box از اپ‌استور\nلینک را کپی کن | از ربات، «سرویس‌های من»\nلینک را اضافه کن | Configs ← + ← Import from clipboard\nوصل شو | دکمهٔ اتصال", "app": "V2Box", "url": ""},
+                {"label": "ویندوز", "steps": "برنامه را نصب کن | v2rayN\nلینک را کپی کن | از ربات\nلینک را اضافه کن | Servers ← Import from clipboard\nوصل شو | System proxy ← Set", "app": "v2rayN", "url": ""},
+                {"label": "مک", "steps": "برنامه را نصب کن | V2Box\nلینک را کپی کن | از ربات\nوصل شو | Import و بعد Connect", "app": "V2Box", "url": ""}],
+                "note": "لینک اتصال را برای کسی نفرست؛ هر لینک مخصوص خود توست."}),
+            _b("apps", {"layout": "chips", "title": "برنامه‌ها", "items": [
+                {"name": "v2rayNG", "platform": "android", "note": "", "url": "", "best": True},
+                {"name": "V2Box", "platform": "ios", "note": "", "url": "", "best": False},
+                {"name": "v2rayN", "platform": "windows", "note": "", "url": "", "best": False},
+                {"name": "V2Box", "platform": "mac", "note": "", "url": "", "best": False}]}),
             _b("faq", {"title": "مشکل اتصال", "items": [
                 {"q": "وصل نمی‌شم", "a": "لینک را دوباره از ربات بگیر و برنامه را به‌روز کن."},
                 {"q": "سرعت کمه", "a": "لوکیشن دیگری را امتحان کن."}]}),
@@ -136,7 +146,6 @@ def vpn() -> dict:
         ]),
     ], header={"enabled": True, "style": "plain", "title": "{name}"},
        note="اتصال مستقیم به پنل PasarGuard (ساخت خودکار سرویس بعد از خرید) در مرحلهٔ بک‌اند اضافه می‌شود.")
-
 
 def portfolio() -> dict:
     return _tpl("portfolio", "پورتفولیو", "نمونه‌کار، دربارهٔ من و راه‌های همکاری", "personal", "#0A2572", [

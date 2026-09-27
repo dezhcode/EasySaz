@@ -333,3 +333,142 @@
 .pg-links--tiles .pg-link-tile{background:var(--pg-surface)}
 .pg-links--tiles .pg-link-txt b{font-weight:800}
 .pg-links--tiles .pg-link-txt small{color:inherit; opacity:.8}
+
+/* ═══════════ کامپوننت‌های کاربردی به سبک عبور ═══════════ */
+.pg-n{font-weight:800; font-variant-numeric:tabular-nums; direction:ltr; unicode-bidi:isolate; display:inline-block}
+.pg-editable .pg-range{pointer-events:none}
+
+/* ---------- کارت عبور (passcard) ---------- */
+.pg-pass{position:relative; overflow:hidden; min-height:214px; border-radius:calc(var(--pg-radius) + 4px); padding:20px 20px 18px; display:flex; flex-direction:column;
+  background:var(--pg-deep); color:var(--pg-on-deep); box-shadow:var(--pg-shadow)}
+.pg-pass > :not(.pg-tunnel){position:relative}
+.pg-pass-head{display:flex; align-items:center; justify-content:space-between; gap:10px}
+.pg-pass-name{font-size:15px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.pg-pass-st{display:flex; align-items:center; gap:6px; height:26px; padding:0 10px; border-radius:13px; background:var(--pg-deep-2); font-size:12px; font-weight:600; flex:none}
+.pg-pass-st i{width:7px; height:7px; border-radius:4px; background:var(--pg-glow)}
+.pg-pass-big{display:flex; align-items:baseline; gap:6px; margin-top:18px; flex-wrap:wrap}
+.pg-pass-num{font-size:48px; letter-spacing:-1.5px; line-height:1}
+.pg-pass-unit{font-size:15px; font-weight:600; color:var(--pg-on-deep-2)}
+.pg-pass-rail{height:5px; border-radius:3px; background:var(--pg-deep-2); margin-top:16px; overflow:hidden}
+.pg-pass-rail span{display:block; height:5px; border-radius:3px; background:var(--pg-glow)}
+.pg-pass-foot{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:auto; padding-top:18px}
+.pg-pass-meta{font-size:12.5px; color:var(--pg-on-deep-2); min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.pg-pass-btn{height:34px; padding:0 14px; border-radius:17px; background:var(--pg-on-deep); color:var(--pg-deep); font-size:13px; font-weight:800;
+  display:flex; align-items:center; gap:4px; flex:none; text-decoration:none; cursor:pointer}
+.pg-pass-btn .pg-ico{width:15px; height:15px}
+.pg-pass-btn:active{transform:scale(.95)}
+/* رنگی: روی رنگ اصلی */
+.pg-pass--accent{background:var(--pg-accent); color:var(--pg-on-accent)}
+.pg-pass--accent :is(.pg-pass-unit,.pg-pass-meta){color:inherit; opacity:.82}
+.pg-pass--accent :is(.pg-pass-st,.pg-pass-rail){background:rgba(0,0,0,.16)}
+.pg-pass--accent .pg-pass-btn{background:var(--pg-on-accent); color:var(--pg-accent)}
+.pg-pass--accent .pg-tunnel{stroke:var(--pg-on-accent); opacity:.16}
+/* روشن: سطح سفید با خط مو، تونل کم‌رنگ رنگ اصلی */
+.pg-pass--light{background:var(--pg-surface); color:var(--pg-ink); border:1px solid var(--pg-line); box-shadow:none}
+.pg-pass--light :is(.pg-pass-unit,.pg-pass-meta){color:var(--pg-ink-3)}
+.pg-pass--light .pg-pass-num{color:var(--pg-accent-ink)}
+.pg-pass--light :is(.pg-pass-st,.pg-pass-rail){background:var(--pg-sunk)}
+.pg-pass--light .pg-pass-st i,.pg-pass--light .pg-pass-rail span{background:var(--pg-accent)}
+.pg-pass--light .pg-pass-btn{background:var(--pg-accent); color:var(--pg-on-accent)}
+.pg-pass--light .pg-tunnel{stroke:var(--pg-accent); opacity:.08}
+
+/* ---------- ماشین‌حساب قیمت (calc) ---------- */
+.pg-calc{display:flex; flex-direction:column; gap:10px}
+.pg-calc-hero{position:relative; overflow:hidden; border-radius:calc(var(--pg-radius) + 4px); padding:20px; background:var(--pg-deep); color:var(--pg-on-deep); box-shadow:var(--pg-shadow)}
+.pg-calc-hero > :not(.pg-tunnel){position:relative}
+.pg-calc-t{display:block; font-size:13px; font-weight:700; color:var(--pg-on-deep-2)}
+.pg-calc-sum{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-top:4px}
+.pg-calc-q{font-size:40px; letter-spacing:-1px; line-height:1.1}
+.pg-calc-u{font-size:15px; font-weight:700; color:var(--pg-on-deep-2)}
+.pg-calc-price{display:flex; justify-content:space-between; align-items:flex-end; gap:10px; margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,.14)}
+.pg-calc-p{font-size:24px}
+.pg-calc-price small{font-size:12px; font-weight:600; color:var(--pg-on-deep-2)}
+.pg-calc-per{font-size:12px; color:var(--pg-on-deep-2); text-align:end}
+.pg-calc--light .pg-calc-hero{background:var(--pg-surface); color:var(--pg-ink); border:1px solid var(--pg-line); box-shadow:none}
+.pg-calc--light :is(.pg-calc-t,.pg-calc-u,.pg-calc-price small,.pg-calc-per){color:var(--pg-ink-3)}
+.pg-calc--light .pg-calc-q{color:var(--pg-accent-ink)}
+.pg-calc--light .pg-calc-price{border-color:var(--pg-line)}
+.pg-calc--light .pg-tunnel{stroke:var(--pg-accent); opacity:.08}
+.pg-calc-ctl{display:flex; flex-direction:column; gap:10px; padding:16px}
+.pg-calc-h{display:flex; justify-content:space-between; align-items:center}
+.pg-calc-h b{font-size:14px; font-weight:800}
+.pg-calc-h2{margin-top:6px}
+.pg-calc-cur{font-size:14px; font-weight:800; color:var(--pg-accent-ink)}
+.pg-range{-webkit-appearance:none; appearance:none; width:100%; height:28px; background:transparent; margin:0; cursor:pointer; direction:rtl}
+.pg-range::-webkit-slider-runnable-track{height:6px; border-radius:3px; background:linear-gradient(to left, var(--pg-accent) var(--pc,0%), var(--pg-sunk) var(--pc,0%))}
+.pg-range::-moz-range-track{height:6px; border-radius:3px; background:var(--pg-sunk)}
+.pg-range::-moz-range-progress{height:6px; border-radius:3px; background:var(--pg-accent)}
+.pg-range::-webkit-slider-thumb{-webkit-appearance:none; width:24px; height:24px; margin-top:-9px; border-radius:50%; background:var(--pg-surface); border:3px solid var(--pg-accent); box-shadow:0 2px 6px rgba(10,22,51,.2)}
+.pg-range::-moz-range-thumb{width:18px; height:18px; border-radius:50%; background:var(--pg-surface); border:3px solid var(--pg-accent)}
+.pg-calc-ticks{display:flex; justify-content:space-between; margin-top:-4px; font-size:10.5px; color:var(--pg-ink-3)}
+.pg-calc-ticks .pg-n{font-weight:600}
+.pg-calc-ticks .on{color:var(--pg-accent-ink); font-weight:800}
+.pg-seg{display:flex; gap:2px; padding:4px; border-radius:calc(var(--pg-radius) * .78); background:var(--pg-sunk)}
+.pg-seg button{flex:1; height:36px; border:0; border-radius:11px; background:none; font:inherit; font-size:13px; font-weight:600; color:var(--pg-ink-3); cursor:pointer; transition:background .2s, color .2s}
+.pg-seg button.on{background:var(--pg-surface); color:var(--pg-ink); font-weight:800; box-shadow:0 1px 3px rgba(10,22,51,.12)}
+.pg-calc-ctl .pg-btn{margin-top:6px}
+
+/* ---------- راهنمای قدم‌به‌قدم (steps) ---------- */
+.pg-steps{padding:16px}
+.pg-steps .pg-h2{margin-bottom:10px}
+.pg-steps-tabs{margin-bottom:14px; overflow-x:auto}
+.pg-steps-tabs button{flex:1 0 auto; padding:0 12px}
+.pg-steps-list{list-style:none; margin:0; padding:0}
+.pg-steps-list li{position:relative; display:flex; gap:12px; padding-bottom:14px}
+.pg-steps-list li:last-child{padding-bottom:0}
+.pg-steps--timeline .pg-steps-list li::before{content:""; position:absolute; inset-inline-start:13px; top:30px; bottom:2px; width:2px; background:var(--pg-line)}
+.pg-steps--timeline .pg-steps-list li:last-child::before{display:none}
+.pg-step-d{width:28px; height:28px; border-radius:14px; flex:none; display:grid; place-items:center; font-size:13px; font-weight:800;
+  background:var(--pg-soft); color:var(--pg-accent-ink); font-variant-numeric:tabular-nums}
+.pg-steps-list li:first-child .pg-step-d{background:var(--pg-accent); color:var(--pg-on-accent)}
+.pg-steps-list li.last .pg-step-d{background:#0B7A55; color:#FFFFFF}
+.pg-step-d .pg-ico{width:14px; height:14px; stroke-width:2.6}
+.pg-step-t{min-width:0; padding-top:2px}
+.pg-step-t b{display:block; font-size:14px; font-weight:800; line-height:1.6}
+.pg-step-t p{margin:2px 0 0; font-size:12.5px; line-height:1.8; color:var(--pg-ink-2)}
+/* کارت‌ها: هر قدم یک کارت کوچک */
+.pg-steps--cards .pg-steps-list{display:flex; flex-direction:column; gap:8px}
+.pg-steps--cards .pg-steps-list li{padding:12px; border-radius:calc(var(--pg-radius) * .78); background:var(--pg-bg); border:1px solid var(--pg-line)}
+.pg-steps-dl{margin-top:14px; min-height:44px; font-size:14px}
+.pg-steps-note{display:flex; gap:8px; align-items:flex-start; margin-top:14px; padding:10px 12px; border-radius:calc(var(--pg-radius) * .78);
+  background:#FCEFD3; color:#7A4A00; font-size:12.5px; line-height:1.8}
+.pg-steps-note .pg-ico{width:16px; height:16px; margin-top:3px}
+.pg-dark .pg-steps-note{background:rgba(242,180,71,.16); color:#F2C46B}
+.pg-dark .pg-steps-list li.last .pg-step-d{background:#34D399; color:#062A1C}
+
+/* ---------- برنامه‌ها (apps) ---------- */
+.pg-apps--chips{display:flex; flex-wrap:wrap; gap:8px}
+.pg-apps--chips .pg-app{display:inline-flex; align-items:center; gap:7px; height:42px; padding:0 14px; border-radius:12px; background:var(--pg-sunk); color:var(--pg-ink);
+  font-size:13.5px; font-weight:700; text-decoration:none; cursor:pointer}
+.pg-apps--chips .pg-app-ic .pg-ico{width:17px; height:17px}
+.pg-apps--chips .pg-app-txt{display:flex; align-items:baseline; gap:5px}
+.pg-apps--chips .pg-app-txt small{font-size:10.5px; font-weight:700; opacity:.75}
+.pg-apps--chips .pg-app-best{display:none}
+.pg-apps--chips .pg-app--best{background:var(--pg-accent); color:var(--pg-on-accent)}
+.pg-apps--chips .pg-app:active{transform:scale(.96)}
+.pg-apps--rows{padding:0; overflow:hidden}
+.pg-apps--rows .pg-app{display:flex; align-items:center; gap:14px; padding:13px 16px; color:inherit; text-decoration:none; cursor:pointer}
+.pg-apps--rows .pg-app + .pg-app{border-top:1px solid var(--pg-line)}
+.pg-apps--rows .pg-app:active{background:var(--pg-bg)}
+.pg-apps--rows .pg-app-ic{width:40px; height:40px; border-radius:calc(var(--pg-radius) * .78); background:var(--pg-soft); color:var(--pg-accent-ink); display:grid; place-items:center; flex:none}
+.pg-apps--rows .pg-app-txt{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.5}
+.pg-apps--rows .pg-app-txt b{font-weight:600}
+.pg-apps--rows .pg-app-txt small{font-size:12px; color:var(--pg-ink-3)}
+.pg-app-best{height:22px; padding:0 9px; border-radius:11px; background:var(--pg-accent); color:var(--pg-on-accent); font-size:10.5px; font-weight:800; display:flex; align-items:center}
+.pg-app-go{width:18px; height:18px; color:var(--pg-ink-3)}
+
+/* ---------- آمار (stats) ---------- */
+.pg-stats--strip{display:grid; grid-template-columns:repeat(var(--n,3), minmax(0, 1fr)); padding:0}
+.pg-stats--strip .pg-stat{padding:14px 6px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:2px}
+.pg-stats--strip .pg-stat + .pg-stat{border-right:1px solid var(--pg-line)}
+.pg-stat-v{font-size:22px; line-height:1.2; color:var(--pg-accent-ink)}
+.pg-stat-l{font-size:11.5px; font-weight:600; color:var(--pg-ink-3)}
+.pg-stats--tiles{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px}
+.pg-stats--tiles .pg-stat{padding:16px 14px; display:flex; flex-direction:column; gap:2px; background:var(--pg-soft); border-color:transparent}
+.pg-stats--tiles .pg-stat-v{font-size:28px; letter-spacing:-.6px}
+.pg-box--solid .pg-stat-v,.pg-box--solid .pg-stat-l{color:inherit}
+.pg-box--solid .pg-stats--strip .pg-stat + .pg-stat{border-color:color-mix(in srgb, var(--pg-on-accent) 22%, transparent)}
+.pg-box--solid :is(.pg-step-t p,.pg-apps--rows .pg-app-txt small,.pg-app-go){color:inherit; opacity:.86}
+.pg-box--solid .pg-step-d{background:color-mix(in srgb, var(--pg-on-accent) 18%, transparent); color:inherit}
+.pg-box--solid .pg-steps--timeline .pg-steps-list li::before{background:color-mix(in srgb, var(--pg-on-accent) 25%, transparent)}
+.pg-box--solid .pg-apps--rows .pg-app-ic{background:color-mix(in srgb, var(--pg-on-accent) 16%, transparent); color:inherit}

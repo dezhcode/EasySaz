@@ -4,7 +4,7 @@
 
     {
       "v": 2,
-      "theme":  {"accent": "#1D55F0", "mode": "auto", "radius": "soft", "radius_px": 18, "bg": "tint"},
+      "theme":  {"accent": "#1D55F0", "mode": "light", "radius": "soft", "radius_px": 18, "bg": "tint"},
       "header": {"enabled": true, "style": "bar", "title": "...", ...},
       "tabbar": {"enabled": true, "style": "floating"},
       "pages":  [{"id": "home", "title": "خانه", "icon": "home",
@@ -32,7 +32,7 @@ SCHEMA_VERSION = 2
 # ---------- تم ----------
 THEME_FIELDS: dict[str, dict[str, Any]] = {
     "accent": {"type": "color", "default": "#1D55F0"},
-    "mode": {"type": "select", "options": ["auto", "light", "dark"], "default": "auto"},
+    "mode": {"type": "select", "options": ["auto", "light", "dark"], "default": "light"},
     "radius": {"type": "select", "options": ["soft", "round", "sharp", "custom"], "default": "soft"},
     "radius_px": {"type": "int", "min": 0, "max": 32, "default": 18},
     "bg": {"type": "select", "options": ["tint", "plain"], "default": "tint"},

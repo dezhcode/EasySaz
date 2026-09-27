@@ -25,7 +25,7 @@
   function sample() {
     return {
       v: 2,
-      theme: { accent: '#E0573E', mode: 'auto', radius: 'soft', radius_px: 18, bg: 'tint' },
+      theme: { accent: '#E0573E', mode: 'light', radius: 'soft', radius_px: 18, bg: 'tint' },
       header: { enabled: true, style: 'plain', title: 'کافه نارنج', subtitle: '', logo: '', align: 'start' },
       tabbar: { enabled: true, style: 'floating' },
       pages: [

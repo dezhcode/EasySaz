@@ -120,8 +120,9 @@
   const select = () => { try { tg.HapticFeedback.selectionChanged(); } catch (e) {} };
 
   function applyChrome() {
-    const dark = tg && tg.colorScheme ? tg.colorScheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    // پنل ایزی‌ساز همیشه روشن است (مثل عبور)، هر تمی که تلگرام داشته باشد.
+    // تم صفحهٔ مینی‌اپ در بوم جداست و از تنظیم «حالت» صاحب مینی‌اپ می‌آید.
+    document.documentElement.dataset.theme = 'light';
     const bg = getComputedStyle(document.documentElement).getPropertyValue('--ground').trim();
     if (tg) {
       try { tg.setHeaderColor(bg); tg.setBackgroundColor(bg); tg.setBottomBarColor && tg.setBottomBarColor(bg); } catch (e) {}
@@ -445,6 +446,7 @@
     renderPages();
     renderCanvas();
     window.scrollTo(0, 0);
+    $('canvas').scrollTop = 0;
   }
 
   let renderQueued = false;
@@ -581,9 +583,12 @@
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const el = getEl();
       if (!el) return;
-      const bar = document.querySelector('#editor .etop').getBoundingClientRect().bottom;
-      const top = el.getBoundingClientRect().top + window.scrollY - bar - 26;
-      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      // بوم خودش اسکرول می‌خورد؛ سربرگ چسبان مینی‌اپ را هم حساب کن
+      const c = $('canvas');
+      const hd = c.querySelector('.pg-header');
+      const off = hd && hd !== el ? hd.offsetHeight : 0;
+      const top = el.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop - off - 26;
+      c.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     }));
   }
   const blockEl = id => document.querySelector(`#canvas .pg-block[data-id="${CSS.escape(id)}"]`);
@@ -2006,6 +2011,10 @@
     window.addEventListener('resize', () => { placeNav(); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeNav);
     $('ed-back').addEventListener('click', () => { haptic(); leaveEditor(); });
+    // ارتفاع واقعی نوار بالای ادیتور → --etop-h (بوم زیر آن شروع می‌شود)
+    const etop = document.querySelector('#editor .etop');
+    const setEtop = () => { if (etop.offsetHeight) document.documentElement.style.setProperty('--etop-h', etop.offsetHeight + 'px'); };
+    if (window.ResizeObserver) new ResizeObserver(setEtop).observe(etop);
     $('scrim').addEventListener('click', closeSheet);
     $('bar-app').addEventListener('click', () => { haptic(); settingsSheet(); });
     $('bar-preview').addEventListener('click', () => preview(!S.previewing));

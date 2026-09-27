@@ -43,7 +43,7 @@ def _tpl(tid: str, title: str, desc: str, category: str, accent: str, pages: lis
          header: dict | None = None, tabbar: dict | None = None, theme: dict | None = None,
          note: str = "") -> dict:
     doc = {
-        "theme": {"accent": accent, "mode": "auto", "radius": "soft", "bg": "tint", **(theme or {})},
+        "theme": {"accent": accent, "mode": "light", "radius": "soft", "bg": "tint", **(theme or {})},
         "header": {"enabled": False, **(header or {})},
         "tabbar": {"enabled": True, "style": "floating", **(tabbar or {})},
         "pages": pages,

@@ -183,7 +183,7 @@ def test_blocks() -> None:
     }
     clean = blocks.clean_page(doc, max_blocks=10, premium=False)
     b = clean["pages"][0]["blocks"]
-    ok(clean["theme"]["accent"] == "#1D55F0" and clean["theme"]["mode"] == "auto", "تم نامعتبر به پیش فرض برمی گردد")
+    ok(clean["theme"]["accent"] == "#1D55F0" and clean["theme"]["mode"] == "light", "تم نامعتبر به پیش فرض برمی گردد")
     ok(len(b) == 3, "نوع ناشناخته حذف می شود")
     ok(b[0]["props"]["url"] == "" and "evil" not in b[0]["props"], "لینک javascript و کلید اضافه حذف می شود")
     ok(len(b[0]["props"]["label"]) == 40, "طول متن بریده می شود")

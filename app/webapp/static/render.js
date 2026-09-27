@@ -759,15 +759,65 @@
   const faNum = n => Number(n).toLocaleString('fa-IR');
   const SH_TONES = ['blood', 'night', 'ash', 'moss', 'candle'];
 
-  function shabStories(lib) {
+  /* ed: در ادیتور فصل‌های پیش‌نویس هم دیده می‌شوند (با برچسب)؛ برای خواننده نه.
+     در مینی‌اپ منتشرشده سرور خودش پیش‌نویس‌ها را برداشته است. */
+  function shabStories(lib, ed) {
     const out = [];
     (lib.pages || []).forEach(pg => (pg.blocks || []).forEach(b => {
-      if (b.type === 'story') out.push({ id: b.id, page: pg.id, p: b.props || {} });
+      if (b.type === 'story') out.push({ id: b.id, page: pg.id, p: b.props || {}, ed: !!ed });
     }));
     return out;
   }
-  const chapters = st => (st.p.chapters || []).filter(c => c && (c.title || c.body || c.lock));
-  const words = text => (String(text || '').match(/\S+/g) || []).length;
+  const chapters = st => st.chs || (st.chs = (st.p.chapters || []).filter(c => c && (c.title || c.body || c.lock) && (!c.draft || st.ed)));
+
+  /* ---------- سبک‌های متن داستان ----------
+     متن فصل متن ساده است با چند نشانهٔ کوچک (ادیتور پنل با دکمه می‌گذاردشان):
+     پاراگراف‌ها با یک خط خالی جدا می‌شوند و اولشان می‌تواند سبک بگیرد:
+       «# » میان‌تیتر · «— » گفت‌وگو · «~ » زمزمه · «! » فریاد · «✉ » نامه
+       «> » نقل‌قول · «^ » وسط‌چین · «***» جداکننده
+     داخل متن: **پررنگ** · !!خونی!! · ~~خط‌خورده~~ · ((کم‌رنگ))
+     همه با textContent ساخته می‌شوند؛ هیچ HTML از کاربر خوانده نمی‌شود. */
+  const PARA_KINDS = [[/^#\s+/, 'h'], [/^[—–-]\s+/, 'talk'], [/^~\s+/, 'whisper'], [/^!\s+/, 'scream'],
+    [/^✉\s*/, 'note'], [/^>\s+/, 'quote'], [/^\^\s+/, 'center']];
+  const INLINE = /(\*\*[^*\n]+?\*\*|!![^!\n]+?!!|~~[^~\n]+?~~|\(\([^()\n]+?\)\))/;
+  const INLINE_CLS = { '**': 'b', '!!': 'blood', '~~': 'strike', '((': 'faint' };
+  function paraKind(t) {
+    if (/^(\*\s*){3}$/.test(t)) return ['hr', ''];
+    for (const [re, k] of PARA_KINDS) { const m = re.exec(t); if (m) return [k, t.slice(m[0].length)]; }
+    return ['p', t];
+  }
+  function inlineText(el, text) {
+    String(text).split(INLINE).forEach((part, i) => {
+      if (!part) return;
+      if (i % 2) el.appendChild(h('span', 'sh-i-' + INLINE_CLS[part.slice(0, 2)], part.slice(2, -2)));
+      else el.appendChild(document.createTextNode(part));
+    });
+    return el;
+  }
+  const plainText = t => paraKind(t)[1].replace(/\*\*|!!|~~|\(\(|\)\)/g, '');
+  const paragraphs = body => String(body || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+  /* یک پاراگراف با سبکش. drop: حرف اول درشت (فقط پاراگراف عادی) */
+  function storyPara(t, drop) {
+    const [kind, text] = paraKind(t);
+    if (kind === 'hr') { const o = h('div', 'sh-orn'); o.append(h('i'), h('i'), h('i')); return o; }
+    if (kind === 'h') return inlineText(h('h2', 'sh-t-h'), text);
+    if (kind === 'quote') return inlineText(h('blockquote', 'sh-r-p sh-t-quote'), text);
+    if (kind === 'note') { const n = h('div', 'sh-t-note'); n.appendChild(inlineText(h('p', ''), text)); return n; }
+    const p = h('p', 'sh-r-p' + (kind === 'p' ? '' : ' sh-t-' + kind));
+    const m = drop && kind === 'p' ? /^([^\s*!~(]\S*)(\s[\s\S]*)?$/.exec(text) : null;
+    if (m) { p.appendChild(h('span', 'sh-drop', m[1])); inlineText(p, m[2] || ''); } else inlineText(p, text);
+    return p;
+  }
+  /* کل متن یک فصل؛ برای صفحهٔ خواندن و پیش‌نمایش پنل */
+  function storyText(body, opts) {
+    opts = opts || {};
+    const frag = document.createDocumentFragment();
+    let paras = paragraphs(body);
+    if (opts.teaser) paras = paras.slice(0, 1).map(t => { const x = plainText(t); return x.slice(0, 280) + (x.length > 280 ? '…' : ''); });
+    paras.forEach((t, i) => frag.appendChild(storyPara(t, opts.drop !== false && i === 0)));
+    return frag;
+  }
+  const words = text => (String(text || '').replace(/\*\*|!!|~~|\(\(|\)\)/g, '').match(/[^\s#~!>^✉—*-]\S*/g) || []).length;
   const minutes = text => Math.max(1, Math.round(words(text) / 180));
 
   /* وضعیت خواندن: در ادیتور فقط در حافظه (هر بار تازه) */
@@ -810,6 +860,7 @@
   }
   function chapterState(ctx, sid, i, ch) {
     const d = ctx.store.data;
+    if (ch.draft) return ['draft', 'پیش‌نویس'];
     if (ch.lock) return ['lock', 'در کانال'];
     if (d.last && d.last.s === sid && d.last.c === i) return ['now', 'در حال خواندن'];
     if ((d.read[sid + ':' + i] || 0) >= 0.9) return ['done', 'خوانده شد'];
@@ -835,8 +886,8 @@
     return row;
   }
   function secHead(title, sub) {
-    const e = h('div', 'sh-sec');
-    e.appendChild(h('h2', 'sh-sec-t', title));
+    const e = h('div', 'sh-sect');
+    e.appendChild(h('h2', 'sh-sect-t', title));
     if (sub) e.appendChild(h('span', '', sub));
     return e;
   }
@@ -844,7 +895,7 @@
 
   /* داستان: جلد و مشخصات، بعد فهرست فصل‌ها */
   R.story = (p, ctx, b) => {
-    const st = { id: b ? b.id : 'x', p };
+    const st = { id: b ? b.id : 'x', p, ed: ctx.editing };
     const list = chapters(st);
     const e = h('section', 'sh-story');
     const top = h('div', 'sh-story-top');
@@ -852,6 +903,7 @@
     const info = h('div', 'sh-story-i');
     if (p.genre) info.appendChild(h('span', 'sh-tag', p.genre));
     info.appendChild(h('h2', 'sh-story-t', p.title || 'داستان'));
+    if (p.subtitle) info.appendChild(h('span', 'sh-story-s', p.subtitle));
     info.appendChild(h('small', 'sh-story-m', `${faNum(list.length)} فصل · ${p.status === 'done' ? 'تمام شده' : 'ادامه دارد'}`));
     if (p.blurb) info.appendChild(h('p', 'sh-story-b', p.blurb));
     const last = ctx.store.data.last;
@@ -874,7 +926,7 @@
   R.shab_continue = (p, ctx) => {
     const e = h('section', 'sh-cont-w');
     e.appendChild(secHead(p.title, p.subtitle));
-    const all = shabStories(ctx.lib).filter(s => chapters(s).length);
+    const all = shabStories(ctx.lib, ctx.editing).filter(s => chapters(s).length);
     const last = ctx.store.data.last;
     let st = last && all.find(s => s.id === last.s);
     let idx = st && chapters(st)[last.c] ? last.c : 0;
@@ -888,7 +940,7 @@
     card.appendChild(coverEl(st.p, '', ctx));
     const info = h('div', 'sh-cont-i');
     info.append(h('b', 'sh-cont-t', st.p.title || 'داستان'),
-      h('small', '', `فصل ${faNum(idx + 1)} · ${ch.title || ''}`));
+      h('small', '', `فصل ${faNum(idx + 1)}، ${ch.title || ''}`));
     const rail = h('div', 'sh-rail');
     const fill = h('i');
     fill.style.width = Math.round(pct * 100) + '%';
@@ -909,7 +961,7 @@
 
   /* قفسه: جلد همهٔ داستان‌ها */
   R.shab_shelf = (p, ctx) => {
-    const all = shabStories(ctx.lib);
+    const all = shabStories(ctx.lib, ctx.editing);
     const e = h('section', 'sh-shelf-w');
     e.appendChild(secHead(p.title, all.length ? `${faNum(all.length)} داستان` : ''));
     const row = h('div', 'sh-shelf' + (p.layout === 'grid' ? ' sh-shelf--grid' : ''));
@@ -929,7 +981,7 @@
 
   /* فصل‌های تازه: آخرین فصل هر داستان، به نوبت */
   R.shab_latest = (p, ctx) => {
-    const all = shabStories(ctx.lib);
+    const all = shabStories(ctx.lib, ctx.editing);
     const e = h('section', 'sh-latest');
     e.appendChild(secHead(p.title));
     const picks = [];
@@ -954,7 +1006,7 @@
 
   /* نشان‌ها: فصل‌هایی که همین خواننده نشان گذاشته */
   R.shab_marks = (p, ctx) => {
-    const all = shabStories(ctx.lib);
+    const all = shabStories(ctx.lib, ctx.editing);
     const e = h('section', 'sh-marks');
     e.appendChild(secHead(p.title));
     const box = h('div', 'sh-chs');
@@ -1030,7 +1082,7 @@
   }
 
   function openBook(ctx, sid) {
-    const st = shabStories(ctx.lib).find(s => s.id === sid);
+    const st = shabStories(ctx.lib, ctx.editing).find(s => s.id === sid);
     if (!st) return;
     const layer = shabLayer(ctx, 'book');
     const c = h('div', 'sh-r-c');
@@ -1043,7 +1095,7 @@
   }
 
   function openReader(ctx, sid, idx, replace) {
-    const st = shabStories(ctx.lib).find(s => s.id === sid);
+    const st = shabStories(ctx.lib, ctx.editing).find(s => s.id === sid);
     const list = st ? chapters(st) : [];
     const ch = list[idx];
     if (!ch) return;
@@ -1055,7 +1107,7 @@
     layer.classList.toggle('sh-candle', !!d.candle);
 
     const c = h('div', 'sh-r-c');
-    c.append(h('b', '', `فصل ${faNum(idx + 1)} · ${ch.title || ''}`), h('small', '', st.p.title || ''));
+    c.append(h('b', '', `فصل ${faNum(idx + 1)}، ${ch.title || ''}`), h('small', '', st.p.title || ''));
     const aa = h('button', 'sh-ib sh-aa', 'Aa');
     aa.type = 'button';
     aa.setAttribute('aria-label', 'اندازهٔ متن');
@@ -1089,20 +1141,7 @@
     const art = h('article', 'sh-r-art');
     art.appendChild(h('span', 'sh-r-k', `فصل ${faNum(idx + 1)}`));
     art.appendChild(h('h1', 'sh-r-h', ch.title || ''));
-    const paras = String(ch.body || '').split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
-    const shown = ch.lock ? paras.slice(0, 1).map(s => s.slice(0, 280) + (s.length > 280 ? '…' : '')) : paras;
-    let first = true;
-    shown.forEach(t => {
-      if (/^(\*\s*){3}$/.test(t)) { const o = h('div', 'sh-orn'); o.append(h('i'), h('i'), h('i')); art.appendChild(o); return; }
-      const para = h('p', 'sh-r-p');
-      if (first) {
-        const m = /^(\S+)(\s[\s\S]*)?$/.exec(t);
-        para.appendChild(h('span', 'sh-drop', m[1]));
-        para.appendChild(document.createTextNode(m[2] || ''));
-        first = false;
-      } else para.textContent = t;
-      art.appendChild(para);
-    });
+    art.appendChild(storyText(ch.body, { teaser: !!ch.lock }));
     if (ch.lock) {
       art.classList.add('sh-r-locked');
       const box = h('div', 'sh-lockbox');
@@ -1166,7 +1205,7 @@
       const max = scroller.scrollHeight - scroller.clientHeight;
       const pct = max > 4 ? Math.min(1, Math.max(0, scroller.scrollTop / max)) : 1;
       bar.style.width = Math.round(pct * 100) + '%';
-      meter.textContent = `٪${faNum(Math.round(pct * 100))} · ${faNum(Math.max(0, Math.round(total * (1 - pct))))} دقیقه`;
+      meter.textContent = `٪${faNum(Math.round(pct * 100))}، ${faNum(Math.max(0, Math.round(total * (1 - pct))))} دقیقه`;
       d.last = { s: sid, c: idx, p: Math.round(pct * 1000) / 1000 };
       const k = sid + ':' + idx;
       d.read[k] = Math.max(d.read[k] || 0, pct);
@@ -1387,5 +1426,6 @@
     return pal;
   }
 
-  window.EasySaz = { render, normalize, applyTheme, palette, accentVars, icon, h, openUrl, safeUrl, isDark, ICONS, KITS: Object.keys(KITS) };
+  window.EasySaz = { render, normalize, applyTheme, palette, accentVars, icon, h, openUrl, safeUrl, isDark, ICONS, KITS: Object.keys(KITS),
+    storyText, storyPara, paragraphs, paraKind, minutes, words, shabCover: p => coverEl(p || {}, '', { editing: false }) };
 })();

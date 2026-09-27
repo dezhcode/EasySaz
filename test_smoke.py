@@ -225,7 +225,10 @@ def test_blocks() -> None:
     for t in templates.TEMPLATES:
         again = blocks.clean_page(t["doc"], max_blocks=100, premium=True, max_pages=12)
         assert again["pages"] and t["category"] in templates.CATEGORIES, t["id"]
-    ok(len(templates.TEMPLATES) >= 6 and any(t["premium"] for t in templates.TEMPLATES), "همهٔ قالب‌ها معتبرند و دسته دارند")
+    ok([t["id"] for t in templates.TEMPLATES] == ["shab"] and templates.TEMPLATES[0]["kit"] == "shab",
+       "فقط قالب شب‌نوشت عرضه می‌شود و معتبر است")
+    ok(blocks.empty_page()["kit"] == "shab" and blocks.upgrade({"blocks": [{"type": "text"}]})["kit"] == "base",
+       "مینی‌اپ تازه روی شب‌نوشت است؛ سند قدیمی روی قالب پایه می‌ماند")
     ok(set(blocks.CATALOG_ORDER) == set(blocks.SCHEMA) and all(b["cat"] in blocks.CATEGORIES for b in blocks.SCHEMA.values()), "هر کامپوننت دسته و جای کاتالوگ دارد")
     # سبک‌های آماده: هر کدام باید دست‌نخورده از پاکسازی سرور رد شود و فقط فیلدهای ظاهری را عوض کند
     for btype, variants in blocks.VARIANTS.items():
@@ -331,17 +334,22 @@ def test_web() -> None:
 
     st, tp = jcall("GET", "/api/templates", uid=None)
     ok(st == 200 and tp["templates"] and tp["categories"], "API قالب‌ها")
-    free_tpl = next(t for t in tp["templates"] if not t["premium"] and t["kit"] == "base")
-    st, _ = jcall("POST", "/api/app/save", {"id": app_id, "doc": free_tpl["doc"]})
-    ok(st == 200, "قالب رایگان در پلن رایگان ذخیره می‌شود")
     shab_tpl = next(t for t in tp["templates"] if t["kit"] == "shab")
     cut = dict(shab_tpl["doc"], pages=shab_tpl["doc"]["pages"][:2])
     st, res = jcall("POST", "/api/app/save", {"id": app_id, "doc": cut})
     ok(st == 200 and res["doc"]["kit"] == "shab" and res["doc"]["pages"][1]["blocks"][0]["type"] == "story",
        "نسخهٔ رایگان قالب شب‌نوشت (دو صفحه) ذخیره می‌شود")
-    pro_tpl = next(t for t in tp["templates"] if t["premium"])
-    st, _ = jcall("POST", "/api/app/save", {"id": app_id, "doc": pro_tpl["doc"]})
-    ok(st == 402, "قالب PRO در پلن رایگان ذخیره نمی‌شود")
+    st, _ = jcall("POST", "/api/app/save", {"id": app_id, "doc": shab_tpl["doc"]})
+    ok(st == 402, "قالب کامل (۴ صفحه) از سقف صفحه‌های پلن رایگان می‌گذرد")
+    import copy
+    drafty = copy.deepcopy(cut)
+    drafty["pages"][1]["blocks"][0]["props"]["chapters"][0]["draft"] = True
+    drafty["pages"][1]["blocks"][0]["props"]["chapters"][0]["body"] = "متن منتشرنشده"
+    st, _ = jcall("POST", "/api/app/publish", {"id": app_id, "doc": drafty})
+    st, page = jcall("GET", f"/api/page/{slug}", uid=None)
+    chs = page["doc"]["pages"][1]["blocks"][0]["props"]["chapters"]
+    ok(st == 200 and len(chs) == 3 and "متن منتشرنشده" not in json.dumps(page, ensure_ascii=False),
+       "فصل پیش‌نویس به صفحهٔ عمومی نمی‌رسد")
 
     import base64
     png = b"\x89PNG\r\n\x1a\n" + b"0" * 64

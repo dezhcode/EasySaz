@@ -7,9 +7,9 @@
 <link rel="preload" href="__BASE__static/fonts/peyda-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="__BASE__static/fonts/peyda-800.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="__BASE__static/peyda.css">
-<link rel="stylesheet" href="__BASE__static/tokens.css?v=14">
-<link rel="stylesheet" href="__BASE__static/render.css?v=14">
-<link rel="stylesheet" href="__BASE__static/panel.css?v=14">
+<link rel="stylesheet" href="__BASE__static/tokens.css?v=15">
+<link rel="stylesheet" href="__BASE__static/render.css?v=15">
+<link rel="stylesheet" href="__BASE__static/panel.css?v=15">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -50,19 +50,15 @@
   <div class="group" id="acc-bot"></div>
 </section>
 
-<!-- ═══ ساخت مینی‌اپ تازه: جادوی سه‌قدمی ═══
-     ۱. برای چیه؟  ۲. اسم و لوگو (کارت عبور زنده)  ۳. حال‌وهوا (پیش‌نمایش مینی‌اپ خودش)
-     آخرش یک مینی‌اپ کامل با اسم، لوگو و رنگ خودش در ادیتور باز می‌شود. -->
+<!-- ═══ ساخت مینی‌اپ تازه (کانال داستان با قالب شب‌نوشت) ═══
+     ۱. اسم و لوگو (کارت عبور زنده)  ۲. رنگ تأکید (پیش‌نمایش مینی‌اپ خودش)
+     آخرش مینی‌اپ کامل در «داستان‌ها» باز می‌شود. -->
 <section id="onboard" class="screen wizard" hidden>
   <header class="topbar">
     <button class="back" id="wz-back" aria-label="برگشت"><span data-icon="back"></span></button>
     <div class="wz-head"><div class="topbar-t" id="wz-title"></div><div class="topbar-s" id="wz-sub"></div></div>
-    <div class="wz-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="wz-dots" aria-hidden="true"><i></i><i></i></div>
   </header>
-
-  <div class="wz-step" id="wz-1">
-    <div class="kinds" id="wz-kinds" role="radiogroup" aria-label="نوع مینی‌اپ"></div>
-  </div>
 
   <div class="wz-step" id="wz-2" hidden>
     <div class="mx">
@@ -75,7 +71,7 @@
     </div>
     <div class="ob-body mx">
       <label for="ob-name" class="ob-label">اسمش چیه؟</label>
-      <input id="ob-name" class="ob-input" maxlength="40" placeholder="مثلاً: کافه نارنج" autocomplete="off">
+      <input id="ob-name" class="ob-input" maxlength="40" placeholder="مثلاً: کابوس‌های کوتاه" autocomplete="off">
       <div id="ob-chips" class="chips"></div>
       <button class="logo-pick" id="wz-logo" type="button"><span class="ic brand" id="wz-logo-ic" data-icon="upload"></span><span class="row-m"><span class="row-t" id="wz-logo-t">لوگو (اختیاری)</span><span class="row-s">روی کارت، سربرگ و ربات دیده می‌شود</span></span></button>
     </div>
@@ -89,15 +85,21 @@
   <div class="foot"><button id="wz-next" class="btn btn-p btn-block" disabled>ادامه</button></div>
 </section>
 
-<!-- ═══ قالب‌ها (تب، یا قدم ۲ ساخت) ═══ -->
-<section id="templates" class="screen tpl-screen" hidden>
-  <header class="topbar">
-    <button class="back" id="tpl-back" aria-label="برگشت" hidden><span data-icon="back"></span></button>
-    <div><div class="topbar-t">قالب‌ها</div><div class="topbar-s" id="tpl-sub">همه‌چیزش قابل تغییره: متن، رنگ، صفحه‌ها و کامپوننت‌ها.</div></div>
+
+<!-- ═══ داستان‌ها (تب): پنل مدیریت داستان‌ها ═══
+     فهرست داستان‌ها با جلد، «داستان تازه» (اسم، جلد، عنوان کوتاه، توضیحات)،
+     هر داستان یک زیرصفحه با فصل‌ها، و هر فصل ادیتور متن با سبک‌های نوشتاری. -->
+<section id="stories" class="screen tabscreen stories" hidden>
+  <header class="st-top">
+    <div class="grow">
+      <div class="st-k" id="st-app"></div>
+      <div class="st-t">داستان‌ها</div>
+      <span class="status caption" id="st-status"><i class="dot"></i><span></span></span>
+    </div>
+    <button class="icon-btn sm flat" id="st-preview" aria-label="پیش‌نمایش"><span data-icon="eye"></span></button>
+    <button class="btn btn-p btn-sm publish" id="st-publish"><i class="dot"></i>انتشار</button>
   </header>
-  <div class="tabs scroll" id="tpl-cats" role="tablist" aria-label="دسته‌ها"></div>
-  <div class="tpl-grid" id="tpl-grid"></div>
-  <div class="foot" id="tpl-foot"><button class="btn btn-s btn-block" id="tpl-blank">شروع با صفحهٔ خالی</button></div>
+  <main id="st-body"></main>
 </section>
 
 <!-- ═══ ادیتور (طرح د: بخش‌ها) ═══
@@ -122,25 +124,11 @@
   <main class="secs" id="secs"></main>
   <nav class="dock" id="toolbar" aria-label="ابزارها">
     <button data-act="theme"><span data-icon="palette"></span><span class="dock-l">ظاهر</span></button>
-    <button data-act="templates"><span data-icon="template"></span><span class="dock-l">قالب‌ها</span></button>
+    <button data-act="stories"><span data-icon="book"></span><span class="dock-l">داستان‌ها</span></button>
     <button data-act="add" class="dock-add" aria-label="افزودن بخش"><span class="dock-add-t" data-icon="plus"></span></button>
     <button data-act="order"><span data-icon="order"></span><span class="dock-l">ترتیب</span></button>
     <button data-act="settings"><span data-icon="settings"></span><span class="dock-l">تنظیمات</span></button>
   </nav>
-</section>
-<!-- ═══ ادیتور ساده (سؤال‌محور، پیش‌فرض) ═══
-     چک‌لیست «کارهای مانده» → یک سؤال در هر صفحه؛ «دیدن مینی‌اپ» → زدن روی هر
-     قسمت = کارت کوچک (متن، شکل، بیشتر). نوار پایین: افزودن، رنگ، انتشار. -->
-<section id="easy" class="screen easy" hidden>
-  <header class="g-top">
-    <button class="icon-btn sm" id="easy-back" aria-label="برگشت به خانه"><span data-icon="back"></span></button>
-    <button class="etop-app" id="easy-app" aria-label="تنظیمات مینی‌اپ">
-      <b id="easy-name"></b>
-      <span class="status" id="easy-status"><i class="dot"></i><span></span></span>
-    </button>
-    <button class="icon-btn sm flat" id="easy-more" aria-label="ابزارهای بیشتر"><span data-icon="more"></span></button>
-  </header>
-  <main id="easy-body"></main>
 </section>
 <!-- زیرصفحه‌های ادیتور (پشته؛ برگشت تلگرام یکی را می‌بندد) -->
 <div id="subs"></div>
@@ -156,7 +144,7 @@
 <nav id="nav" class="nav" aria-label="ناوبری" hidden>
   <span class="nav-ind still" id="nav-ind" aria-hidden="true"></span>
   <button class="nav-i" data-tab="home"><span data-icon="home"></span><span class="nav-l">خانه</span></button>
-  <button class="nav-i" data-tab="templates"><span data-icon="template"></span><span class="nav-l">قالب‌ها</span></button>
+  <button class="nav-i" data-tab="stories"><span data-icon="book"></span><span class="nav-l">داستان‌ها</span></button>
   <button class="nav-i" data-tab="account"><span data-icon="user"></span><span class="nav-l">حساب</span></button>
 </nav>
 
@@ -165,8 +153,8 @@
 <div class="toast" id="toast" role="status"><span class="toast-ico"></span><span class="toast-txt"></span></div>
 <input type="file" id="file" accept="image/png,image/jpeg,image/webp" hidden>
 
-<script src="__BASE__static/render.js?v=14"></script>
-<script src="__BASE__static/demo.js?v=14"></script>
-<script src="__BASE__static/panel.js?v=14"></script>
+<script src="__BASE__static/render.js?v=15"></script>
+<script src="__BASE__static/demo.js?v=15"></script>
+<script src="__BASE__static/panel.js?v=15"></script>
 </body>
 </html>

@@ -449,10 +449,11 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "premium": False,
         "fields": [
             {"key": "title", "label": "اسم داستان", "type": "text", "max": 60, "default": "داستان تازه"},
+            {"key": "subtitle", "label": "عنوان کوتاه (زیر اسم، اختیاری)", "type": "text", "max": 80, "default": ""},
             {"key": "genre", "label": "ژانر", "type": "text", "max": 20, "default": "وحشت"},
             {"key": "status", "label": "وضعیت", "type": "select", "default": "ongoing",
              "options": [["ongoing", "ادامه دارد"], ["done", "تمام شده"]]},
-            {"key": "blurb", "label": "خلاصه (اختیاری)", "type": "textarea", "max": 400, "default": ""},
+            {"key": "blurb", "label": "توضیحات (اختیاری)", "type": "textarea", "max": 600, "default": ""},
             {"key": "cover", "label": "تصویر جلد (اختیاری)", "type": "image", "default": ""},
             {"key": "tone", "label": "رنگ جلد", "type": "select", "look": True, "default": "blood",
              "options": [["blood", "خون"], ["night", "شب"], ["ash", "خاکستر"], ["moss", "خزه"], ["candle", "شمع"]]},
@@ -460,14 +461,14 @@ SCHEMA: dict[str, dict[str, Any]] = {
             {"key": "chapters", "label": "فصل‌ها", "type": "list", "max_items": 60, "item_label": "فصل",
              "fields": [
                  {"key": "title", "label": "اسم فصل", "type": "text", "max": 80, "default": "فصل تازه"},
-                 {"key": "body", "label": "متن فصل (پاراگراف‌ها را با یک خط خالی جدا کن؛ «***» یعنی جداکننده)",
-                  "type": "textarea", "max": 8000, "default": ""},
+                 {"key": "body", "label": "متن فصل", "type": "textarea", "max": 8000, "default": "", "story": True},
                  {"key": "note", "label": "برچسب کوچک (مثلاً «امروز»)", "type": "text", "max": 24, "default": ""},
                  {"key": "lock", "label": "فقط در کانال (اینجا فقط چند خط اولش)", "type": "bool", "default": False},
                  {"key": "url", "label": "لینک این فصل در کانال (اختیاری)", "type": "url", "default": ""},
+                 {"key": "draft", "label": "پیش‌نویس (خواننده‌ها نمی‌بینند)", "type": "bool", "default": False},
              ],
              "default": [
-                 {"title": "فصل اول", "body": "اولین جملهٔ داستانت را این‌جا بنویس.", "note": "", "lock": False, "url": ""},
+                 {"title": "فصل اول", "body": "اولین جملهٔ داستانت را این‌جا بنویس.", "note": "", "lock": False, "url": "", "draft": False},
              ]},
         ],
     },
@@ -981,6 +982,16 @@ def clean_page(doc: Any, *, max_blocks: int, premium: bool, max_pages: int = 1) 
     }
 
 
+def reader_view(doc: dict) -> dict:
+    """نسخهٔ خواننده: فصل‌های پیش‌نویس از داستان‌ها برداشته می‌شوند (سمت سرور،
+    تا متن منتشرنشده به گوشی خواننده نرسد)."""
+    for pg in doc.get("pages", []):
+        for b in pg.get("blocks", []):
+            if b.get("type") == "story" and isinstance(b.get("props"), dict):
+                b["props"]["chapters"] = [c for c in b["props"].get("chapters") or [] if not (isinstance(c, dict) and c.get("draft"))]
+    return doc
+
+
 def story_chars(pages: list[dict]) -> int:
     return sum(len(ch.get("body") or "") for pg in pages for b in pg.get("blocks", [])
                if b.get("type") == "story" for ch in (b.get("props") or {}).get("chapters") or [])
@@ -991,7 +1002,7 @@ def upgrade(doc: Any) -> dict:
     doc = doc if isinstance(doc, dict) else {}
     if isinstance(doc.get("pages"), list):
         return doc
-    out = empty_page()
+    out = empty_page(kit="base")
     out["theme"] = clean_theme(doc.get("theme"))
     out["pages"][0]["blocks"] = doc.get("blocks") if isinstance(doc.get("blocks"), list) else []
     return out
@@ -1002,12 +1013,13 @@ def all_blocks(doc: dict) -> list[dict]:
     return [b for p in doc.get("pages", []) for b in p.get("blocks", [])]
 
 
-def empty_page(accent: str | None = None) -> dict:
-    """صفحه خالی شروع کار. عمدا هیچ کامپوننتی ندارد."""
-    theme = clean_theme({"accent": accent} if accent else {})
+def empty_page(accent: str | None = None, kit: str = "shab") -> dict:
+    """صفحه خالی شروع کار. عمدا هیچ کامپوننتی ندارد. مینی‌اپ تازه روی شب‌نوشت است."""
+    kit = clean_kit(kit)
+    theme = clean_theme({"accent": accent or KITS[kit].get("accent")} if (accent or KITS[kit].get("accent")) else {})
     return {
         "v": SCHEMA_VERSION,
-        "kit": "base",
+        "kit": kit,
         "theme": theme,
         "header": _clean_group(HEADER_FIELDS, {}),
         "tabbar": _clean_group(TABBAR_FIELDS, {}),

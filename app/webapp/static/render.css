@@ -478,13 +478,12 @@
 
 /* ===================== قالب «شب‌نوشت» =====================
    کانال‌های داستان و رمان. پوستهٔ تاریک و آرام (توکن‌ها از KITS.shab در
-   render.js)، قرمز «خون» فقط برای تأکید. عنوان‌ها عارف رقعه، متن داستان
-   نوتو نسخ (هر دو OFL، خودمیزبان، فقط زیرمجموعهٔ عربی/فارسی)؛ بقیه پیدا. */
+   render.js)، قرمز «خون» فقط برای تأکید. عنوان‌ها عارف رقعه (OFL، خودمیزبان،
+   فقط زیرمجموعهٔ عربی/فارسی)؛ متن داستان و بقیه پیدا. */
 @font-face{font-family:'Aref Ruqaa'; font-style:normal; font-weight:700; font-display:swap; src:url('fonts/aref-ruqaa-700.woff2') format('woff2');
-  /* رقم‌های فارسی رقعه شبیه هم‌اند (۲ و ۳)؛ رقم‌ها از نسخ می‌آیند */
+  /* رقم‌های فارسی رقعه شبیه هم‌اند (۲ و ۳)؛ رقم‌ها از پیدا می‌آیند */
   unicode-range:U+0600-065F, U+066A-06EF, U+06FA-06FF, U+0750-077F, U+08A0-08FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC}
-@font-face{font-family:'Noto Naskh Arabic'; font-style:normal; font-weight:400; font-display:swap; src:url('fonts/noto-naskh-400.woff2') format('woff2')}
-.pg-kit-shab{--sh-disp:'Aref Ruqaa', 'Noto Naskh Arabic', serif; --sh-read:'Noto Naskh Arabic', var(--font-sans); --sh-candle:#E9A854}
+.pg-kit-shab{--sh-disp:'Aref Ruqaa', var(--font-sans); --sh-read:var(--font-sans); --sh-candle:#E9A854}
 .pg-kit-shab .pg-blocks{gap:18px}
 
 /* سربرگ: مهر حرف اول، عنوان رقعه، ترک خونی */
@@ -511,9 +510,9 @@
 .pg-kit-shab .pg-brand{border-radius:6px}
 
 /* پایه‌ها: عنوان بخش، برچسب، دکمه، ریل */
-.sh-sec{display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin:2px 2px 10px}
-.sh-sec-t{margin:0; font-family:var(--sh-disp); font-size:22px; line-height:1.4; font-weight:700}
-.sh-sec span{font-size:12px; color:var(--pg-ink-3)}
+.sh-sect{display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin:2px 2px 10px}
+.sh-sect-t{margin:0; font-family:var(--sh-disp); font-size:22px; line-height:1.4; font-weight:700}
+.sh-sect span{font-size:12px; color:var(--pg-ink-3)}
 .sh-tag{align-self:flex-start; font-size:10.5px; font-weight:700; line-height:18px; padding:0 7px; border-radius:3px; border:1px solid var(--pg-line); color:var(--pg-ink-3)}
 .sh-btn{height:40px; padding:0 14px; border:0; border-radius:6px; background:var(--pg-ink); color:var(--pg-bg); font:inherit; font-size:13px; font-weight:800;
   display:inline-flex; align-items:center; gap:6px; cursor:pointer; -webkit-tap-highlight-color:transparent; flex:none}
@@ -624,7 +623,7 @@
 .sh-r-art{font-size:var(--sh-fs)}
 .sh-r-k{display:block; font-size:12px; font-weight:700; color:var(--pg-accent-ink); letter-spacing:.3px}
 .sh-r-h{margin:2px 0 16px; font-family:var(--sh-disp); font-size:38px; line-height:1.35; font-weight:700}
-.sh-r-p{margin:0 0 14px; font-family:var(--sh-read); font-size:inherit; line-height:2.15; color:#E6DCCC; white-space:pre-line; text-align:justify}
+.sh-r-p{margin:0 0 16px; font-family:var(--sh-read); font-size:inherit; line-height:2.1; color:#E6DCCC; white-space:pre-line; text-align:justify}
 .sh-drop{font-family:var(--sh-disp); font-size:1.7em; line-height:1; color:var(--pg-accent); font-weight:700}
 .sh-orn{display:flex; justify-content:center; gap:10px; margin:6px 0 18px}
 .sh-orn i{width:6px; height:6px; transform:rotate(45deg); background:var(--pg-accent)}
@@ -656,3 +655,22 @@
   background-size:38px 90px, 23px 60px; animation:sh-rain .5s linear infinite}
 @keyframes sh-rain{to{background-position:-12px 90px, -8px 60px}}
 @media (prefers-reduced-motion:reduce){.sh-rain{animation:none}}
+
+/* ---------- سبک‌های متن داستان (storyText در render.js) ---------- */
+.sh-story-s{font-size:12.5px; line-height:1.6; color:var(--pg-ink-2)}
+.sh-ch-s.is-draft{color:var(--pg-ink-3); border:1px dashed var(--pg-line); border-radius:4px; padding:0 6px}
+.sh-t-h{margin:26px 0 12px; font-family:var(--sh-disp); font-size:1.45em; line-height:1.45; font-weight:700; color:var(--pg-ink)}
+.sh-t-talk{position:relative; padding-inline-start:18px; color:#F3EADC; text-align:start}
+.sh-t-talk::before{content:"—"; position:absolute; inset-inline-start:0; color:var(--pg-accent-ink); font-weight:800}
+.sh-t-whisper{font-size:.86em; color:var(--pg-ink-3); letter-spacing:.2px; text-align:center; padding:0 12px}
+.sh-t-scream{font-size:1.5em; line-height:1.55; font-weight:800; color:var(--pg-accent-ink); text-align:center; letter-spacing:-.3px; text-shadow:2px 0 0 color-mix(in srgb, var(--pg-accent) 45%, transparent), -1px 0 0 rgba(0,0,0,.6)}
+.sh-t-center{text-align:center}
+.sh-t-quote{margin:0 0 16px; padding:10px 16px; border-inline-start:3px solid var(--pg-accent); background:linear-gradient(90deg, transparent, var(--pg-soft)); color:var(--pg-ink); text-align:start}
+.sh-t-note{margin:6px 6px 20px; padding:16px 18px; border:1px dashed color-mix(in srgb, var(--sh-candle) 60%, transparent); border-radius:4px;
+  background:linear-gradient(180deg, #1C150E, #140F0B); transform:rotate(-.6deg); box-shadow:0 10px 20px -14px #000}
+.sh-t-note p{margin:0; font-family:var(--sh-disp); font-size:1.2em; line-height:1.9; color:#EBC98E; white-space:pre-line}
+.sh-i-b{font-weight:800; color:var(--pg-ink)}
+.sh-i-blood{font-weight:700; color:var(--pg-accent-ink)}
+.sh-i-strike{text-decoration:line-through; text-decoration-color:var(--pg-accent); text-decoration-thickness:2px; opacity:.8}
+.sh-i-faint{opacity:.5}
+.sh-candle .sh-t-talk{color:#E2C59C}

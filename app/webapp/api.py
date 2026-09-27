@@ -256,6 +256,7 @@ class Api:
             budget -= len(visible)
             pages.append(dict(pg, blocks=visible))
         doc["pages"] = pages
+        blocks.reader_view(doc)
         return {
             "name": app["name"],
             "doc": doc,

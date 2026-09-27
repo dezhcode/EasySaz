@@ -7,7 +7,7 @@
 (function () {
   'use strict';
 
-  const KEY = 'es-demo-v3';
+  const KEY = 'es-demo-v4';
   const PLANS = {
     free: { key: 'free', title: 'رایگان', max_apps: 1, max_blocks: 8, max_pages: 2, premium_blocks: false, branding: true },
     pro: { key: 'pro', title: 'حرفه‌ای', max_apps: 3, max_blocks: 40, max_pages: 6, premium_blocks: true, branding: false },
@@ -22,35 +22,11 @@
   // همان کامپوننت‌هایی که در app/blocks.py پریمیوم‌اند
   const PREMIUM = ['cards', 'pricing', 'gallery', 'features', 'passcard', 'calc'];
 
-  function sample() {
-    return {
-      v: 2,
-      theme: { accent: '#E0573E', mode: 'light', radius: 'soft', radius_px: 18, bg: 'tint' },
-      header: { enabled: true, style: 'plain', title: 'کافه نارنج', subtitle: '', logo: '', align: 'start' },
-      tabbar: { enabled: true, style: 'floating' },
-      pages: [
-        { id: 'home', title: 'خانه', icon: 'home', blocks: [
-          { id: 'bhero0001', type: 'hero', props: { title: 'کافه نارنج', subtitle: 'قهوهٔ تازه‌برشت و کیک خانگی، هر روز از ۸ صبح.', image: '', style: 'solid', align: 'center' } },
-          { id: 'bnote0001', type: 'notice', props: { text: '۲۰٪ تخفیف همهٔ نوشیدنی‌ها تا آخر هفته', tone: 'accent' } },
-          { id: 'btext0001', type: 'text', props: { title: 'درباره ما', body: 'نارنج از ۱۳۹۸ یک گوشهٔ کوچک در خیابان ولیعصر است. دانه‌ها را خودمان برشته می‌کنیم و منو هر فصل عوض می‌شود.', align: 'start' }, style: { box: 'card' } },
-          { id: 'bbtn00001', type: 'button', props: { label: 'سفارش آنلاین', url: 'https://example.com/order', style: 'primary' } },
-          { id: 'bsoc00001', type: 'social', props: { items: [
-            { kind: 'telegram', value: 'durov' }, { kind: 'instagram', value: 'naranj.cafe' }, { kind: 'phone', value: '+982100000000' }] } },
-        ] },
-        { id: 'menu', title: 'منو', icon: 'menu', blocks: [
-          { id: 'blink0001', type: 'links', props: { items: [
-            { label: 'نوشیدنی‌های گرم', note: 'اسپرسو، لاته، دمی', url: 'https://example.com/menu#hot' },
-            { label: 'کیک و دسر', note: 'هر روز تازه', url: 'https://example.com/menu#cake' }] } },
-          { id: 'bfaq00001', type: 'faq', props: { title: 'سوالات متداول', items: [
-            { q: 'ساعت کاری کافه چیه؟', a: 'هر روز از ۸ صبح تا ۱۱ شب. جمعه‌ها از ۱۰.' },
-            { q: 'پیک دارید؟', a: 'تا ۳ کیلومتری کافه، رایگان.' }] } },
-        ] },
-      ],
-    };
-  }
+  /* مینی‌اپ تازه روی قالب شب‌نوشت (مثل app/blocks.py → empty_page) */
   function blank() {
-    const s = sample();
-    return { v: 2, theme: s.theme, header: Object.assign({}, s.header, { enabled: false, title: '' }), tabbar: s.tabbar,
+    return { v: 2, kit: 'shab', theme: { accent: '#C8192F', mode: 'light', radius: 'soft', radius_px: 18, bg: 'tint' },
+      header: { enabled: false, style: 'bar', title: '', subtitle: '', logo: '', align: 'start' },
+      tabbar: { enabled: true, style: 'floating' },
       pages: [{ id: 'home', title: 'خانه', icon: 'home', blocks: [] }] };
   }
 
@@ -166,11 +142,18 @@
     const d = db();
     const a = d.apps[0];
     const branding = plan(d).branding;
-    if (a && a.published) return { name: a.name, doc: a.published, branding: branding, brand_bot: 'EasySazBot' };
-    return { name: 'کافه نارنج', doc: sample(), branding: branding, brand_bot: 'EasySazBot' };
+    if (a && a.published) {
+      // مثل api.page → blocks.reader_view: فصل‌های پیش‌نویس به خواننده نمی‌رسند
+      const doc = JSON.parse(JSON.stringify(a.published));
+      (doc.pages || []).forEach(pg => (pg.blocks || []).forEach(b => {
+        if (b.type === 'story' && b.props) b.props.chapters = (b.props.chapters || []).filter(c => !c.draft);
+      }));
+      return { name: a.name, doc: doc, branding: branding, brand_bot: 'EasySazBot' };
+    }
+    return { name: 'شب‌نوشت', doc: blank(), branding: branding, brand_bot: 'EasySazBot' };
   }
 
   function reset() { try { localStorage.removeItem(KEY); } catch (e) {} }
 
-  window.EasySazDemo = { api, page, pageUrl, sample, reset };
+  window.EasySazDemo = { api, page, pageUrl, reset };
 })();

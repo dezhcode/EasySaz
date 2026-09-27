@@ -1,0 +1,14 @@
+.env
+*.db
+*.db-wal
+*.db-shm
+data/
+logs/*
+!logs/.gitkeep
+tmp/*
+!tmp/.gitkeep
+uploads/
+__pycache__/
+*.pyc
+.venv/
+venv/

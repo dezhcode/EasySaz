@@ -227,6 +227,19 @@ def test_blocks() -> None:
         assert again["pages"] and t["category"] in templates.CATEGORIES, t["id"]
     ok(len(templates.TEMPLATES) >= 6 and any(t["premium"] for t in templates.TEMPLATES), "همهٔ قالب‌ها معتبرند و دسته دارند")
     ok(set(blocks.CATALOG_ORDER) == set(blocks.SCHEMA) and all(b["cat"] in blocks.CATEGORIES for b in blocks.SCHEMA.values()), "هر کامپوننت دسته و جای کاتالوگ دارد")
+    # سبک‌های آماده: هر کدام باید دست‌نخورده از پاکسازی سرور رد شود و فقط فیلدهای ظاهری را عوض کند
+    for btype, variants in blocks.VARIANTS.items():
+        looks = {f["key"] for f in blocks.SCHEMA[btype]["fields"] if f.get("look")}
+        ids = [v["id"] for v in variants]
+        assert len(ids) == len(set(ids)) >= 2, btype
+        for v in variants:
+            assert set(v["props"]) <= looks, (btype, v["id"])
+            props = dict(blocks.default_props(btype), **v["props"])
+            doc = {"pages": [{"blocks": [{"id": "bvar00001", "type": btype, "props": props, "style": v["style"]}]}]}
+            out = blocks.clean_page(doc, max_blocks=10, premium=True)["pages"][0]["blocks"][0]
+            assert all(out["props"][k] == val for k, val in v["props"].items()), (btype, v["id"])
+            assert out.get("style", {}) == v["style"], (btype, v["id"], out.get("style"))
+    ok(set(blocks.VARIANTS) == set(blocks.SCHEMA), "همهٔ سبک‌های آماده معتبرند و هر کامپوننت سبک دارد")
 
 
 def test_auth() -> None:

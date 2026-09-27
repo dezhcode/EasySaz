@@ -183,11 +183,11 @@
   }
 
   /* نقش کاشی سربرگ: چهار مربع گرد ۲×۲ */
-  function tileMotif() {
+  function tileMotif(cls) {
     const s = document.createElementNS(SVG_NS, 'svg');
     s.setAttribute('viewBox', '0 0 132 132');
     s.setAttribute('aria-hidden', 'true');
-    s.setAttribute('class', 'pg-motif');
+    s.setAttribute('class', cls || 'pg-motif');
     [[0, 0], [72, 0], [0, 72], [72, 72]].forEach(([x, y]) => {
       const r = document.createElementNS(SVG_NS, 'rect');
       r.setAttribute('x', x); r.setAttribute('y', y);
@@ -275,8 +275,34 @@
   R.hero = (p, ctx) => {
     const style = p.style === 'gradient' ? 'solid' : (p.style || 'solid');
     const e = h('section', `pg-herobox pg-herobox--${style} pg-align-${p.align || 'center'}`);
-    if (style === 'solid') e.appendChild(tileMotif());
+    // کارت عبور: کارت رنگی با نقش کاشی بزرگ، برچسب و لوگو بالا، عنوان پایین
+    if (style === 'pass') {
+      e.appendChild(tileMotif('pg-motif pg-motif--pass'));
+      const top = h('div', 'pg-pass-top');
+      if (safeUrl(p.image, true)) top.appendChild(imageEl(p.image, 'pg-pass-logo', ctx));
+      else top.appendChild(h('span', 'pg-pass-mark', (p.title || '·').trim().charAt(0)));
+      if (p.chip) top.appendChild(h('span', 'pg-pass-chip', p.chip));
+      e.appendChild(top);
+      const inner = h('div', 'pg-herobox-in');
+      inner.appendChild(h('h1', 'pg-hero-title', p.title));
+      if (p.subtitle) inner.appendChild(h('p', 'pg-hero-sub', p.subtitle));
+      e.appendChild(inner);
+      return e;
+    }
+    // تصویر زمینه: تصویر تمام‌قاب با لایهٔ تیرهٔ یکدست تا متن همیشه خوانا باشد
+    if (style === 'cover') {
+      const bg = imageEl(p.cover, 'pg-cover-img', ctx);
+      if (!safeUrl(p.cover, true) && ctx.editing) {
+        const hint = bg.querySelector('.pg-img-hint');
+        if (hint) hint.textContent = 'تصویر زمینه رو آپلود کن';
+      }
+      e.appendChild(bg);
+      if (safeUrl(p.cover, true)) e.appendChild(h('div', 'pg-cover-shade'));
+    } else if (style === 'solid') {
+      e.appendChild(tileMotif());
+    }
     const inner = h('div', 'pg-herobox-in');
+    if (p.chip) inner.appendChild(h('span', 'pg-pass-chip', p.chip));
     if (safeUrl(p.image, true)) inner.appendChild(imageEl(p.image, 'pg-logo', ctx));
     inner.appendChild(h('h1', 'pg-hero-title', p.title));
     if (p.subtitle) inner.appendChild(h('p', 'pg-hero-sub', p.subtitle));
@@ -300,7 +326,7 @@
   };
 
   R.links = (p, ctx) => {
-    const e = h('section', 'pg-links');
+    const e = h('section', `pg-links pg-links--${p.layout || 'list'}`);
     (p.items || []).forEach(it => {
       const row = linkEl('a', 'pg-link', it.url, ctx);
       const tile = h('span', 'pg-link-tile');
@@ -324,10 +350,11 @@
   };
 
   R.faq = p => {
-    const e = h('section', 'pg-card pg-faq');
-    if (p.title) e.appendChild(h('h2', 'pg-h2', p.title));
+    const cards = p.layout === 'cards';
+    const e = h('section', cards ? 'pg-faq pg-faq--cards' : 'pg-card pg-faq');
+    if (p.title) e.appendChild(h('h2', cards ? 'pg-h2 pg-h2--out' : 'pg-h2', p.title));
     (p.items || []).forEach(it => {
-      const d = h('details', 'pg-qa');
+      const d = h('details', cards ? 'pg-qa pg-card' : 'pg-qa');
       const s = h('summary');
       s.appendChild(h('span', '', it.q));
       s.appendChild(icon('chev', 'pg-qa-ico'));
@@ -339,12 +366,15 @@
     return e;
   };
 
+  const SOCIAL_NAMES = { telegram: 'تلگرام', instagram: 'اینستاگرام', whatsapp: 'واتساپ', youtube: 'یوتیوب', x: 'ایکس', website: 'وب‌سایت', phone: 'تماس', email: 'ایمیل' };
   R.social = (p, ctx) => {
-    const e = h('section', 'pg-social');
+    const pills = p.layout === 'pills';
+    const e = h('section', pills ? 'pg-social pg-social--pills' : 'pg-social');
     (p.items || []).forEach(it => {
       const a = linkEl('a', 'pg-soc', socialHref(it.kind, it.value), ctx);
-      a.setAttribute('aria-label', it.kind);
+      a.setAttribute('aria-label', SOCIAL_NAMES[it.kind] || it.kind);
       a.appendChild(icon(it.kind));
+      if (pills) a.appendChild(h('span', '', SOCIAL_NAMES[it.kind] || it.kind));
       e.appendChild(a);
     });
     return e;
@@ -387,7 +417,7 @@
   R.pricing = (p, ctx) => {
     const e = h('section', 'pg-group');
     if (p.title) e.appendChild(h('h2', 'pg-h2 pg-h2--out', p.title));
-    const list = h('div', 'pg-plans');
+    const list = h('div', `pg-plans pg-plans--${p.layout || 'stack'}`);
     (p.items || []).forEach(it => {
       const c = h('article', 'pg-plan' + (it.badge ? ' pg-plan--hot' : ''));
       const head = h('div', 'pg-plan-h');
@@ -414,7 +444,7 @@
   };
 
   R.gallery = (p, ctx) => {
-    const e = h('section', 'pg-gallery');
+    const e = h('section', `pg-gallery pg-gallery--${p.layout || 'slider'}`);
     const track = h('div', 'pg-gal-track');
     (p.items || []).forEach(it => {
       const f = h('figure', 'pg-gal-item');
@@ -429,12 +459,14 @@
   R.features = p => {
     const e = h('section', 'pg-group');
     if (p.title) e.appendChild(h('h2', 'pg-h2 pg-h2--out', p.title));
-    const grid = h('div', 'pg-feats');
+    const grid = h('div', `pg-feats pg-feats--${p.layout || 'grid'}`);
     (p.items || []).forEach(it => {
       const c = h('div', 'pg-feat');
       c.appendChild(h('span', 'pg-feat-emo', it.emoji || '✨'));
-      c.appendChild(h('b', '', it.title));
-      if (it.desc) c.appendChild(h('small', '', it.desc));
+      const txt = h('div', 'pg-feat-txt');
+      txt.appendChild(h('b', '', it.title));
+      if (it.desc) txt.appendChild(h('small', '', it.desc));
+      c.appendChild(txt);
       grid.appendChild(c);
     });
     e.appendChild(grid);

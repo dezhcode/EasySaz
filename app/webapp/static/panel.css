@@ -376,3 +376,30 @@ input,textarea{font:inherit; color:inherit}
 .editor.live-editing #canvas .pg-tabbar{display:none}
 /* فقط وقتی خود نوار پایین ویرایش می‌شود، درست بالای شیت می‌نشیند */
 .editor.live-editing.live-tabbar #canvas .pg-tabbar{display:flex; bottom:calc(var(--live-h, 54vh) + 10px)}
+
+/* ---------- VariantStrip: سبک‌های آماده با پیش‌نمایش زنده ---------- */
+.var-sec{margin-top:var(--space-4)}
+.var-sec > .label{color:var(--ink-2)}
+.var-row{display:flex; gap:10px; overflow-x:auto; margin:8px calc(-1 * var(--space-5)) 0; padding:4px var(--space-5) 6px; scroll-snap-type:x proximity; scrollbar-width:none}
+.var-row::-webkit-scrollbar{display:none}
+.var-card{flex:none; width:148px; display:flex; flex-direction:column; gap:7px; text-align:center; scroll-snap-align:center}
+.var-frame{position:relative; height:112px; border-radius:var(--radius-lg); overflow:hidden; background:var(--surface-sunk);
+  box-shadow:inset 0 0 0 1px var(--line); pointer-events:none; transition:box-shadow .2s var(--ease)}
+.var-frame .pg-page{position:absolute; top:0; right:0; width:370px; min-height:280px; padding:18px 16px !important; transform:scale(.4); transform-origin:top right}
+.var-frame .pg-block{animation:none !important}
+.var-name{display:flex; align-items:center; justify-content:center; gap:4px; font-size:12.5px; font-weight:700; color:var(--ink-2)}
+.var-check{width:14px; height:14px; stroke-width:2.6; display:none}
+.var-card.on .var-frame{box-shadow:0 0 0 2px var(--surface), 0 0 0 4px var(--ink)}
+.var-card.on .var-name{color:var(--ink)}
+.var-card.on .var-check{display:block}
+.var-card:active .var-frame{transform:scale(.97)}
+
+/* محتوا و «بیشتر» */
+.content-sec{margin-top:var(--space-2)}
+.more-sec{margin-top:var(--space-6); border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--surface)}
+.more-sec summary{list-style:none; display:flex; align-items:center; gap:10px; padding:14px 16px; cursor:pointer; font-weight:700; font-size:14.5px; color:var(--ink-2)}
+.more-sec summary::-webkit-details-marker{display:none}
+.more-sec summary .ico{width:18px; height:18px}
+.more-chev{transition:transform .25s var(--ease); color:var(--ink-3)}
+.more-sec[open] .more-chev{transform:rotate(180deg)}
+.more-body{padding:0 16px 16px; border-top:1px solid var(--line)}

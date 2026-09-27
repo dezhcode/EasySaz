@@ -56,10 +56,10 @@
     features: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
     pricing: 'M4 5h16v14H4zM8 9h8M8 13h5M15 16h2',
   });
-  function ico(name) {
+  function ico(name, cls) {
     const s = document.createElementNS(SVG_NS, 'svg');
     s.setAttribute('viewBox', '0 0 24 24');
-    s.setAttribute('class', 'ico');
+    s.setAttribute('class', cls ? 'ico ' + cls : 'ico');
     s.setAttribute('aria-hidden', 'true');
     const p = document.createElementNS(SVG_NS, 'path');
     p.setAttribute('d', UI[name] || UI.sparkle);
@@ -872,41 +872,150 @@
       }, 'del');
       sheet.appendChild(tools);
 
-      spec.fields.forEach(f => {
+      // ۱. سبک‌های آماده، با پیش‌نمایش زندهٔ همین کامپوننت
+      const variants = (S.schema.variants || {})[block.type] || [];
+      let strip = null;
+      if (variants.length) {
+        strip = variantStrip(block, variants, () => { changed(); drawMore(); syncWhen(); });
+        sheet.appendChild(strip);
+      }
+      const redraw = debounce(() => strip && strip.redraw(), 260);
+      const edited = () => { changed(); redraw(); syncWhen(); };
+
+      // ۲. محتوا
+      const content = h('div', 'content-sec');
+      const whenRows = [];
+      spec.fields.filter(f => !f.look).forEach(f => {
+        let el;
         if (f.type === 'list') {
           if (!Array.isArray(block.props[f.key])) block.props[f.key] = [];
-          sheet.appendChild(listControl(f, block.props[f.key], v => { block.props[f.key] = v; changed(); }));
+          el = listControl(f, block.props[f.key], v => { block.props[f.key] = v; edited(); });
         } else {
-          sheet.appendChild(control(f, block.props[f.key], v => { block.props[f.key] = v; changed(); }));
+          el = control(f, block.props[f.key], v => { block.props[f.key] = v; edited(); });
         }
+        if (f.when) whenRows.push([el, f.when]);
+        content.appendChild(el);
       });
+      sheet.appendChild(content);
+      const syncWhen = () => whenRows.forEach(([el, when]) => {
+        el.hidden = !Object.keys(when).every(k => when[k].indexOf(block.props[k]) >= 0);
+      });
+      syncWhen();
 
-      // ظاهر این کامپوننت (شخصی‌سازی)
+      // ۳. «بیشتر»: تنظیم‌های ریز ظاهر برای کسی که دقیق‌تر می‌خواهد
+      const looks = spec.fields.filter(f => f.look);
       const allowed = spec.style || [];
-      if (allowed.length) {
-        const sec = h('div', 'style-sec');
-        const lbl = h('div', 'label');
-        lbl.append(ico('brush'), document.createTextNode('ظاهر این کامپوننت'));
-        sec.appendChild(lbl);
+      const more = h('details', 'more-sec');
+      more.open = !!S.moreOpen;
+      more.addEventListener('toggle', () => { S.moreOpen = more.open; });
+      const sum = h('summary');
+      sum.append(ico('brush'), h('span', 'grow', 'تنظیمات بیشتر ظاهر'), ico('chev', 'more-chev'));
+      more.appendChild(sum);
+      const moreBody = h('div', 'more-body');
+      more.appendChild(moreBody);
+      const drawMore = () => {
+        moreBody.textContent = '';
+        looks.forEach(f => {
+          moreBody.appendChild(control(f, block.props[f.key], v => { block.props[f.key] = v; changed(); strip && strip.redraw(); syncWhen(); }));
+        });
         block.style = block.style || {};
         S.schema.style.filter(f => allowed.indexOf(f.key) >= 0).forEach(f => {
           const cur = block.style[f.key] != null ? block.style[f.key] : f.default;
-          sec.appendChild(control(f, cur, v => {
+          moreBody.appendChild(control(f, cur, v => {
             if (v === null || v === '' || v === f.default) delete block.style[f.key]; else block.style[f.key] = v;
             changed();
+            strip && strip.redraw();
           }));
         });
         const reset = h('button', 'add-item', 'برگشت به ظاهر پیش‌فرض');
         reset.type = 'button';
-        reset.addEventListener('click', () => { block.style = {}; changed(); editBlock(id); });
-        sec.appendChild(reset);
-        sheet.appendChild(sec);
+        reset.addEventListener('click', () => {
+          looks.forEach(f => { block.props[f.key] = f.default; });
+          block.style = {};
+          changed();
+          drawMore();
+          syncWhen();
+          strip && strip.redraw();
+        });
+        moreBody.appendChild(reset);
+      };
+      if (looks.length || allowed.length) {
+        drawMore();
+        sheet.appendChild(more);
       }
     }, () => {
       S.selected = null;
       renderCanvas();
       saveNow();
     }, null, { focus: () => blockEl(id) });
+  }
+
+  /* ---------- سبک‌های آماده (VariantStrip) ----------
+     هر سبک ترکیبی از فیلدهای ظاهری و ظاهر کامپوننت است (app/blocks.py VARIANTS).
+     پیش‌نمایش‌ها همین کامپوننت با محتوای خود کاربرند، نه تصویر ثابت. */
+  function variantBlock(block, v) {
+    const style = Object.assign({}, v.style);
+    if (block.style && block.style.accent) style.accent = block.style.accent;
+    return { id: block.id + 'v', type: block.type, props: Object.assign({}, block.props, v.props), style };
+  }
+  function variantActive(block, v) {
+    const spec = S.schema.blocks[block.type];
+    const def = k => { const f = spec.fields.find(x => x.key === k); return f ? f.default : undefined; };
+    const propsOk = Object.keys(v.props).every(k => (block.props[k] != null ? block.props[k] : def(k)) === v.props[k]);
+    const cur = Object.assign({}, block.style || {});
+    delete cur.accent;
+    const norm = o => JSON.stringify(Object.keys(o).sort().map(k => [k, o[k]]));
+    return propsOk && norm(cur) === norm(v.style);
+  }
+  function applyVariant(block, v) {
+    Object.assign(block.props, v.props);
+    const accent = block.style && block.style.accent;
+    block.style = Object.assign({}, v.style);
+    if (accent) block.style.accent = accent;
+  }
+  function variantStrip(block, variants, onApply) {
+    const sec = h('div', 'var-sec');
+    sec.appendChild(h('div', 'label', 'سبک'));
+    const row = h('div', 'var-row');
+    row.setAttribute('role', 'radiogroup');
+    row.setAttribute('aria-label', 'سبک کامپوننت');
+    const cards = variants.map(v => {
+      const b = h('button', 'var-card');
+      b.type = 'button';
+      b.setAttribute('role', 'radio');
+      const frame = h('div', 'var-frame');
+      const mini = h('div');
+      frame.appendChild(mini);
+      const name = h('span', 'var-name');
+      name.append(ico('check', 'var-check'), document.createTextNode(v.title));
+      b.append(frame, name);
+      b.addEventListener('click', () => {
+        applyVariant(block, v);
+        haptic();
+        onApply();
+        sec.redraw();
+      });
+      row.appendChild(b);
+      return { v, b, mini };
+    });
+    sec.appendChild(row);
+    sec.redraw = () => cards.forEach(({ v, b, mini }) => {
+      ES.render(mini, {
+        v: 2, theme: S.doc.theme, header: { enabled: false }, tabbar: { enabled: false },
+        pages: [{ id: 'p', title: '', icon: 'home', blocks: [variantBlock(block, v)] }],
+      }, { page: 'p', appName: S.app.name });
+      const on = variantActive(block, v);
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    sec.redraw();
+    // سبک فعال در دید باشد
+    requestAnimationFrame(() => { const on = row.querySelector('.var-card.on'); if (on) on.scrollIntoView({ block: 'nearest', inline: 'center' }); });
+    return sec;
+  }
+  function debounce(fn, ms) {
+    let t = null;
+    return () => { clearTimeout(t); t = setTimeout(fn, ms); };
   }
 
   function moveToPageSheet(id) {

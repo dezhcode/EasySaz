@@ -233,3 +233,68 @@
   font-size:11px; font-weight:800; line-height:20px; font-family:var(--font-sans)}
 
 .pg-nolink{cursor:default}
+
+/* ---------- سبک‌های آماده (variants) ---------- */
+/* Hero · کارت عبور: کارت رنگی با نقش کاشی بزرگ، مثل کارت سرویس عبور */
+.pg-herobox--pass{background:var(--pg-accent); color:var(--pg-on-accent); padding:18px 20px 22px; min-height:196px;
+  display:flex; flex-direction:column; justify-content:space-between; gap:26px}
+.pg-herobox--pass .pg-herobox-in{align-items:flex-start; text-align:start; gap:4px}
+.pg-herobox--pass.pg-align-center .pg-herobox-in{align-items:center; text-align:center}
+.pg-herobox--pass .pg-hero-title{font-size:28px; line-height:38px}
+.pg-motif--pass{position:absolute; left:-46px; bottom:-58px; width:210px; height:210px; fill:currentColor; opacity:.14; pointer-events:none}
+.pg-pass-top{position:relative; display:flex; align-items:center; justify-content:space-between; gap:10px}
+.pg-pass-mark,.pg-pass-logo{width:44px; height:44px; border-radius:14px; flex:none}
+.pg-pass-mark{display:grid; place-items:center; font-weight:800; font-size:19px;
+  background:color-mix(in srgb, var(--pg-on-accent) 18%, transparent)}
+.pg-pass-chip{display:inline-flex; align-items:center; height:26px; padding:0 11px; border-radius:13px; font-size:12px; font-weight:700;
+  background:color-mix(in srgb, currentColor 16%, transparent)}
+.pg-herobox--soft .pg-pass-chip,.pg-herobox--plain .pg-pass-chip{color:var(--pg-accent-ink); background:var(--pg-soft)}
+/* Hero · تصویر زمینه */
+.pg-herobox--cover{min-height:250px; display:flex; align-items:flex-end; padding:26px 22px; color:#FFFFFF; background:var(--pg-accent)}
+.pg-herobox--cover.pg-align-center{align-items:center; justify-content:center}
+.pg-herobox--cover .pg-herobox-in{width:100%}
+.pg-cover-img{position:absolute; inset:0; border-radius:0}
+.pg-cover-img.pg-empty{background:color-mix(in srgb, var(--pg-on-accent) 12%, var(--pg-accent)); color:var(--pg-on-accent); align-content:start; padding-top:18px}
+.pg-herobox--cover:has(.pg-cover-img.pg-empty){color:var(--pg-on-accent)}
+.pg-cover-shade{position:absolute; inset:0; background:rgba(8, 12, 24, .48)}
+.pg-herobox--cover .pg-pass-chip{background:rgba(255, 255, 255, .18)}
+
+/* Links · کاشی و قرص */
+.pg-links--tiles{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px}
+.pg-links--tiles .pg-link{flex-direction:column; align-items:flex-start; gap:10px; padding:14px; min-height:118px}
+.pg-links--tiles .pg-link-go{display:none}
+.pg-links--tiles .pg-link{position:relative}
+.pg-links--tiles .pg-link-txt small{white-space:normal}
+.pg-links--pills{flex-direction:row; flex-wrap:wrap; justify-content:center; gap:8px}
+.pg-links--pills .pg-link{padding:6px 14px 6px 8px; border-radius:999px; gap:8px}
+.pg-links--pills .pg-link-tile{width:30px; height:30px; border-radius:50%}
+.pg-links--pills .pg-link-tile .pg-ico{width:16px; height:16px}
+.pg-links--pills .pg-link-txt small,.pg-links--pills .pg-link-go{display:none}
+.pg-links--pills .pg-link-txt b{font-size:14px}
+
+/* FAQ · کارت‌های جدا */
+.pg-faq--cards{display:flex; flex-direction:column; gap:8px}
+.pg-faq--cards .pg-qa{border-top:0; padding:0 16px}
+.pg-faq--cards .pg-qa[open] summary{color:var(--pg-accent-ink)}
+
+/* Social · با اسم */
+.pg-social--pills{gap:8px}
+.pg-social--pills .pg-soc{width:auto; height:44px; padding:0 16px 0 14px; border-radius:999px; display:flex; gap:8px; font-weight:700; font-size:14px; color:var(--pg-ink)}
+.pg-social--pills .pg-soc .pg-ico{color:var(--pg-accent-ink); width:19px; height:19px}
+.pg-box--solid .pg-social--pills .pg-soc .pg-ico{color:inherit}
+
+/* Pricing · کشویی */
+.pg-plans--scroll{flex-direction:row; overflow-x:auto; scroll-snap-type:x mandatory; margin:0 calc(var(--space-4) * -1); padding:2px var(--space-4) 6px; scrollbar-width:none}
+.pg-plans--scroll::-webkit-scrollbar{display:none}
+.pg-plans--scroll .pg-plan{flex:0 0 78%; scroll-snap-align:center}
+
+/* Gallery · شبکه */
+.pg-gallery--grid{margin:0}
+.pg-gallery--grid .pg-gal-track{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; overflow:visible; padding:0}
+.pg-gallery--grid .pg-gal-item .pg-img{aspect-ratio:1}
+
+/* Features · لیستی */
+.pg-feat-txt{display:flex; flex-direction:column; gap:2px; min-width:0}
+.pg-feats--list{grid-template-columns:minmax(0, 1fr); gap:8px}
+.pg-feats--list .pg-feat{flex-direction:row; align-items:center; gap:12px; padding:12px 14px}
+.pg-feats--list .pg-feat-emo{margin:0; flex:none}

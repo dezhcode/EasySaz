@@ -66,10 +66,12 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "fields": [
             {"key": "title", "label": "عنوان", "type": "text", "max": 60, "default": "به مینی اپ من خوش اومدی"},
             {"key": "subtitle", "label": "توضیح", "type": "textarea", "max": 200, "default": "اینجا همه چیز رو یک جا پیدا می کنی."},
-            {"key": "image", "label": "آدرس لوگو یا تصویر (اختیاری)", "type": "image", "default": ""},
-            {"key": "style", "label": "سبک", "type": "select", "default": "solid",
-             "options": [["solid", "پررنگ"], ["soft", "ملایم"], ["plain", "ساده"]]},
-            {"key": "align", "label": "چینش", "type": "select", "default": "center",
+            {"key": "image", "label": "لوگو (اختیاری)", "type": "image", "default": ""},
+            {"key": "cover", "label": "تصویر زمینه", "type": "image", "default": "", "when": {"style": ["cover"]}},
+            {"key": "chip", "label": "برچسب کوچک (اختیاری)", "type": "text", "max": 24, "default": ""},
+            {"key": "style", "label": "سبک", "type": "select", "default": "solid", "look": True,
+             "options": [["solid", "پررنگ"], ["pass", "کارت عبور"], ["cover", "تصویر زمینه"], ["soft", "ملایم"], ["plain", "ساده"]]},
+            {"key": "align", "label": "چینش", "type": "select", "default": "center", "look": True,
              "options": [["center", "وسط"], ["start", "راست"]]},
         ],
     },
@@ -82,7 +84,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "fields": [
             {"key": "title", "label": "عنوان (اختیاری)", "type": "text", "max": 80, "default": "درباره ما"},
             {"key": "body", "label": "متن", "type": "textarea", "max": 1500, "default": "چند خط درباره کسب و کارت بنویس."},
-            {"key": "align", "label": "چینش", "type": "select", "default": "start",
+            {"key": "align", "label": "چینش", "type": "select", "look": True, "default": "start",
              "options": [["start", "راست"], ["center", "وسط"]]},
         ],
     },
@@ -95,7 +97,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "fields": [
             {"key": "label", "label": "متن دکمه", "type": "text", "max": 40, "default": "شروع کن"},
             {"key": "url", "label": "لینک", "type": "url", "default": "https://t.me/EasySazBot"},
-            {"key": "style", "label": "سبک", "type": "select", "default": "primary",
+            {"key": "style", "label": "سبک", "type": "select", "look": True, "default": "primary",
              "options": [["primary", "پررنگ"], ["soft", "ملایم"], ["outline", "خطی"]]},
         ],
     },
@@ -106,6 +108,8 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "desc": "چند لینک زیر هم، مثل لینک بیو",
         "premium": False,
         "fields": [
+            {"key": "layout", "label": "چیدمان", "type": "select", "look": True, "default": "list",
+             "options": [["list", "فهرست"], ["tiles", "کاشی"], ["pills", "قرص"]]},
             {"key": "items", "label": "لینک ها", "type": "list", "max_items": 12, "item_label": "لینک",
              "fields": [
                  {"key": "label", "label": "عنوان", "type": "text", "max": 50, "default": "لینک جدید"},
@@ -127,7 +131,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "fields": [
             {"key": "src", "label": "تصویر", "type": "image", "default": ""},
             {"key": "caption", "label": "زیرنویس", "type": "text", "max": 120, "default": ""},
-            {"key": "ratio", "label": "نسبت", "type": "select", "default": "16:9",
+            {"key": "ratio", "label": "نسبت", "type": "select", "look": True, "default": "16:9",
              "options": [["16:9", "افقی"], ["1:1", "مربع"], ["4:5", "عمودی"], ["auto", "اصلی"]]},
         ],
     },
@@ -138,6 +142,8 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "desc": "سوال و جواب های بازشونده",
         "premium": False,
         "fields": [
+            {"key": "layout", "label": "چیدمان", "type": "select", "look": True, "default": "list",
+             "options": [["list", "فهرست"], ["cards", "کارت‌های جدا"]]},
             {"key": "title", "label": "عنوان", "type": "text", "max": 60, "default": "سوالات متداول"},
             {"key": "items", "label": "سوال ها", "type": "list", "max_items": 15, "item_label": "سوال",
              "fields": [
@@ -156,6 +162,8 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "desc": "آیکون راه های ارتباطی",
         "premium": False,
         "fields": [
+            {"key": "layout", "label": "چیدمان", "type": "select", "look": True, "default": "icons",
+             "options": [["icons", "آیکن"], ["pills", "با اسم"]]},
             {"key": "items", "label": "راه ها", "type": "list", "max_items": 8, "item_label": "راه ارتباطی",
              "fields": [
                  {"key": "kind", "label": "نوع", "type": "select", "default": "telegram",
@@ -178,7 +186,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "premium": False,
         "fields": [
             {"key": "text", "label": "متن", "type": "textarea", "max": 240, "default": "۲۰٪ تخفیف ویژه تا آخر هفته"},
-            {"key": "tone", "label": "رنگ", "type": "select", "default": "accent",
+            {"key": "tone", "label": "رنگ", "type": "select", "look": True, "default": "accent",
              "options": [["accent", "رنگ اصلی"], ["success", "سبز"], ["warning", "کهربایی"], ["info", "خنثی"]]},
         ],
     },
@@ -189,7 +197,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "desc": "فاصله یا خط بین بخش ها",
         "premium": False,
         "fields": [
-            {"key": "style", "label": "سبک", "type": "select", "default": "line",
+            {"key": "style", "label": "سبک", "type": "select", "look": True, "default": "line",
              "options": [["line", "خط"], ["dots", "نقطه"], ["space", "فقط فاصله"]]},
         ],
     },
@@ -202,7 +210,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "premium": True,
         "fields": [
             {"key": "title", "label": "عنوان بخش", "type": "text", "max": 60, "default": "محصولات"},
-            {"key": "layout", "label": "چیدمان", "type": "select", "default": "grid",
+            {"key": "layout", "label": "چیدمان", "type": "select", "look": True, "default": "grid",
              "options": [["grid", "دوستونه"], ["list", "لیستی"]]},
             {"key": "items", "label": "کارت ها", "type": "list", "max_items": 12, "item_label": "کارت",
              "fields": [
@@ -226,6 +234,8 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "desc": "پلن و اشتراک با قیمت و ویژگی‌ها",
         "premium": True,
         "fields": [
+            {"key": "layout", "label": "چیدمان", "type": "select", "look": True, "default": "stack",
+             "options": [["stack", "زیر هم"], ["scroll", "کشویی"]]},
             {"key": "title", "label": "عنوان بخش", "type": "text", "max": 60, "default": "پلن‌ها"},
             {"key": "items", "label": "پلن‌ها", "type": "list", "max_items": 6, "item_label": "پلن",
              "fields": [
@@ -250,6 +260,8 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "desc": "اسلایدر افقی تصاویر",
         "premium": True,
         "fields": [
+            {"key": "layout", "label": "چیدمان", "type": "select", "look": True, "default": "slider",
+             "options": [["slider", "اسلایدر"], ["grid", "شبکه"]]},
             {"key": "items", "label": "تصاویر", "type": "list", "max_items": 12, "item_label": "تصویر",
              "fields": [
                  {"key": "src", "label": "تصویر", "type": "image", "default": ""},
@@ -265,6 +277,8 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "desc": "شبکه ای از مزیت ها با ایموجی",
         "premium": True,
         "fields": [
+            {"key": "layout", "label": "چیدمان", "type": "select", "look": True, "default": "grid",
+             "options": [["grid", "دوستونه"], ["list", "لیستی"]]},
             {"key": "title", "label": "عنوان بخش", "type": "text", "max": 60, "default": "چرا ما؟"},
             {"key": "items", "label": "ویژگی ها", "type": "list", "max_items": 8, "item_label": "ویژگی",
              "fields": [
@@ -406,6 +420,102 @@ STYLE_SUPPORT: dict[str, list[str]] = {
     "gallery": ["radius"],
     "features": ["box", "radius", "accent"],
 }
+
+# ---------- سبک‌های آماده ----------
+# هر سبک ترکیب ازپیش‌طراحی‌شده‌ای از فیلدهای ظاهری (look) و ظاهر کامپوننت
+# (style) است. انتخاب سبک، همین‌ها را روی کامپوننت می‌نشاند؛ محتوا و رنگ
+# اختصاصی دست نمی‌خورد. چیزی ذخیره نمی‌شود جز همان props و style، پس سبک
+# فعال در ادیتور از روی تطابق پیدا می‌شود. test_smoke همه را با clean_page
+# می‌سنجد.
+def _v(vid: str, title: str, props: dict | None = None, style: dict | None = None) -> dict:
+    return {"id": vid, "title": title, "props": props or {}, "style": style or {}}
+
+
+VARIANTS: dict[str, list[dict]] = {
+    "hero": [
+        _v("solid", "پررنگ", {"style": "solid", "align": "center"}),
+        _v("pass", "کارت عبور", {"style": "pass", "align": "start"}),
+        _v("cover", "تصویر زمینه", {"style": "cover", "align": "center"}),
+        _v("soft", "ملایم", {"style": "soft", "align": "center"}),
+        _v("plain", "مینیمال", {"style": "plain", "align": "start"}),
+    ],
+    "text": [
+        _v("card", "کارت", {"align": "start"}),
+        _v("soft", "ملایم", {"align": "start"}, {"box": "soft"}),
+        _v("outline", "خطی", {"align": "start"}, {"box": "outline"}),
+        _v("spot", "برجسته", {"align": "center"}, {"box": "solid", "pad": "lg"}),
+        _v("plain", "بی‌قاب", {"align": "start"}, {"box": "plain", "pad": "sm"}),
+    ],
+    "button": [
+        _v("primary", "پررنگ", {"style": "primary"}),
+        _v("pill", "قرصی", {"style": "primary"}, {"radius": 40}),
+        _v("soft", "ملایم", {"style": "soft"}),
+        _v("outline", "خطی", {"style": "outline"}),
+    ],
+    "links": [
+        _v("list", "فهرست", {"layout": "list"}),
+        _v("tiles", "کاشی", {"layout": "tiles"}),
+        _v("pills", "قرص", {"layout": "pills"}),
+        _v("soft", "ملایم", {"layout": "list"}, {"box": "soft"}),
+        _v("solid", "توپر", {"layout": "list"}, {"box": "solid"}),
+    ],
+    "image": [
+        _v("wide", "افقی", {"ratio": "16:9"}),
+        _v("square", "مربع", {"ratio": "1:1"}),
+        _v("portrait", "عمودی", {"ratio": "4:5"}),
+        _v("round", "گوشه‌گرد", {"ratio": "4:5"}, {"radius": 36}),
+        _v("sharp", "بی‌گوشه", {"ratio": "16:9"}, {"radius": 0}),
+    ],
+    "faq": [
+        _v("list", "فهرست", {"layout": "list"}),
+        _v("cards", "کارت‌های جدا", {"layout": "cards"}),
+        _v("soft", "ملایم", {"layout": "list"}, {"box": "soft"}),
+        _v("plain", "بی‌قاب", {"layout": "list"}, {"box": "plain"}),
+    ],
+    "social": [
+        _v("icons", "آیکن", {"layout": "icons"}),
+        _v("pills", "با اسم", {"layout": "pills"}),
+        _v("soft", "ملایم", {"layout": "icons"}, {"box": "soft"}),
+        _v("solid", "توپر", {"layout": "icons"}, {"box": "solid"}),
+    ],
+    "notice": [
+        _v("accent", "رنگی", {"tone": "accent"}),
+        _v("solid", "توپر", {"tone": "accent"}, {"box": "solid"}),
+        _v("outline", "خطی", {"tone": "accent"}, {"box": "outline"}),
+        _v("success", "سبز", {"tone": "success"}),
+        _v("warning", "کهربایی", {"tone": "warning"}),
+        _v("info", "خنثی", {"tone": "info"}),
+    ],
+    "divider": [
+        _v("line", "خط", {"style": "line"}),
+        _v("dots", "نقطه", {"style": "dots"}),
+        _v("space", "فاصله", {"style": "space"}),
+    ],
+    "cards": [
+        _v("grid", "دوستونه", {"layout": "grid"}),
+        _v("list", "لیستی", {"layout": "list"}),
+        _v("soft", "ملایم", {"layout": "grid"}, {"box": "soft"}),
+        _v("outline", "خطی", {"layout": "list"}, {"box": "outline"}),
+    ],
+    "pricing": [
+        _v("stack", "زیر هم", {"layout": "stack"}),
+        _v("scroll", "کشویی", {"layout": "scroll"}),
+        _v("soft", "ملایم", {"layout": "stack"}, {"box": "soft"}),
+        _v("outline", "خطی", {"layout": "stack"}, {"box": "outline"}),
+    ],
+    "gallery": [
+        _v("slider", "اسلایدر", {"layout": "slider"}),
+        _v("grid", "شبکه", {"layout": "grid"}),
+        _v("round", "گوشه‌گرد", {"layout": "slider"}, {"radius": 32}),
+    ],
+    "features": [
+        _v("grid", "دوستونه", {"layout": "grid"}),
+        _v("list", "لیستی", {"layout": "list"}),
+        _v("soft", "ملایم", {"layout": "grid"}, {"box": "soft"}),
+        _v("solid", "توپر", {"layout": "list"}, {"box": "solid"}),
+    ],
+}
+
 
 # ---------- سربرگ، نوار پایین و صفحه‌ها ----------
 HEADER_FIELDS: list[dict[str, Any]] = [
@@ -619,4 +729,5 @@ def public_schema() -> dict:
         "tabbar": TABBAR_FIELDS,
         "page_icons": PAGE_ICONS,
         "swatches": SWATCHES,
+        "variants": VARIANTS,
     }

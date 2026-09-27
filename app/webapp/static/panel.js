@@ -939,20 +939,42 @@
     return top;
   }
   /* پیش‌نمایش زندهٔ بالای زیرصفحه */
+  /* پیش‌نمایش زندهٔ بالای زیرصفحه. همراه نوار بالا پین می‌شود (.shead) تا
+     فرم زیرش اسکرول بخورد و تغییرها همیشه دیده شوند. «بزرگ‌تر» قاب را بلندتر
+     می‌کند؛ ارتفاع سرِ پین‌شده در --shead-h است تا فیلدِ فوکوس‌شده زیرش نرود. */
   function livePv(el, draw, label) {
     const pv = h('div', 'pv');
+    const row = h('div', 'pv-row');
     const tag = h('span', 'pv-tag');
     tag.append(h('i', 'dot'), document.createTextNode(label || 'پیش‌نمایش زنده'));
+    const size = h('button', 'pv-size');
+    size.type = 'button';
+    const setSize = big => {
+      pv.classList.toggle('big', big);
+      size.textContent = '';
+      size.append(ico(big ? 'up' : 'down'), document.createTextNode(big ? 'کوچک‌تر' : 'بزرگ‌تر'));
+      size.setAttribute('aria-expanded', big ? 'true' : 'false');
+    };
+    setSize(!!S.pvBig);
+    size.addEventListener('click', () => { S.pvBig = !pv.classList.contains('big'); setSize(S.pvBig); haptic(); });
+    row.append(tag, size);
     const box = h('div', 'pv-box');
-    pv.append(tag, box);
-    el.appendChild(pv);
+    pv.append(row, box);
+    const stop = el.querySelector(':scope > .stop');
+    const head = h('div', 'shead');
+    if (stop) el.insertBefore(head, stop);
+    else el.appendChild(head);
+    if (stop) head.appendChild(stop);
+    head.appendChild(pv);
+    if (window.ResizeObserver) new ResizeObserver(() => el.style.setProperty('--shead-h', head.offsetHeight + 'px')).observe(head);
+    el.addEventListener('scroll', () => head.classList.toggle('lifted', el.scrollTop > 4), { passive: true });
     const redraw = () => draw(box);
     redraw();
     return redraw;
   }
   /* صفحهٔ فعلی مینی‌اپ با سربرگ و نوار پایین، در قاب کوتاه */
   function pagePreview(box, height) {
-    box.style.height = height + 'px';
+    box.style.height = 'min(' + height + 'px, var(--pv-h))';
     box.textContent = '';
     const inner = h('div', 'pv-page');
     box.appendChild(inner);

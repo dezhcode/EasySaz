@@ -7,92 +7,140 @@
 <link rel="preload" href="__BASE__static/fonts/peyda-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="__BASE__static/fonts/peyda-800.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="__BASE__static/peyda.css">
-<link rel="stylesheet" href="__BASE__static/tokens.css?v=6">
-<link rel="stylesheet" href="__BASE__static/render.css?v=6">
-<link rel="stylesheet" href="__BASE__static/panel.css?v=6">
+<link rel="stylesheet" href="__BASE__static/tokens.css?v=7">
+<link rel="stylesheet" href="__BASE__static/render.css?v=7">
+<link rel="stylesheet" href="__BASE__static/panel.css?v=7">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-<div id="boot" class="boot" aria-hidden="true"><span class="boot-tile"></span></div>
+<!-- اسپلش: نشان ایزی‌ساز + نوار بارگذاری (مثل عبور) -->
+<div id="splash" class="splash" aria-hidden="true"><span class="mark mark-lg"></span><div class="bar"><i></i></div></div>
 
-<!-- شروع: صفحهٔ خالی و انتخاب اسم (EmptyCanvas) -->
-<section id="onboard" class="screen onboard" hidden>
-  <div class="ob-top"><span class="wordmark">ایزی‌ساز</span><span class="steps label"><b>1</b> از 2</span></div>
-  <div class="ob-frame" aria-hidden="true">
-    <i class="ob-line ob-l1"></i><i class="ob-line ob-l2"></i><i class="ob-line ob-l3"></i>
-    <span class="ob-plus" data-icon="plus"></span>
+<!-- ═══ خانه (تب) ═══ -->
+<section id="home" class="screen tabscreen" hidden>
+  <header class="hello">
+    <div><div class="hello-s" id="hello-s">سلام</div><div class="hello-t">ایزی‌ساز</div></div>
+    <span class="mark"></span>
+  </header>
+  <div class="slider">
+    <div class="slides" id="home-passes"></div>
+    <div class="dots" id="home-dots"></div>
   </div>
-  <div class="ob-body">
-    <h1 class="title-1">یک اسم برای مینی‌اپت انتخاب کن</h1>
-    <p class="body">بعد از انتخاب اسم، یک قالب آماده برمی‌داری یا از صفحهٔ خالی شروع می‌کنی.</p>
-    <label for="ob-name" class="sr">اسم مینی‌اپ</label>
+  <div class="sec"><span class="sec-t">کارهای سریع</span></div>
+  <div class="tiles" id="home-tiles"></div>
+  <div class="sec"><span class="sec-t">اتصال و تنظیمات</span><span class="sec-e" id="home-conn-e"></span></div>
+  <div class="group" id="home-conn"></div>
+  <div class="sec"><span class="sec-t">آمار</span><span class="sec-e">بازدید از داخل ربات</span></div>
+  <div class="card mx stats" id="home-stats"></div>
+</section>
+
+<!-- ═══ حساب (تب) ═══ -->
+<section id="account" class="screen tabscreen" hidden>
+  <div class="band"><span class="tunnel" data-art></span><div class="band-t">حساب</div></div>
+  <div class="me">
+    <div class="me-av" id="me-av"></div>
+    <div class="me-name" id="me-name"></div>
+    <div class="me-line" id="me-line"></div>
+  </div>
+  <div class="sec"><span class="sec-t">پلن‌ها</span><span class="sec-e">پرداخت با ستارهٔ تلگرام</span></div>
+  <div class="tickets" id="acc-plans"></div>
+  <div class="sec"><span class="sec-t">مینی‌اپ‌های من</span><span class="sec-e" id="acc-apps-e"></span></div>
+  <div class="group" id="acc-apps"></div>
+  <div class="sec"><span class="sec-t">ربات ایزی‌ساز</span></div>
+  <div class="group" id="acc-bot"></div>
+</section>
+
+<!-- ═══ شروع: اسم (قدم ۱ از ۲) ═══ -->
+<section id="onboard" class="screen onboard" hidden>
+  <header class="topbar">
+    <button class="back" id="ob-back" aria-label="برگشت" hidden><span data-icon="back"></span></button>
+    <div><div class="topbar-t">مینی‌اپ تازه</div><div class="topbar-s">قدم <span class="n">1</span> از <span class="n">2</span> · اسم</div></div>
+  </header>
+  <div class="mx">
+    <div class="pass ob-pass" aria-hidden="true">
+      <span class="tunnel" data-art></span>
+      <div class="pass-head"><span class="pass-name" id="ob-pass-name">اسم مینی‌اپت</span><span class="pass-st"><i></i>پیش‌نویس</span></div>
+      <div class="pass-big"><span class="pass-initial" id="ob-pass-initial">؟</span></div>
+      <div class="pass-foot"><span class="pass-meta">ساخته شده با ایزی‌ساز</span><span class="pass-btn">شروع</span></div>
+    </div>
+  </div>
+  <div class="ob-body mx">
+    <label for="ob-name" class="ob-label">یک اسم برای مینی‌اپت انتخاب کن</label>
     <input id="ob-name" class="ob-input" maxlength="40" placeholder="مثلاً: کافه نارنج" autocomplete="off">
     <div id="ob-chips" class="chips"></div>
-    <p class="caption hint">بعداً هم می‌تونی عوضش کنی.</p>
+    <p class="hint">بعداً هم می‌تونی عوضش کنی. قدم بعد: یک قالب آماده.</p>
   </div>
-  <button id="ob-go" class="btn primary block" disabled>ادامه</button>
+  <div class="foot"><button id="ob-go" class="btn btn-p btn-block" disabled>ادامه</button></div>
 </section>
 
-<!-- انتخاب قالب (TemplatePicker) -->
+<!-- ═══ قالب‌ها (تب، یا قدم ۲ ساخت) ═══ -->
 <section id="templates" class="screen tpl-screen" hidden>
-  <header class="tpl-head">
-    <button class="icon-btn" id="tpl-back" aria-label="برگشت" hidden><span data-icon="back"></span></button>
-    <div class="tpl-title"><h1 class="title-1">یک قالب انتخاب کن</h1><p class="caption" id="tpl-sub">همه‌چیزش قابل تغییره: متن، رنگ، صفحه‌ها و کامپوننت‌ها.</p></div>
+  <header class="topbar">
+    <button class="back" id="tpl-back" aria-label="برگشت" hidden><span data-icon="back"></span></button>
+    <div><div class="topbar-t">قالب‌ها</div><div class="topbar-s" id="tpl-sub">همه‌چیزش قابل تغییره: متن، رنگ، صفحه‌ها و کامپوننت‌ها.</div></div>
   </header>
-  <div class="tpl-cats" id="tpl-cats" role="tablist" aria-label="دسته‌ها"></div>
+  <div class="tabs scroll" id="tpl-cats" role="tablist" aria-label="دسته‌ها"></div>
   <div class="tpl-grid" id="tpl-grid"></div>
-  <div class="tpl-foot"><button class="btn secondary block" id="tpl-blank">شروع با صفحهٔ خالی</button></div>
+  <div class="foot" id="tpl-foot"><button class="btn btn-s btn-block" id="tpl-blank">شروع با صفحهٔ خالی</button></div>
 </section>
 
-<!-- ادیتور -->
+<!-- ═══ ادیتور (زیرصفحه، بدون ناوبری اصلی) ═══ -->
 <section id="editor" class="screen editor" hidden>
-  <header class="appbar">
-    <div class="appbar-row">
-      <button class="appbar-app" id="bar-app" aria-label="تنظیمات مینی‌اپ">
-        <span class="appbar-tile" id="bar-initial"></span>
-        <span class="appbar-txt"><b class="title-2" id="bar-name"></b><span class="caption status" id="bar-status"><i class="dot"></i><span></span></span></span>
+  <header class="etop">
+    <div class="etop-row">
+      <button class="back" id="ed-back" aria-label="برگشت به خانه"><span data-icon="back"></span></button>
+      <button class="etop-app" id="bar-app" aria-label="تنظیمات مینی‌اپ">
+        <b id="bar-name"></b>
+        <span class="status" id="bar-status"><i class="dot"></i><span></span></span>
       </button>
-      <div class="appbar-actions">
-        <button class="icon-btn" id="bar-preview" aria-label="پیش‌نمایش"><span data-icon="eye"></span></button>
-        <button class="btn primary publish" id="bar-publish"><i class="dot"></i>انتشار</button>
-      </div>
+      <button class="icon-btn" id="bar-preview" aria-label="پیش‌نمایش"><span data-icon="eye"></span></button>
+      <button class="btn btn-p btn-sm publish" id="bar-publish"><i class="dot"></i>انتشار</button>
     </div>
-    <div class="pagestrip" id="pagestrip" role="tablist" aria-label="صفحه‌های مینی‌اپ"></div>
+    <div class="tabs scroll pagestrip" id="pagestrip" role="tablist" aria-label="صفحه‌های مینی‌اپ"></div>
   </header>
   <div id="canvas"></div>
   <div id="empty" class="empty" hidden>
-    <span class="cat-tile cat-write" data-icon="plus"></span>
-    <b class="title-2">این صفحه خالیه</b>
-    <span class="caption">یک کامپوننت اضافه کن یا یک قالب آماده بردار.</span>
+    <span class="ic write lg" data-icon="plus"></span>
+    <b class="empty-t">این صفحه خالیه</b>
+    <span class="empty-s">یک کامپوننت اضافه کن یا یک قالب آماده بردار.</span>
     <div class="empty-actions">
-      <button class="btn primary sm" id="empty-add">افزودن کامپوننت</button>
-      <button class="btn secondary sm" id="empty-tpl">قالب‌ها</button>
+      <button class="btn btn-p btn-sm" id="empty-add">افزودن کامپوننت</button>
+      <button class="btn btn-s btn-sm" id="empty-tpl">قالب‌ها</button>
     </div>
   </div>
-  <nav class="toolbar" id="toolbar" aria-label="ابزارها">
-    <button data-act="layers"><span data-icon="layers"></span><span class="label">لایه‌ها</span></button>
-    <button data-act="templates"><span data-icon="template"></span><span class="label">قالب‌ها</span></button>
-    <button data-act="add" class="tb-add"><span class="tb-add-tile" data-icon="plus"></span><span class="label">افزودن</span></button>
-    <button data-act="theme"><span data-icon="palette"></span><span class="label">ظاهر</span></button>
-    <button data-act="settings"><span data-icon="settings"></span><span class="label">تنظیمات</span></button>
+  <nav class="dock" id="toolbar" aria-label="ابزارها">
+    <span class="dock-ind" aria-hidden="true"></span>
+    <button data-act="layers"><span data-icon="layers"></span><span class="dock-l">لایه‌ها</span></button>
+    <button data-act="theme"><span data-icon="palette"></span><span class="dock-l">ظاهر</span></button>
+    <button data-act="add" class="dock-add" aria-label="افزودن کامپوننت"><span class="dock-add-t" data-icon="plus"></span></button>
+    <button data-act="templates"><span data-icon="template"></span><span class="dock-l">قالب‌ها</span></button>
+    <button data-act="settings"><span data-icon="settings"></span><span class="dock-l">تنظیمات</span></button>
   </nav>
-  <button class="exit-preview" id="exit-preview" hidden>بستن پیش‌نمایش</button>
+  <button class="exit-preview" id="exit-preview" hidden><span data-icon="x"></span>بستن پیش‌نمایش</button>
 </section>
 
 <section id="blocked" class="screen blocked" hidden>
-  <span class="cat-tile cat-brand big" data-icon="bot"></span>
-  <h1 class="title-1">پنل ایزی‌ساز</h1>
-  <p class="body" id="blocked-msg">این پنل داخل تلگرام و از ربات @EasySazBot باز می‌شه.</p>
-  <a class="btn secondary" href="#demo" id="demo-link">دیدن نسخهٔ نمایشی</a>
+  <span class="mark mark-lg"></span>
+  <b class="topbar-t">پنل ایزی‌ساز</b>
+  <p class="empty-s" id="blocked-msg">این پنل داخل تلگرام و از ربات @EasySazBot باز می‌شه.</p>
+  <a class="btn btn-s" href="#demo" id="demo-link">دیدن نسخهٔ نمایشی</a>
 </section>
+
+<!-- ناوبری شناور (مثل عبور): قرص روشن زیر تب فعال می‌لغزد -->
+<nav id="nav" class="nav" aria-label="ناوبری" hidden>
+  <span class="nav-ind still" id="nav-ind" aria-hidden="true"></span>
+  <button class="nav-i" data-tab="home"><span data-icon="home"></span><span class="nav-l">خانه</span></button>
+  <button class="nav-i" data-tab="templates"><span data-icon="template"></span><span class="nav-l">قالب‌ها</span></button>
+  <button class="nav-i" data-tab="account"><span data-icon="user"></span><span class="nav-l">حساب</span></button>
+</nav>
 
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
 <div class="toast" id="toast" role="status"><span class="toast-ico"></span><span class="toast-txt"></span></div>
 <input type="file" id="file" accept="image/png,image/jpeg,image/webp" hidden>
 
-<script src="__BASE__static/render.js?v=6"></script>
-<script src="__BASE__static/demo.js?v=6"></script>
-<script src="__BASE__static/panel.js?v=6"></script>
+<script src="__BASE__static/render.js?v=7"></script>
+<script src="__BASE__static/demo.js?v=7"></script>
+<script src="__BASE__static/panel.js?v=7"></script>
 </body>
 </html>

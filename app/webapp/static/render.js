@@ -61,6 +61,23 @@
     return `rgba(${r},${g},${b},${a})`;
   }
 
+  /* کارت عبورِ صاحب مینی‌اپ: نسخهٔ عمیق رنگ اصلی (آبی عبور → سرمه‌ای)،
+     لایهٔ تیره‌ترش برای قرص و ریل، و «تونل» روشن برای نقش و نقطه.
+     طیف آبی تونل فیروزه‌ای می‌گیرد (مثل عبور)، بقیه روشن‌ترِ همان رنگ. */
+  function deepVars(h, s) {
+    const sat = Math.min(88, Math.max(30, s));
+    const deep = hslToHex(h, sat, 25);
+    const blue = h >= 190 && h <= 262;
+    return {
+      '--pg-deep': deep,
+      '--pg-deep-2': hslToHex(h, sat, 17),
+      '--pg-glow': blue ? hslToHex(h - 37, 88, 62) : hslToHex(h, 92, 72),
+      '--pg-on-deep': '#F1F6FF',
+      '--pg-on-deep-2': hslToHex(h, 70, 82),
+      '--pg-shadow': `0 18px 34px -18px ${alpha(deep, 0.6)}`,
+    };
+  }
+
   function isDark(mode) {
     if (mode === 'dark') return true;
     if (mode === 'light') return false;
@@ -71,25 +88,23 @@
   /* قانون رنگ صفحهٔ کاربر (README سیستم طراحی، «رنگ صفحهٔ کاربر»):
      از یک pg-accent همهٔ رنگ‌ها ساخته می‌شوند و خوانایی تضمین است. */
   const BASE = {
-    light: { bg: '#F4F6FA', surface: '#FFFFFF', ink: '#0E1525', ink2: '#4A5468', ink3: '#667085', line: 'rgba(14,21,37,0.10)' },
-    dark: { bg: '#0A0E16', surface: '#141A25', ink: '#F2F5FA', ink2: '#B0B9C9', ink3: '#8A94A7', line: 'rgba(255,255,255,0.09)' },
+    // زمینه، سطح و متن عبور
+    light: { bg: '#EDF1F8', surface: '#FFFFFF', sunk: '#E3E9F3', ink: '#0A1633', ink2: '#3E4B69', ink3: '#56637F', line: '#D5DDEA', nav: '#0A1633' },
+    dark: { bg: '#080D1C', surface: '#111933', sunk: '#19223F', ink: '#EAF0FF', ink2: '#B3BFDD', ink3: '#8A97B8', line: '#243056', nav: '#1A2448' },
   };
   const RADIUS = { soft: 18, round: 26, sharp: 8 };
 
   function palette(theme) {
     theme = theme || {};
     const dark = isDark(theme.mode);
-    let accent = /^#[0-9a-f]{6}$/i.test(theme.accent || '') ? theme.accent : '#2A63F5';
+    let accent = /^#[0-9a-f]{6}$/i.test(theme.accent || '') ? theme.accent : '#1D55F0';
     let [h, s, l] = rgbToHsl(...hexToRgb(accent));
     if (dark && l < 52) accent = hslToHex(h, s, Math.min(64, l + 14));
     if (!dark && l > 62) accent = hslToHex(h, s, 52);
     [h, s, l] = rgbToHsl(...hexToRgb(accent));
     const base = dark ? BASE.dark : BASE.light;
     const bg = theme.bg === 'plain' ? base.bg : mix(base.bg, accent, dark ? 0.06 : 0.05);
-    // تب فعال نوار شناور روی زمینهٔ تیره؛ رنگ اصلی خیلی تیره آنجا گم می‌شود
-    const tabBg = dark ? '#1B2230' : '#0E1525';
-    const onAccent = contrast(accent, '#FFFFFF') >= contrast(accent, '#0E1525') ? '#FFFFFF' : '#0E1525';
-    const tabLost = contrast(accent, tabBg) < 2;
+    const onAccent = contrast(accent, '#FFFFFF') >= contrast(accent, '#0A1633') ? '#FFFFFF' : '#0A1633';
     const radius = theme.radius === 'custom'
       ? Math.max(0, Math.min(32, Number(theme.radius_px) || 0))
       : (RADIUS[theme.radius] || RADIUS.soft);
@@ -107,10 +122,11 @@
         '--pg-ink-2': base.ink2,
         '--pg-ink-3': base.ink3,
         '--pg-line': base.line,
+        '--pg-sunk': base.sunk,
         '--pg-radius': radius + 'px',
-        '--pg-tab-bg': tabBg,
-        '--pg-tab-on': tabLost ? '#FFFFFF' : accent,
-        '--pg-tab-on-ink': tabLost ? accent : onAccent,
+        // نوار پایین شناور مثل ناوبری عبور: زمینهٔ تیره، قرص روشن
+        '--pg-tab-bg': base.nav,
+        ...deepVars(h, s),
       },
     };
   }
@@ -124,9 +140,10 @@
     [h, s, l] = rgbToHsl(...hexToRgb(accent));
     return {
       '--pg-accent': accent,
-      '--pg-on-accent': contrast(accent, '#FFFFFF') >= contrast(accent, '#0E1525') ? '#FFFFFF' : '#0E1525',
+      '--pg-on-accent': contrast(accent, '#FFFFFF') >= contrast(accent, '#0A1633') ? '#FFFFFF' : '#0A1633',
       '--pg-accent-ink': dark ? hslToHex(h, Math.min(100, s), 76) : hslToHex(h, Math.min(100, s + 6), Math.max(26, l - 12)),
       '--pg-soft': alpha(accent, dark ? 0.16 : 0.10),
+      ...deepVars(h, s),
     };
   }
 
@@ -183,6 +200,19 @@
   }
 
   /* نقش کاشی سربرگ: چهار مربع گرد ۲×۲ */
+  /* نقش تونل عبور: دو طاق، رنگ از currentColor یا --pg-glow */
+  function tunnelArt(cls) {
+    const s = document.createElementNS(SVG_NS, 'svg');
+    s.setAttribute('viewBox', '0 0 190 190');
+    s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('class', cls || 'pg-tunnel');
+    [['M20 190V95a75 75 0 0 1 150 0v95', 16], ['M55 190V95a40 40 0 0 1 80 0v95', 10]].forEach(([d, w]) => {
+      const p = document.createElementNS(SVG_NS, 'path');
+      p.setAttribute('d', d); p.setAttribute('stroke-width', w); p.setAttribute('fill', 'none');
+      s.appendChild(p);
+    });
+    return s;
+  }
   function tileMotif(cls) {
     const s = document.createElementNS(SVG_NS, 'svg');
     s.setAttribute('viewBox', '0 0 132 132');
@@ -277,11 +307,11 @@
     const e = h('section', `pg-herobox pg-herobox--${style} pg-align-${p.align || 'center'}`);
     // کارت عبور: کارت رنگی با نقش کاشی بزرگ، برچسب و لوگو بالا، عنوان پایین
     if (style === 'pass') {
-      e.appendChild(tileMotif('pg-motif pg-motif--pass'));
+      e.appendChild(tunnelArt('pg-tunnel pg-tunnel--pass'));
       const top = h('div', 'pg-pass-top');
       if (safeUrl(p.image, true)) top.appendChild(imageEl(p.image, 'pg-pass-logo', ctx));
       else top.appendChild(h('span', 'pg-pass-mark', (p.title || '·').trim().charAt(0)));
-      if (p.chip) top.appendChild(h('span', 'pg-pass-chip', p.chip));
+      if (p.chip) { const c = h('span', 'pg-pass-chip'); c.append(h('i'), document.createTextNode(p.chip)); top.appendChild(c); }
       e.appendChild(top);
       const inner = h('div', 'pg-herobox-in');
       inner.appendChild(h('h1', 'pg-hero-title', p.title));
@@ -299,7 +329,7 @@
       e.appendChild(bg);
       if (safeUrl(p.cover, true)) e.appendChild(h('div', 'pg-cover-shade'));
     } else if (style === 'solid') {
-      e.appendChild(tileMotif());
+      e.appendChild(tunnelArt());
     }
     const inner = h('div', 'pg-herobox-in');
     if (p.chip) inner.appendChild(h('span', 'pg-pass-chip', p.chip));
@@ -434,6 +464,8 @@
         lines.forEach(t => { const li = h('li'); li.append(icon('check'), h('span', '', t)); ul.appendChild(li); });
         c.appendChild(ul);
       }
+      // بلیت عبور: خط برش با دو نیم‌دایره، بالا مشخصات، پایین خرید
+      c.appendChild(h('div', 'pg-plan-cut'));
       const b = linkEl('a', 'pg-btn ' + (it.badge ? 'pg-btn--primary' : 'pg-btn--soft'), it.url, ctx);
       b.appendChild(h('span', '', it.cta || 'خرید'));
       c.appendChild(b);

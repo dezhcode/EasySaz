@@ -12,6 +12,13 @@
     free: { key: 'free', title: 'رایگان', max_apps: 1, max_blocks: 8, max_pages: 2, premium_blocks: false, branding: true },
     pro: { key: 'pro', title: 'حرفه‌ای', max_apps: 3, max_blocks: 40, max_pages: 6, premium_blocks: true, branding: false },
   };
+  // همان /api/me → plans (app/plans.py)
+  const PLAN_LIST = [
+    Object.assign({}, PLANS.free, { price_stars: 0, features: ['۱ مینی‌اپ', 'تا ۸ کامپوننت در ۲ صفحه', 'کامپوننت‌های پایه', 'با نشان ایزی‌ساز'] }),
+    Object.assign({}, PLANS.pro, { price_stars: 250, features: ['۳ مینی‌اپ', 'تا ۴۰ کامپوننت در ۶ صفحه', 'همهٔ کامپوننت‌ها و قالب‌ها', 'بدون نشان ایزی‌ساز'] }),
+    { key: 'business', title: 'بیزینس', max_apps: 10, max_blocks: 100, max_pages: 12, premium_blocks: true, branding: false, price_stars: 750,
+      features: ['۱۰ مینی‌اپ', 'تا ۱۰۰ کامپوننت در ۱۲ صفحه', 'همهٔ کامپوننت‌ها', 'بدون نشان ایزی‌ساز'] },
+  ];
   // همان کامپوننت‌هایی که در app/blocks.py پریمیوم‌اند
   const PREMIUM = ['cards', 'pricing', 'gallery', 'features'];
 
@@ -103,7 +110,7 @@
     const P = plan(d);
     const find = id => d.apps.find(a => String(a.id) === String(id));
     if (path === 'me') {
-      return Promise.resolve({ user: { id: 1, first_name: 'مهمان' }, plan: P, apps: d.apps.map(appJson), can_create: d.apps.length < P.max_apps, bot: 'EasySazBot' });
+      return Promise.resolve({ user: { id: 1, first_name: 'مهمان' }, plan: P, apps: d.apps.map(appJson), can_create: d.apps.length < P.max_apps, bot: 'EasySazBot', plans: PLAN_LIST });
     }
     if (path === 'demo/plan') {
       d.plan = PLANS[body && body.key] ? body.key : 'free'; save(d);

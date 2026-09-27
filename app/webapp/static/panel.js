@@ -1,9 +1,11 @@
 /* ایزی‌ساز — پنل ساخت (داخل @EasySazBot)
    جزءها و قانون‌ها از سیستم طراحی «ایزی‌ساز — کاشی».
 
-   جریان: بوت ← (اپ ندارد؟ اسم ← قالب) ← ادیتور.
-   ادیتور: نوار بالا (اسم، پیش‌نمایش، انتشار) + نوار صفحه‌ها، بوم (صفحهٔ
-   واقعی کاربر)، نوار ابزار پایین (لایه‌ها، قالب‌ها، افزودن، ظاهر، تنظیمات).
+   پوستهٔ اپ به سبک عبور: اسپلش ← سه تب با ناوبری شناور (خانه، قالب‌ها،
+   حساب). خانه = کارت عبورِ هر مینی‌اپ، کارهای سریع، اتصال و آمار.
+   ادیتور زیرصفحه است (بدون ناوبری اصلی): نوار بالا (برگشت، اسم،
+   پیش‌نمایش، انتشار) + ریل صفحه‌ها، بوم، و داک شناور ابزارها.
+   جریان ساخت: اسم (با پیش‌نمایش زندهٔ کارت) ← قالب ← ادیتور.
    هر تغییر فوراً روی بوم رندر و با تأخیر کوتاه پیش‌نویس ذخیره می‌شود.
 
    حالت نمایشی: بیرون از تلگرام با #demo، همه چیز با demo.js و
@@ -43,6 +45,10 @@
     header: 'M4 4h16v6H4zM4 14h16M4 18h10',
     tabbar: 'M4 14h16v6H4zM4 4h16M4 8h10',
     brush: 'M14 4l6 6-9 9H5v-6zM12 6l6 6',
+    chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.3A8 8 0 1 1 21 12z',
+    pencil: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
+    chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+    rocket: 'M5 15c-1 1-1.5 3.5-1.5 5.5 2 0 4.5-.5 5.5-1.5M9 15l-3-3c1.5-4 5-8 12-8 0 7-4 10.5-8 12l-3-3zM15 9v.01',
     // کامپوننت‌ها (نام آیکن در اسکیمای سرور)
     sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z',
     text: 'M5 6h14M5 11h14M5 16h9',
@@ -70,6 +76,32 @@
     const t = h('span', 'cat-tile cat-' + (cat || 'brand'));
     t.appendChild(ico(iconName));
     return t;
+  }
+  /* نقش تونل عبور (دو طاق) و نشان ایزی‌ساز (کاشی ۲×۲ که یکی‌اش روشن است) */
+  function tunnelArt(size) {
+    const s = document.createElementNS(SVG_NS, 'svg');
+    s.setAttribute('viewBox', '0 0 190 190');
+    s.setAttribute('class', 'tunnel-art');
+    s.setAttribute('aria-hidden', 'true');
+    if (size) { s.setAttribute('width', size); s.setAttribute('height', size); }
+    [['M20 190V95a75 75 0 0 1 150 0v95', 16], ['M55 190V95a40 40 0 0 1 80 0v95', 10]].forEach(([d, w]) => {
+      const p = document.createElementNS(SVG_NS, 'path');
+      p.setAttribute('d', d); p.setAttribute('stroke-width', w); p.setAttribute('fill', 'none');
+      s.appendChild(p);
+    });
+    return s;
+  }
+  function markSvg() {
+    const s = document.createElementNS(SVG_NS, 'svg');
+    s.setAttribute('viewBox', '0 0 40 40');
+    s.setAttribute('aria-hidden', 'true');
+    [[9, 9, 0], [21, 9, 0], [9, 21, 0], [21, 21, 1]].forEach(([x, y, on]) => {
+      const r = document.createElementNS(SVG_NS, 'rect');
+      r.setAttribute('x', x); r.setAttribute('y', y); r.setAttribute('width', 10); r.setAttribute('height', 10); r.setAttribute('rx', 3);
+      r.setAttribute('class', on ? 'mark-on' : 'mark-off');
+      s.appendChild(r);
+    });
+    return s;
   }
   const CAT_DOT = { write: 'var(--write)', act: 'var(--act)', media: 'var(--media)', shop: 'var(--shop)', frame: 'var(--ink-3)' };
 
@@ -181,20 +213,56 @@
   }
 
   /* ---------- صفحه‌ها ---------- */
-  function show(id) {
-    ['onboard', 'templates', 'editor', 'blocked'].forEach(s => { $(s).hidden = s !== id; });
-    const boot = $('boot');
-    if (boot) { boot.classList.add('out'); setTimeout(() => boot.remove(), 350); }
+  const TABS = ['home', 'templates', 'account'];
+  function show(id, asTab) {
+    ['home', 'account', 'onboard', 'templates', 'editor', 'blocked'].forEach(s => { $(s).hidden = s !== id; });
+    const splash = $('splash');
+    if (splash && !splash.classList.contains('off')) { splash.classList.add('off'); setTimeout(() => splash.remove(), 450); }
+    S.screen = id;
+    S.asTab = !!asTab;
+    const withNav = asTab && TABS.indexOf(id) >= 0;
+    $('nav').hidden = !withNav;
+    document.body.classList.toggle('has-nav', withNav);
+    if (withNav) { S.tab = id; renderNav(); }
     if (tg && tg.BackButton) {
-      if ((id === 'onboard' || id === 'templates') && S.app) tg.BackButton.show(); else tg.BackButton.hide();
+      const back = id === 'editor' || (!withNav && (id === 'onboard' || id === 'templates') && S.app);
+      if (back) tg.BackButton.show(); else tg.BackButton.hide();
     }
     window.scrollTo(0, 0);
+  }
+
+  /* ===== ناوبری شناور: قرص روشن زیر تب فعال می‌لغزد (مثل عبور) ===== */
+  function renderNav() {
+    document.querySelectorAll('#nav .nav-i').forEach(b => {
+      const on = b.dataset.tab === S.tab;
+      b.classList.toggle('on', on);
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    requestAnimationFrame(placeNav);
+  }
+  function placeNav() {
+    const nav = $('nav'), ind = $('nav-ind'), on = nav.querySelector('.nav-i.on');
+    if (!on || nav.hidden) return;
+    const n = nav.getBoundingClientRect(), r = on.getBoundingClientRect();
+    if (!r.width) return;
+    ind.style.left = (r.left - n.left) + 'px';
+    ind.style.width = r.width + 'px';
+    if (ind.classList.contains('still')) requestAnimationFrame(() => requestAnimationFrame(() => ind.classList.remove('still')));
+  }
+  function tab(name) {
+    if (name === 'home') { show('home', true); renderHome(); }
+    else if (name === 'templates') templatesScreen(false, true);
+    else if (name === 'account') { show('account', true); renderAccount(); }
   }
 
   /* ===== شروع: اسم ===== */
   function onboard() {
     show('onboard');
+    const back = $('ob-back');
+    back.hidden = !(S.me && S.me.apps.length);
+    back.onclick = () => tab('home');
     const input = $('ob-name'), go = $('ob-go'), chips = $('ob-chips');
+    const passName = $('ob-pass-name'), passInitial = $('ob-pass-initial');
     chips.textContent = '';
     ['فروشگاه من', 'کافه', 'استودیو', 'آموزشگاه', 'پورتفولیو'].forEach(name => {
       const c = h('button', 'chip', name);
@@ -204,7 +272,15 @@
     });
     input.value = '';
     go.disabled = true;
-    input.oninput = () => { go.disabled = input.value.trim().length < 2; };
+    passName.textContent = 'اسم مینی‌اپت';
+    passInitial.textContent = '؟';
+    input.oninput = () => {
+      const v = input.value.trim();
+      go.disabled = v.length < 2;
+      // پیش‌نمایش زنده: کارت عبورِ مینی‌اپ با همین اسم
+      passName.textContent = v || 'اسم مینی‌اپت';
+      passInitial.textContent = v ? v.charAt(0) : '؟';
+    };
     input.onkeydown = e => { if (e.key === 'Enter' && !go.disabled) go.click(); };
     go.onclick = async () => {
       go.disabled = true;
@@ -231,19 +307,20 @@
     return JSON.parse(JSON.stringify(doc).split('{name}').join(name.replace(/["\\]/g, '')));
   }
 
-  function templatesScreen(isNew) {
-    show('templates');
-    $('tpl-back').hidden = isNew;
+  function templatesScreen(isNew, asTab) {
+    show('templates', asTab);
+    $('tpl-back').hidden = isNew || asTab;
+    $('tpl-foot').hidden = !isNew;
     $('tpl-sub').textContent = isNew
       ? 'قدم ۲ از ۲ · همه‌چیزش قابل تغییره: متن، رنگ، صفحه‌ها و کامپوننت‌ها.'
-      : 'قالب تازه جای صفحه‌های فعلی می‌نشیند.';
+      : `برای «${S.app ? S.app.name : ''}» · قالب تازه جای صفحه‌های فعلی می‌نشیند.`;
     const cats = S.templates.categories;
     let active = 'all';
     const bar = $('tpl-cats'), grid = $('tpl-grid');
     const drawCats = () => {
       bar.textContent = '';
       [['all', 'همه']].concat(Object.entries(cats)).forEach(([key, label]) => {
-        const b = h('button', key === active ? 'on' : '', label);
+        const b = h('button', 'tab' + (key === active ? ' on' : ''), label);
         b.type = 'button';
         b.setAttribute('role', 'tab');
         b.setAttribute('aria-selected', key === active ? 'true' : 'false');
@@ -274,8 +351,8 @@
     };
     drawCats();
     drawGrid();
-    $('tpl-blank').onclick = () => { show('editor'); renderAll(); };
-    $('tpl-back').onclick = () => { show('editor'); renderAll(); };
+    $('tpl-blank').onclick = () => openEditor();
+    $('tpl-back').onclick = () => openEditor();
   }
 
   function pickTemplate(t, isNew) {
@@ -289,8 +366,7 @@
         S.pageId = S.doc.pages[0].id;
         S.selected = null;
         notify('success');
-        show('editor');
-        renderAll();
+        openEditor();
         toast(`قالب «${t.title}» اعمال شد`);
         if (t.note) setTimeout(() => toast(t.note), 2400);
       } catch (err) { failed(err); }
@@ -309,7 +385,17 @@
     S.pageId = S.doc.pages[0].id;
     S.selected = null;
     try { localStorage.setItem('es-last-app', String(id)); } catch (e) {}
-    if (!quiet) { show('editor'); renderAll(); }
+    if (!quiet) openEditor();
+  }
+  function openEditor() {
+    show('editor');
+    renderAll();
+  }
+  async function leaveEditor() {
+    if ($('sheet').classList.contains('on')) closeSheet();
+    if (S.previewing) preview(false);
+    await saveNow();
+    tab('home');
   }
 
   function renderAll() {
@@ -320,7 +406,6 @@
 
   function renderBar() {
     $('bar-name').textContent = S.app.name;
-    $('bar-initial').textContent = (S.app.name || '؟').trim().charAt(0);
     const live = !!S.app.published_at;
     const st = $('bar-status');
     const pub = !live ? 'پیش‌نویس' : (S.app.dirty ? 'تغییرات منتشر نشده' : 'منتشر شده');
@@ -336,7 +421,7 @@
     strip.textContent = '';
     S.doc.pages.forEach(p => {
       const on = p.id === page().id;
-      const b = h('button', 'pchip' + (on ? ' on' : ''));
+      const b = h('button', 'tab pchip' + (on ? ' on' : ''));
       b.type = 'button';
       b.setAttribute('role', 'tab');
       b.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -345,7 +430,7 @@
       b.addEventListener('click', () => { if (on) pageSheet(p.id); else goPage(p.id); });
       strip.appendChild(b);
     });
-    const add = h('button', 'pchip add');
+    const add = h('button', 'tab pchip add');
     add.type = 'button';
     add.append(ico('plus'), h('span', '', 'صفحه'));
     add.addEventListener('click', addPage);
@@ -447,7 +532,7 @@
     $('scrim').classList.add('on');
     sheetClose = onClose || null;
     if (live && live.focus) focusLive(live.focus);
-    document.querySelectorAll('.toolbar button').forEach(b => b.classList.toggle('on', b.dataset.act === tool));
+    setDock(tool);
     if (tg && tg.BackButton) tg.BackButton.show();
   }
   function closeSheet() {
@@ -455,12 +540,28 @@
     $('scrim').classList.remove('on', 'live');
     $('editor').classList.remove('live-editing', 'live-tabbar');
     watchLive(false);
-    document.querySelectorAll('.toolbar button').forEach(b => b.classList.remove('on'));
+    setDock(null);
     if (tg && tg.BackButton) tg.BackButton.hide();
     const cb = sheetClose;
     sheetClose = null;
     if (cb) cb();
   }
+  /* داک ابزار ادیتور: ابزاری که شیتش باز است قرص روشن می‌گیرد */
+  function setDock(tool) {
+    const dock = $('toolbar'), ind = dock.querySelector('.dock-ind');
+    let on = null;
+    dock.querySelectorAll('button[data-act]').forEach(b => {
+      const is = !!tool && b.dataset.act === tool && b.dataset.act !== 'add';
+      b.classList.toggle('on', is);
+      if (is) on = b;
+    });
+    if (!on) { ind.classList.remove('show'); return; }
+    const n = dock.getBoundingClientRect(), r = on.getBoundingClientRect();
+    ind.style.left = (r.left - n.left + 4) + 'px';
+    ind.style.width = (r.width - 8) + 'px';
+    ind.classList.add('show');
+  }
+
   /* ارتفاع واقعی شیت زنده → --live-h، تا بوم به همان اندازه جا بگذارد
      و نوار پایین مینی‌اپ درست بالای شیت بماند */
   let liveObs = null;
@@ -480,7 +581,7 @@
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const el = getEl();
       if (!el) return;
-      const bar = document.querySelector('#editor .appbar').getBoundingClientRect().bottom;
+      const bar = document.querySelector('#editor .etop').getBoundingClientRect().bottom;
       const top = el.getBoundingClientRect().top + window.scrollY - bar - 26;
       window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     }));
@@ -1511,59 +1612,14 @@
       });
       sheet.appendChild(stats);
 
-      const nameSec = h('div', 'sh-sec');
-      nameSec.appendChild(h('span', 'label', 'اسم مینی‌اپ'));
-      const row = h('div', 'row');
-      const input = h('input');
-      input.value = S.app.name;
-      input.maxLength = 40;
-      input.setAttribute('aria-label', 'اسم مینی‌اپ');
-      const save = h('button', 'btn secondary xs', 'ذخیره');
-      save.addEventListener('click', async () => {
-        try {
-          const res = await api('app/rename', { id: S.app.id, name: input.value });
-          S.app = res.app;
-          const inList = S.me.apps.find(a => a.id === S.app.id);
-          if (inList) inList.name = S.app.name;
-          renderAll();
-          notify('success');
-          toast('اسم عوض شد');
-        } catch (err) { failed(err); }
-      });
-      row.append(input, save);
-      nameSec.appendChild(row);
-      sheet.appendChild(nameSec);
+      sheet.appendChild(nameSection());
 
       const conn = h('div', 'sh-sec stack');
       conn.appendChild(h('span', 'label', 'اتصال'));
       conn.append(linkRow(), botRow());
       sheet.appendChild(conn);
 
-      // پیام خوش‌آمد (حالت کنترل کامل)
-      const wel = h('div', 'sh-sec');
-      wel.appendChild(h('span', 'label', 'پیام خوش‌آمد ربات'));
-      const full = S.app.mode === 'full';
-      const note = h('div', 'warn-box');
-      note.style.marginTop = '8px';
-      note.append(ico(full ? 'check' : 'warn'), h('span', 'caption', full
-        ? 'رباتت در جواب /start همین پیام را با دکمهٔ ورود به مینی‌اپ می‌فرستد.'
-        : 'این پیام فقط در حالت «کنترل کامل» ربات فرستاده می‌شود. حالت اتصال را در ربات ایزی‌ساز عوض کن.'));
-      wel.appendChild(note);
-      const ta = control({ type: 'textarea', label: 'متن پیام', max: 1000 }, decodeHtml(S.app.welcome), () => {});
-      ta.querySelector('textarea').placeholder = `سلام! به «${S.app.name}» خوش اومدی. برای شروع روی دکمهٔ زیر بزن.`;
-      wel.appendChild(ta);
-      const wsave = h('button', 'btn secondary block', 'ذخیرهٔ پیام خوش‌آمد');
-      wsave.style.marginTop = '10px';
-      wsave.addEventListener('click', async () => {
-        try {
-          const res = await api('app/welcome', { id: S.app.id, text: ta.querySelector('textarea').value });
-          S.app = res.app;
-          notify('success');
-          toast(res.app.welcome ? 'پیام خوش‌آمد ذخیره شد' : 'پیام پیش‌فرض برگشت');
-        } catch (err) { failed(err); }
-      });
-      wel.appendChild(wsave);
-      sheet.appendChild(wel);
+      sheet.appendChild(welcomeSection());
 
       const planSec = h('div', 'sh-sec');
       const plan = h('div', 'plan current');
@@ -1604,9 +1660,324 @@
     }, null, 'settings');
   }
 
+  /* اسم مینی‌اپ و پیام خوش‌آمد: در تنظیمات ادیتور و از خانه */
+  function nameSection() {
+    const nameSec = h('div', 'sh-sec');
+    nameSec.appendChild(h('span', 'label', 'اسم مینی‌اپ'));
+    const row = h('div', 'row');
+    const input = h('input');
+    input.value = S.app.name;
+    input.maxLength = 40;
+    input.setAttribute('aria-label', 'اسم مینی‌اپ');
+    const save = h('button', 'btn btn-s btn-sm', 'ذخیره');
+    save.addEventListener('click', async () => {
+      try {
+        const res = await api('app/rename', { id: S.app.id, name: input.value });
+        S.app = res.app;
+        const inList = S.me.apps.find(a => a.id === S.app.id);
+        if (inList) inList.name = S.app.name;
+        if (S.screen === 'editor') renderAll(); else if (S.screen === 'home') renderHome();
+        notify('success');
+        toast('اسم عوض شد');
+      } catch (err) { failed(err); }
+    });
+    row.append(input, save);
+    nameSec.appendChild(row);
+    return nameSec;
+  }
+  function welcomeSection() {
+    const wel = h('div', 'sh-sec');
+    wel.appendChild(h('span', 'label', 'پیام خوش‌آمد ربات'));
+    const full = S.app.mode === 'full';
+    const note = h('div', 'warn-box');
+    note.append(ico(full ? 'check' : 'warn'), h('span', 'caption', full
+      ? 'رباتت در جواب /start همین پیام را با دکمهٔ ورود به مینی‌اپ می‌فرستد.'
+      : 'این پیام فقط در حالت «کنترل کامل» ربات فرستاده می‌شود. حالت اتصال را در ربات ایزی‌ساز عوض کن.'));
+    wel.appendChild(note);
+    const ta = control({ type: 'textarea', label: 'متن پیام', max: 1000 }, decodeHtml(S.app.welcome), () => {});
+    ta.querySelector('textarea').placeholder = `سلام! به «${S.app.name}» خوش اومدی. برای شروع روی دکمهٔ زیر بزن.`;
+    wel.appendChild(ta);
+    const wsave = h('button', 'btn btn-s btn-block', 'ذخیرهٔ پیام خوش‌آمد');
+    wsave.style.marginTop = '10px';
+    wsave.addEventListener('click', async () => {
+      try {
+        const res = await api('app/welcome', { id: S.app.id, text: ta.querySelector('textarea').value });
+        S.app = res.app;
+        const inList = S.me.apps.find(a => a.id === S.app.id);
+        if (inList) inList.welcome = S.app.welcome;
+        if (S.screen === 'home') renderHome();
+        notify('success');
+        toast(res.app.welcome ? 'پیام خوش‌آمد ذخیره شد' : 'پیام پیش‌فرض برگشت');
+      } catch (err) { failed(err); }
+    });
+    wel.appendChild(wsave);
+    return wel;
+  }
+  function renameSheet() {
+    openSheet(sheet => {
+      sheetHead(sheet, 'write', 'pencil', 'اسم مینی‌اپ', 'روی کارت، سربرگ و دکمهٔ ربات دیده می‌شود.');
+      sheet.appendChild(nameSection());
+    });
+  }
+  function welcomeSheet() {
+    openSheet(sheet => {
+      sheetHead(sheet, 'shop', 'chat', 'پیام خوش‌آمد', 'جواب ربات تو به /start');
+      sheet.appendChild(welcomeSection());
+    });
+  }
+
+  /* ===================== خانه (سبک عبور) ===================== */
+  const fmt = n => (Number(n) || 0).toLocaleString('en-US');
+  const num = v => h('span', 'n', String(v));
+
+  /* ردیف گروه: کاشی آیکن، عنوان و زیرعنوان، و انتهای ردیف (دکمه یا فلش) */
+  function grow(icCls, icon, title, sub, end, onTap) {
+    const r = h(onTap && !end ? 'button' : 'div', 'grow-row');
+    if (onTap && !end) r.type = 'button';
+    const ic = h('span', 'ic ' + icCls);
+    ic.appendChild(ico(icon));
+    const m = h('span', 'row-m');
+    m.appendChild(h('span', 'row-t', title));
+    if (sub) m.appendChild(sub.nodeType ? sub : h('span', 'row-s', sub));
+    r.append(ic, m);
+    if (end) r.appendChild(end);
+    else if (onTap) r.appendChild(ico('arrow', 'chev'));
+    if (onTap) r.addEventListener('click', e => { if (end && end.contains(e.target)) return; haptic(); onTap(); });
+    return r;
+  }
+
+  function passCard(a) {
+    const current = S.app && a.id === S.app.id;
+    if (current) a = S.app;  // وضعیت انتشار و اسم تازه
+    const card = h('article', 'pass');
+    card.appendChild(tunnelArt());
+    const head = h('div', 'pass-head');
+    head.appendChild(h('span', 'pass-name', a.name));
+    const live = !!a.published_at;
+    const st = h('span', 'pass-st' + (live ? (a.dirty ? ' warn' : '') : ' warn'));
+    st.append(h('i'), document.createTextNode(!live ? 'پیش‌نویس' : (a.dirty ? 'تغییر منتشرنشده' : 'منتشر شده')));
+    head.appendChild(st);
+    const big = h('div', 'pass-big');
+    big.append(h('span', 'pass-num n', current && S.stats ? fmt(S.stats.visitors) : '—'), h('span', 'pass-unit', 'بازدیدکننده'));
+    const rail = h('div', 'pass-rail');
+    const fill = h('span');
+    rail.appendChild(fill);
+    const used = current ? totalBlocks() : 0;
+    requestAnimationFrame(() => { fill.style.width = current ? Math.min(100, used / S.plan.max_blocks * 100) + '%' : '0%'; });
+    const foot = h('div', 'pass-foot');
+    const meta = h('span', 'pass-meta');
+    if (current) meta.append(num(used), document.createTextNode(' از '), num(S.plan.max_blocks), document.createTextNode(' کامپوننت · '), num(S.doc.pages.length), document.createTextNode(' صفحه'));
+    else meta.textContent = a.bot_username ? '@' + a.bot_username : 'بزن تا باز بشه';
+    const btn = h('button', 'pass-btn');
+    btn.type = 'button';
+    btn.append(ico('pencil'), document.createTextNode('ویرایش'));
+    btn.addEventListener('click', async () => {
+      haptic();
+      try { if (!current) await openApp(a.id); else openEditor(); } catch (err) { failed(err); }
+    });
+    foot.append(meta, btn);
+    card.append(head, big, rail, foot);
+    return card;
+  }
+
+  function newPassCard() {
+    const b = h('button', 'newpass');
+    b.type = 'button';
+    const ic = h('span', 'ic navy lg');
+    ic.appendChild(ico('plus'));
+    const left = S.me.plan.max_apps - S.me.apps.length;
+    b.append(ic, h('b', 'empty-t', 'مینی‌اپ تازه'),
+      h('span', 'empty-s', left > 0 ? `پلن ${S.me.plan.title}: ${left} مینی‌اپ دیگر می‌تونی بسازی` : `پلن ${S.me.plan.title} فقط ${S.me.plan.max_apps} مینی‌اپ دارد`));
+    b.addEventListener('click', () => {
+      haptic();
+      if (S.me.apps.length >= S.me.plan.max_apps) { upsellSheet(`پلن ${S.me.plan.title} فقط ${S.me.plan.max_apps} مینی‌اپ دارد.`); return; }
+      onboard();
+    });
+    return b;
+  }
+
+  /* اسلایدر کارت‌ها: scroll-snap بومی؛ کارت‌های کناری کمی عقب‌تر و کم‌رنگ‌تر */
+  function sliderFx(track, dots, onSettle) {
+    let t = 0;
+    const fx = () => {
+      const r = track.getBoundingClientRect(), mid = r.left + r.width / 2;
+      let best = 0, bestD = 1e9;
+      [...track.children].forEach((sl, i) => {
+        const b = sl.getBoundingClientRect();
+        const d = (b.left + b.width / 2 - mid) / b.width;
+        const a = Math.min(1, Math.abs(d));
+        sl.style.transform = `scale(${1 - a * 0.06}) translateY(${a * 8}px)`;
+        sl.style.opacity = String(1 - a * 0.35);
+        if (Math.abs(d) < bestD) { bestD = Math.abs(d); best = i; }
+      });
+      [...dots.children].forEach((d, i) => d.classList.toggle('on', i === best));
+      return best;
+    };
+    track.onscroll = () => { fx(); clearTimeout(t); t = setTimeout(() => onSettle(fx()), 160); };
+    requestAnimationFrame(fx);
+  }
+
+  function renderHome() {
+    const first = (S.me.user && S.me.user.first_name) || '';
+    $('hello-s').textContent = first ? `سلام ${first}` : 'سلام';
+
+    // کارت‌ها
+    const track = $('home-passes'), dots = $('home-dots');
+    const keep = track.scrollLeft;
+    track.textContent = '';
+    dots.textContent = '';
+    const slides = S.me.apps.map(a => { const sl = h('div', 'slide'); sl.appendChild(passCard(a)); sl.dataset.id = a.id; return sl; });
+    const add = h('div', 'slide');
+    add.appendChild(newPassCard());
+    slides.concat([add]).forEach(sl => { track.appendChild(sl); dots.appendChild(h('i', 'dot-i')); });
+    const idx = Math.max(0, S.me.apps.findIndex(a => S.app && a.id === S.app.id));
+    requestAnimationFrame(() => {
+      if (keep) track.scrollLeft = keep;
+      else if (slides[idx]) slides[idx].scrollIntoView({ block: 'nearest', inline: 'center' });
+    });
+    sliderFx(track, dots, async i => {
+      const id = slides[i] && slides[i].dataset.id;
+      if (!id || String(id) === String(S.app.id)) return;
+      try { await saveNow(); await openApp(Number(id), true); select(); renderHome(); } catch (err) { failed(err); }
+    });
+
+    // کارهای سریع (کاشی‌های رنگی)
+    const tiles = $('home-tiles');
+    tiles.textContent = '';
+    const connected = !!S.app.bot_username;
+    [
+      ['write', 'brush', 'ویرایش صفحه‌ها', 'سبک، رنگ و کامپوننت‌ها', () => openEditor()],
+      ['shop', 'eye', 'پیش‌نمایش', 'همونی که کاربرها می‌بینن', () => { openEditor(); preview(true); }],
+      ['media', 'template', 'قالب‌ها', 'شروع دوباره با یک قالب', () => tab('templates')],
+      ['act', 'bot', connected ? 'ربات تو' : 'اتصال ربات', connected ? '@' + S.app.bot_username : 'توکن رو در ربات بفرست', () => openBot(connected ? 'myapp' : 'connect')],
+    ].forEach(([cat, icon, t, sub, fn]) => {
+      const b = h('button', 'tile ' + cat);
+      b.type = 'button';
+      b.appendChild(ico(icon));
+      const tx = h('span');
+      tx.append(h('span', 'tile-t', t), h('span', 'tile-s', sub));
+      b.appendChild(tx);
+      b.addEventListener('click', () => { haptic(); fn(); });
+      tiles.appendChild(b);
+    });
+
+    // اتصال و تنظیمات
+    const conn = $('home-conn');
+    conn.textContent = '';
+    $('home-conn-e').textContent = S.app.name;
+    const copy = h('button', 'btn btn-s btn-sm', 'کپی');
+    copy.addEventListener('click', () => copyText(S.app.url));
+    const url = h('span', 'row-s ltr', S.app.url.replace(/^https?:\/\//, ''));
+    conn.appendChild(grow('brand', 'link', 'لینک مینی‌اپ', url, copy));
+    conn.appendChild(grow(connected ? 'act' : '', 'bot', connected ? '@' + S.app.bot_username : 'ربات وصل نیست',
+      connected ? (S.app.mode === 'full' ? 'کنترل کامل · /start هم جواب می‌ده' : 'دکمهٔ منو · مینی‌اپ روی ربات فعال است') : 'توکن رباتت رو در ایزی‌ساز بفرست',
+      null, () => openBot(connected ? 'myapp' : 'connect')));
+    const wl = decodeHtml(S.app.welcome).split('\n')[0];
+    conn.appendChild(grow('shop', 'chat', 'پیام خوش‌آمد ربات', wl || 'متن پیش‌فرض', null, welcomeSheet));
+    conn.appendChild(grow('write', 'pencil', 'اسم مینی‌اپ', S.app.name, null, renameSheet));
+
+    // آمار
+    const stats = $('home-stats');
+    stats.textContent = '';
+    [['visitors', 'بازدیدکننده'], ['views_today', 'بازدید امروز'], ['views_week', 'هفت روز']].forEach(([k, label]) => {
+      const st = h('div', 'stat');
+      st.append(h('b', 'n', fmt(S.stats && S.stats[k])), h('span', 'lbl', label));
+      stats.appendChild(st);
+    });
+  }
+
+  /* ===================== حساب ===================== */
+  function renderAccount() {
+    const u = S.me.user || {};
+    const av = $('me-av');
+    av.textContent = (u.first_name || '؟').trim().charAt(0);
+    $('me-name').textContent = u.first_name || 'کاربر';
+    const line = $('me-line');
+    line.textContent = '';
+    const planSpan = h('span');
+    planSpan.append(ico('star'), document.createTextNode('پلن ' + S.me.plan.title));
+    const appsSpan = h('span');
+    appsSpan.append(ico('layers'), num(S.me.apps.length), document.createTextNode(' از '), num(S.me.plan.max_apps), document.createTextNode(' مینی‌اپ'));
+    line.append(planSpan, appsSpan);
+
+    // بلیت‌های پلن
+    const box = $('acc-plans');
+    box.textContent = '';
+    (S.me.plans || [S.me.plan]).forEach(p => {
+      const cur = p.key === S.me.plan.key;
+      const best = p.key === 'pro';
+      const tk = h('article', 'tk' + (best ? ' best' : ''));
+      if (cur || best) {
+        const tag = h('span', 'tk-tag ' + (cur ? 'plain' : 'best'));
+        tag.append(ico(cur ? 'check' : 'star'), document.createTextNode(cur ? 'پلن فعلی تو' : 'پیشنهادی'));
+        tk.appendChild(tag);
+      }
+      const top = h('div', 'tk-top');
+      top.appendChild(h('span', 'tk-name', p.title));
+      const vol = h('div', 'tk-vol');
+      vol.append(num(p.max_blocks), h('small', '', 'کامپوننت'));
+      top.append(vol, h('span', 'tk-s', `${p.max_apps} مینی‌اپ · ${p.max_pages} صفحه`), h('span', 'tk-s', p.premium_blocks ? 'همهٔ کامپوننت‌ها و قالب‌ها' : 'کامپوننت‌های پایه'));
+      const bot = h('div', 'tk-bot');
+      const price = h('div', 'tk-p');
+      if (p.price_stars) price.append(num(p.price_stars), h('small', '', '⭐ در ماه'));
+      else price.appendChild(h('b', '', 'رایگان'));
+      const buy = h('button', 'tk-buy' + (cur ? ' short' : ''));
+      buy.type = 'button';
+      buy.textContent = cur ? 'فعال است' : (p.price_stars ? 'خرید در ربات' : 'پلن پایه');
+      buy.disabled = cur || !p.price_stars;
+      buy.addEventListener('click', async () => {
+        haptic();
+        if (DEMO && p.key === 'pro') {
+          await api('demo/plan', { key: 'pro' });
+          S.me = await api('me');
+          if (S.app) await openApp(S.app.id, true);
+          renderAccount();
+          toast('نسخهٔ نمایشی روی پلن حرفه‌ای است');
+          return;
+        }
+        openBot('plans');
+      });
+      bot.append(price, buy);
+      tk.append(top, h('div', 'tk-cut'), bot);
+      box.appendChild(tk);
+    });
+
+    // مینی‌اپ‌ها
+    const apps = $('acc-apps');
+    apps.textContent = '';
+    $('acc-apps-e').textContent = `${S.me.apps.length} از ${S.me.plan.max_apps}`;
+    S.me.apps.forEach(a => {
+      const sub = a.bot_username ? '@' + a.bot_username : (a.published_at ? 'منتشر شده · بدون ربات' : 'پیش‌نویس');
+      const r = grow('navy', 'sparkle', a.name, sub, null, async () => { try { await openApp(a.id); } catch (err) { failed(err); } });
+      const ic = r.querySelector('.ic');
+      ic.textContent = (a.name || '?').trim().charAt(0);
+      apps.appendChild(r);
+    });
+    apps.appendChild(grow('brand', 'plus', 'مینی‌اپ تازه', 'اسم، قالب، و تمام', null, () => {
+      if (S.me.apps.length >= S.me.plan.max_apps) { upsellSheet(`پلن ${S.me.plan.title} فقط ${S.me.plan.max_apps} مینی‌اپ دارد.`); return; }
+      onboard();
+    }));
+
+    const botG = $('acc-bot');
+    botG.textContent = '';
+    const botName = S.me.bot || 'EasySazBot';
+    botG.appendChild(grow('act', 'bot', '@' + botName, 'اتصال ربات، پرداخت و پشتیبانی', null, () => openBot('')));
+    botG.appendChild(grow('media', 'star', 'پلن‌ها و پرداخت', 'با ستارهٔ تلگرام، بدون درگاه', null, () => openBot('plans')));
+  }
+
   /* ---------- اتصال رویدادها ---------- */
   function wire() {
     document.querySelectorAll('[data-icon]').forEach(el => el.appendChild(ico(el.dataset.icon)));
+    document.querySelectorAll('[data-art]').forEach(el => el.appendChild(tunnelArt()));
+    document.querySelectorAll('.mark').forEach(el => el.appendChild(markSvg()));
+    document.querySelectorAll('#nav .nav-i').forEach(b => b.addEventListener('click', () => {
+      if (b.dataset.tab === S.tab && !$(b.dataset.tab).hidden) return;
+      haptic();
+      tab(b.dataset.tab);
+    }));
+    window.addEventListener('resize', () => { placeNav(); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeNav);
+    $('ed-back').addEventListener('click', () => { haptic(); leaveEditor(); });
     $('scrim').addEventListener('click', closeSheet);
     $('bar-app').addEventListener('click', () => { haptic(); settingsSheet(); });
     $('bar-preview').addEventListener('click', () => preview(!S.previewing));
@@ -1616,14 +1987,16 @@
     $('exit-preview').addEventListener('click', () => preview(false));
     $('demo-link').addEventListener('click', e => { e.preventDefault(); location.hash = '#demo'; location.reload(); });
     const tools = { layers: layersSheet, templates: () => templatesScreen(false), add: addSheet, theme: themeSheet, settings: settingsSheet };
-    document.querySelectorAll('.toolbar button').forEach(b => {
+    document.querySelectorAll('#toolbar button[data-act]').forEach(b => {
       b.addEventListener('click', () => { haptic(); tools[b.dataset.act](); });
     });
     if (tg) {
       tg.BackButton.onClick(() => {
         if ($('sheet').classList.contains('on')) closeSheet();
         else if (S.previewing) preview(false);
-        else if ((!$('onboard').hidden || !$('templates').hidden) && S.app) { show('editor'); renderAll(); }
+        else if (S.screen === 'editor') leaveEditor();
+        else if (S.screen === 'templates' && !S.asTab && S.app) openEditor();
+        else if (S.screen === 'onboard' && S.me && S.me.apps.length) tab('home');
       });
       tg.onEvent('themeChanged', () => { applyChrome(); if (S.doc) renderCanvas(); });
       tg.onEvent('safeAreaChanged', applyChrome);
@@ -1653,7 +2026,8 @@
       let last = 0;
       try { last = Number(localStorage.getItem('es-last-app')) || 0; } catch (e) {}
       const pick = me.apps.find(a => a.id === last) || me.apps[0];
-      await openApp(pick.id);
+      await openApp(pick.id, true);
+      tab('home');
     } catch (err) {
       $('blocked-msg').textContent = err.message;
       $('demo-link').hidden = true;

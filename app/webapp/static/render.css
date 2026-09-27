@@ -1,7 +1,9 @@
-/* ایزی‌ساز — ظاهر صفحهٔ مینی‌اپ
-   مشخصات از سیستم طراحی «ایزی‌ساز — کاشی»، گروه «صفحهٔ مینی‌اپ».
+/* ایزی‌ساز — ظاهر صفحهٔ مینی‌اپ، به سبک عبور
+   مشخصات از سیستم طراحی «ایزی‌ساز — کاشی»، خانوادهٔ «مینی‌اپ».
    فقط توکن‌های --pg-* (پیش‌فرض در tokens.css، مقدار واقعی از render.js).
-   سطح تخت با خط موی pg-line؛ بدون سایه، هاله و گرادیان. */
+   زبان عبور: زمینهٔ آبی‌خاکستری، سطح تخت با خط مو، کارت عبورِ عمیق
+   (pg-deep) با نقش تونل (pg-glow)، گروه ردیف‌ها، بلیت پلن و ناوبری
+   شناور تیره. سایه فقط زیر کارت عبور و ناوبری. */
 
 .pg-page{
   --pg-top:0px;
@@ -14,7 +16,7 @@
   color:var(--pg-ink);
   font-family:var(--font-sans);
   font-size:15px;
-  line-height:26px;
+  line-height:1.6;
   direction:rtl;
   -webkit-font-smoothing:antialiased;
   overflow-x:hidden;
@@ -28,9 +30,10 @@
 .pg-ico{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none}
 
 /* ---------- کارت پایه ---------- */
-.pg-card{background:var(--pg-surface); border:1px solid var(--pg-line); border-radius:var(--pg-radius); padding:18px}
-.pg-h2{margin:0 0 6px; font-size:17px; line-height:26px; font-weight:800}
-.pg-h2--out{margin:4px 4px 0}
+.pg-card{background:var(--pg-surface); border:1px solid var(--pg-line); border-radius:var(--pg-radius); padding:18px 18px 16px}
+.pg-h2{margin:0 0 6px; font-size:17px; line-height:1.5; font-weight:800; letter-spacing:-.1px}
+/* عنوان بیرون کارت = عنوان بخش عبور (sec-t) */
+.pg-h2--out{margin:10px 6px 0}
 .pg-body{margin:0; color:var(--pg-ink-2); white-space:pre-line}
 .pg-align-center{text-align:center}
 .pg-group{display:flex; flex-direction:column; gap:10px}
@@ -65,36 +68,41 @@
 .pg-figure figcaption{margin:8px 6px 0; font-size:12.5px; line-height:20px; color:var(--pg-ink-3); text-align:center}
 
 /* ---------- PageButton ---------- */
-.pg-btn{display:flex; align-items:center; justify-content:center; gap:8px; min-height:54px; padding:0 20px; border-radius:var(--pg-radius);
-  font-weight:700; font-size:16px; text-decoration:none; cursor:pointer; transition:transform .16s var(--pg-ease); -webkit-tap-highlight-color:transparent; user-select:none}
+.pg-btn{display:flex; align-items:center; justify-content:center; gap:8px; min-height:52px; padding:0 18px; border-radius:calc(var(--pg-radius) * .78);
+  font-weight:800; font-size:15px; text-decoration:none; cursor:pointer; transition:transform .16s var(--pg-ease); -webkit-tap-highlight-color:transparent; user-select:none}
 .pg-btn:active{transform:scale(.97)}
 .pg-btn .pg-ico{width:18px; height:18px}
 .pg-btn--primary{background:var(--pg-accent); color:var(--pg-on-accent)}
 .pg-btn--soft{background:var(--pg-soft); color:var(--pg-accent-ink)}
-.pg-btn--outline{background:transparent; color:var(--pg-accent-ink); box-shadow:inset 0 0 0 1.6px var(--pg-accent)}
+.pg-btn--outline{background:var(--pg-surface); color:var(--pg-ink); box-shadow:inset 0 0 0 1px var(--pg-line); font-weight:600}
 
 /* ---------- Links ---------- */
 .pg-links{display:flex; flex-direction:column; gap:var(--space-2)}
-.pg-link{display:flex; align-items:center; gap:12px; padding:12px 14px; background:var(--pg-surface); border:1px solid var(--pg-line);
-  border-radius:var(--pg-radius); text-decoration:none; color:inherit; cursor:pointer; transition:transform .16s var(--pg-ease); -webkit-tap-highlight-color:transparent}
-.pg-link:active{transform:scale(.98)}
-.pg-link-tile{width:42px; height:42px; border-radius:12px; background:var(--pg-soft); color:var(--pg-accent-ink); display:grid; place-items:center; flex:none}
-.pg-link-txt{flex:1; min-width:0; display:flex; flex-direction:column; line-height:22px}
-.pg-link-txt b{font-weight:700; font-size:15px}
-.pg-link-txt small{color:var(--pg-ink-3); font-size:12.5px; line-height:20px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.pg-link-go{color:var(--pg-ink-3); width:18px; height:18px}
+.pg-link{display:flex; align-items:center; gap:14px; padding:13px 16px; background:var(--pg-surface); border:1px solid var(--pg-line);
+  border-radius:var(--pg-radius); text-decoration:none; color:inherit; cursor:pointer; transition:background .15s; -webkit-tap-highlight-color:transparent}
+.pg-link:active{background:var(--pg-bg)}
+/* فهرست = گروه عبور: یک قاب، ردیف‌ها با خط مو */
+.pg-links--list{gap:0; border:1px solid var(--pg-line); border-radius:var(--pg-radius); overflow:hidden; background:var(--pg-surface)}
+.pg-links--list .pg-link{border:0; border-radius:0}
+.pg-links--list .pg-link + .pg-link{border-top:1px solid var(--pg-line)}
+.pg-link-tile{width:40px; height:40px; border-radius:calc(var(--pg-radius) * .78); background:var(--pg-soft); color:var(--pg-accent-ink); display:grid; place-items:center; flex:none}
+.pg-link-tile .pg-ico{width:19px; height:19px}
+.pg-link-txt{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.5}
+.pg-link-txt b{font-weight:600; font-size:15px}
+.pg-link-txt small{color:var(--pg-ink-3); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.pg-link-go{color:var(--pg-ink-3); width:16px; height:16px}
 
 /* ---------- FAQ ---------- */
 .pg-faq{padding:8px 18px}
 .pg-faq .pg-h2{margin:12px 0 4px}
 .pg-qa{border-top:1px solid var(--pg-line)}
 .pg-faq .pg-h2 + .pg-qa{border-top:0}
-.pg-qa summary{list-style:none; display:flex; align-items:center; gap:10px; padding:14px 0; cursor:pointer; font-weight:700}
+.pg-qa summary{list-style:none; display:flex; align-items:center; gap:10px; padding:14px 0; cursor:pointer; font-weight:800; font-size:14.5px}
 .pg-qa summary::-webkit-details-marker{display:none}
 .pg-qa summary span{flex:1}
 .pg-qa-ico{width:18px; height:18px; color:var(--pg-ink-3); transition:transform .25s var(--pg-ease)}
 .pg-qa[open] .pg-qa-ico{transform:rotate(180deg); color:var(--pg-accent)}
-.pg-qa-a{margin:0; padding:0 0 14px; font-size:14px; line-height:24px; color:var(--pg-ink-2); white-space:pre-line}
+.pg-qa-a{margin:0; padding:0 0 14px; font-size:13.5px; line-height:1.85; color:var(--pg-ink-2); white-space:pre-line}
 
 /* ---------- Social ---------- */
 .pg-social{display:flex; flex-wrap:wrap; justify-content:center; gap:10px; padding:4px 0}
@@ -103,15 +111,15 @@
 .pg-soc:active{transform:scale(.92)}
 
 /* ---------- Notice ---------- */
-.pg-notice{display:flex; gap:10px; align-items:flex-start; padding:14px 16px; border-radius:var(--pg-radius); font-weight:600; font-size:14px; line-height:24px}
+.pg-notice{display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:calc(var(--pg-radius) * .78); font-weight:600; font-size:13.5px; line-height:1.8}
 .pg-notice p{margin:0; white-space:pre-line}
-.pg-notice .pg-ico{margin-top:2px}
+.pg-notice .pg-ico{width:18px; height:18px; margin-top:3px}
 .pg-notice--accent{background:var(--pg-soft); color:var(--pg-accent-ink)}
-.pg-notice--success{background:rgba(18,160,113,.14); color:#0B7A55}
-.pg-notice--warning{background:rgba(224,154,31,.16); color:#8A5D00}
+.pg-notice--success{background:#E2F4EC; color:#0B7A55}
+.pg-notice--warning{background:#FCEFD3; color:#7A4A00}
 .pg-notice--info{background:var(--pg-surface); color:var(--pg-ink-2); border:1px solid var(--pg-line)}
-.pg-dark .pg-notice--success{color:#5FD3A8}
-.pg-dark .pg-notice--warning{color:#F2C46B}
+.pg-dark .pg-notice--success{background:rgba(52,211,153,.14); color:#5FD3A8}
+.pg-dark .pg-notice--warning{background:rgba(242,180,71,.16); color:#F2C46B}
 
 /* ---------- Divider ---------- */
 .pg-div{border:0; margin:6px 24px; height:1px; background:var(--pg-line)}
@@ -130,7 +138,7 @@
 .pg-pcard p{margin:0; font-size:12.5px; line-height:20px; color:var(--pg-ink-3)}
 .pg-pcard-f{margin-top:auto; padding-top:6px; display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap}
 .pg-price{font-weight:800; font-size:13.5px; color:var(--pg-accent-ink)}
-.pg-mini-btn{padding:5px 12px; border-radius:999px; background:var(--pg-accent); color:var(--pg-on-accent); font-weight:700; font-size:12.5px; line-height:20px; text-decoration:none; cursor:pointer}
+.pg-mini-btn{height:32px; display:inline-flex; align-items:center; padding:0 12px; border-radius:16px; background:var(--pg-accent); color:var(--pg-on-accent); font-weight:800; font-size:12.5px; text-decoration:none; cursor:pointer}
 
 /* ---------- Gallery ---------- */
 .pg-gallery{margin:0 calc(var(--space-4) * -1)}
@@ -148,24 +156,36 @@
 .pg-feat small{font-size:12.5px; line-height:20px; color:var(--pg-ink-3)}
 
 /* ---------- MadeWithBadge ---------- */
-.pg-brand{display:flex; width:max-content; margin:26px auto 0; align-items:center; gap:6px; padding:7px 14px; border-radius:999px;
-  font-size:12px; line-height:18px; font-weight:600; color:var(--pg-ink-3); background:var(--pg-surface); box-shadow:inset 0 0 0 1px var(--pg-line); text-decoration:none; cursor:pointer}
+.pg-brand{display:flex; width:max-content; margin:26px auto 0; align-items:center; gap:7px; height:28px; padding:0 12px; border-radius:14px;
+  font-size:11.5px; font-weight:600; color:var(--pg-ink-2); background:var(--pg-surface); border:1px solid var(--pg-line); text-decoration:none; cursor:pointer}
 .pg-brand .pg-ico{width:14px; height:14px; color:var(--pg-accent)}
 
-/* ---------- Pricing (پلن‌ها) ---------- */
-.pg-plans{display:flex; flex-direction:column; gap:12px}
-.pg-plan{background:var(--pg-surface); border:1px solid var(--pg-line); border-radius:var(--pg-radius); padding:18px; display:flex; flex-direction:column; gap:10px}
-.pg-plan--hot{border:1.5px solid var(--pg-accent)}
+/* ---------- Pricing = بلیت عبور ----------
+   هر پلن یک بلیت: بالای خط برش اسم، قیمت و ویژگی‌ها؛ پایینش خرید.
+   پلنی که برچسب دارد بلیت عمیق (pg-deep) با برچسب تونلی است. */
+.pg-plans{display:flex; flex-direction:column; gap:16px}
+.pg-plan{position:relative; background:var(--pg-surface); border:1px solid var(--pg-line); border-radius:var(--pg-radius); padding:16px 16px 14px; display:flex; flex-direction:column; gap:8px}
 .pg-plan-h{display:flex; justify-content:space-between; align-items:center; gap:8px}
-.pg-plan-name{font-size:16px; line-height:24px; font-weight:800}
-.pg-plan-badge{padding:2px 10px; border-radius:999px; background:var(--pg-accent); color:var(--pg-on-accent); font-size:11.5px; line-height:20px; font-weight:800}
-.pg-plan-price{display:flex; align-items:baseline; gap:6px}
-.pg-plan-price b{font-size:22px; line-height:28px; font-weight:800; font-variant-numeric:tabular-nums}
-.pg-plan-price span{font-size:13px; color:var(--pg-ink-3)}
-.pg-plan-feats{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; color:var(--pg-ink-2); font-size:14px; line-height:22px}
+.pg-plan-name{font-size:14px; font-weight:800; color:var(--pg-ink-2)}
+.pg-plan-badge{position:absolute; top:-11px; inset-inline-start:12px; height:22px; display:flex; align-items:center; padding:0 10px; border-radius:11px; background:var(--pg-glow); color:var(--pg-deep-2); font-size:10.5px; font-weight:800}
+.pg-plan-price{display:flex; align-items:baseline; gap:6px; flex-wrap:wrap}
+.pg-plan-price b{font-size:28px; line-height:1.15; font-weight:800; letter-spacing:-.6px; font-variant-numeric:tabular-nums; color:var(--pg-accent-ink)}
+.pg-plan-price span{font-size:12px; font-weight:600; color:var(--pg-ink-3)}
+.pg-plan-feats{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px; color:var(--pg-ink-2); font-size:13px; line-height:1.7}
 .pg-plan-feats li{display:flex; gap:8px; align-items:center}
-.pg-plan-feats .pg-ico{width:16px; height:16px; color:var(--pg-accent); stroke-width:2.2}
-.pg-plan .pg-btn{min-height:46px; font-size:15px}
+.pg-plan-feats .pg-ico{width:15px; height:15px; color:var(--pg-accent); stroke-width:2.4}
+.pg-plan-cut{position:relative; height:0; border-top:2px dashed var(--pg-line); margin:8px 0 6px}
+.pg-plan-cut::before,.pg-plan-cut::after{content:""; position:absolute; top:-10px; width:18px; height:18px; border-radius:9px; background:var(--pg-bg); border:1px solid var(--pg-line)}
+.pg-plan-cut::before{right:-26px; clip-path:inset(0 50% 0 0)}
+.pg-plan-cut::after{left:-26px; clip-path:inset(0 0 0 50%)}
+.pg-plan .pg-btn{min-height:42px; font-size:14px}
+.pg-plan--hot{background:var(--pg-deep); border-color:var(--pg-deep); color:var(--pg-on-deep); box-shadow:var(--pg-shadow)}
+.pg-plan--hot :is(.pg-plan-name,.pg-plan-price span,.pg-plan-feats){color:var(--pg-on-deep-2)}
+.pg-plan--hot .pg-plan-price b{color:var(--pg-on-deep)}
+.pg-plan--hot .pg-plan-feats .pg-ico{color:var(--pg-glow)}
+.pg-plan--hot .pg-plan-cut{border-color:rgba(255,255,255,.22)}
+.pg-plan--hot .pg-plan-cut::before,.pg-plan--hot .pg-plan-cut::after{border-color:transparent}
+.pg-plan--hot .pg-btn{background:var(--pg-on-deep); color:var(--pg-deep)}
 
 /* ---------- قاب هر کامپوننت (شخصی‌سازی) ----------
    فقط توکن عوض می‌شود، پس کنتراست با هر رنگی درست می‌ماند. */
@@ -191,11 +211,12 @@
 .pg-fixed .pg-header{position:sticky; top:0}
 .pg-header-in{display:flex; align-items:center; gap:10px; max-width:560px; margin:0 auto}
 .pg-header.pg-align-center .pg-header-in{justify-content:center; text-align:center}
-.pg-header-logo{width:38px; height:38px; border-radius:11px; flex:none}
+.pg-header-logo{width:40px; height:40px; border-radius:12px; flex:none}
 .pg-header-logo .pg-ico{width:18px; height:18px}
 .pg-header-txt{display:flex; flex-direction:column; min-width:0; line-height:22px}
-.pg-header-txt b{font-size:17px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.pg-header-txt small{font-size:12.5px; line-height:18px; color:var(--pg-ink-3)}
+.pg-header-txt{line-height:1.35}
+.pg-header-txt b{font-size:20px; font-weight:800; letter-spacing:-.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.pg-header-txt small{font-size:12.5px; line-height:1.5; color:var(--pg-ink-3)}
 .pg-header--bar{background:var(--pg-surface); border-bottom:1px solid var(--pg-line)}
 .pg-header--solid{background:var(--pg-accent); color:var(--pg-on-accent)}
 .pg-header--solid .pg-header-txt small{color:inherit; opacity:.82}
@@ -209,11 +230,17 @@
 .pg-tab .pg-ico{width:21px; height:21px}
 .pg-tab-label{font-size:12px; line-height:16px; font-weight:700}
 /* شناور: مثل نوار عبور، قرص تب فعال */
-.pg-tabbar--floating{height:62px; margin:0 14px calc(var(--pg-bottom) + 14px); padding:0 6px; border-radius:22px; background:var(--pg-tab-bg)}
-.pg-tabbar--floating .pg-tab{height:44px; color:rgba(255,255,255,.62); border-radius:16px}
-.pg-tabbar--floating .pg-tab-label{display:none}
-.pg-tabbar--floating .pg-tab--on{flex:0 0 auto; padding:0 14px; background:var(--pg-tab-on, var(--pg-accent)); color:var(--pg-tab-on-ink, var(--pg-on-accent))}
-.pg-tabbar--floating .pg-tab--on .pg-tab-label{display:inline}
+.pg-tabbar--floating{height:62px; margin:0 var(--space-5) calc(var(--pg-bottom) + 18px); padding:0 6px; border-radius:22px; background:var(--pg-tab-bg); box-shadow:0 18px 34px -18px rgba(10,37,114,.55)}
+.pg-tabbar--floating .pg-tab{height:40px; color:#9AAACB; border-radius:16px}
+.pg-tabbar--floating .pg-tab .pg-ico{width:22px; height:22px}
+.pg-tabbar--floating .pg-tab-label{display:none; font-weight:800}
+/* قرص روشن تب فعال، مثل ناوبری عبور؛ آیکن به رنگ اصلی صاحب مینی‌اپ */
+.pg-tabbar--floating .pg-tab--on{flex:0 0 auto; padding:0 14px; background:#EDF1F8; color:#0A1633; animation:pg-pill .32s cubic-bezier(.34,1.3,.5,1)}
+.pg-tabbar--floating .pg-tab--on .pg-ico{width:18px; height:18px; color:var(--pg-accent-ink)}
+.pg-dark .pg-tabbar--floating .pg-tab--on .pg-ico{color:#1846C8}
+.pg-tabbar--floating .pg-tab--on .pg-tab-label{display:inline; animation:pg-lbl .3s var(--pg-ease) .06s both}
+@keyframes pg-pill{from{transform:scale(.85); opacity:.6}}
+@keyframes pg-lbl{from{opacity:0; transform:translateX(8px)}}
 /* چسبیده: تمام‌عرض با خط مو، آیکن و برچسب */
 .pg-tabbar--docked{padding:6px 6px calc(var(--pg-bottom) + 6px); background:var(--pg-surface); border-top:1px solid var(--pg-line)}
 .pg-tabbar--docked .pg-tab{flex-direction:column; gap:2px; height:52px; color:var(--pg-ink-3)}
@@ -235,19 +262,22 @@
 .pg-nolink{cursor:default}
 
 /* ---------- سبک‌های آماده (variants) ---------- */
-/* Hero · کارت عبور: کارت رنگی با نقش کاشی بزرگ، مثل کارت سرویس عبور */
-.pg-herobox--pass{background:var(--pg-accent); color:var(--pg-on-accent); padding:18px 20px 22px; min-height:196px;
-  display:flex; flex-direction:column; justify-content:space-between; gap:26px}
+/* Hero · کارت عبور: کارت عمیق (pg-deep) با نقش تونل، مثل کارت سرویس عبور */
+.pg-herobox--pass{background:var(--pg-deep); color:var(--pg-on-deep); padding:20px 20px 22px; min-height:214px; box-shadow:var(--pg-shadow);
+  display:flex; flex-direction:column; justify-content:space-between; gap:24px; border-radius:calc(var(--pg-radius) + 4px)}
 .pg-herobox--pass .pg-herobox-in{align-items:flex-start; text-align:start; gap:4px}
 .pg-herobox--pass.pg-align-center .pg-herobox-in{align-items:center; text-align:center}
-.pg-herobox--pass .pg-hero-title{font-size:28px; line-height:38px}
-.pg-motif--pass{position:absolute; left:-46px; bottom:-58px; width:210px; height:210px; fill:currentColor; opacity:.14; pointer-events:none}
+.pg-herobox--pass .pg-hero-title{font-size:30px; line-height:1.25; letter-spacing:-.8px}
+.pg-herobox--pass .pg-hero-sub{color:var(--pg-on-deep-2); opacity:1}
+.pg-tunnel{position:absolute; left:-40px; bottom:-60px; width:190px; height:190px; stroke:var(--pg-glow); opacity:.18; pointer-events:none}
+.pg-herobox--solid .pg-tunnel{stroke:var(--pg-on-accent); opacity:.14}
 .pg-pass-top{position:relative; display:flex; align-items:center; justify-content:space-between; gap:10px}
 .pg-pass-mark,.pg-pass-logo{width:44px; height:44px; border-radius:14px; flex:none}
-.pg-pass-mark{display:grid; place-items:center; font-weight:800; font-size:19px;
-  background:color-mix(in srgb, var(--pg-on-accent) 18%, transparent)}
-.pg-pass-chip{display:inline-flex; align-items:center; height:26px; padding:0 11px; border-radius:13px; font-size:12px; font-weight:700;
-  background:color-mix(in srgb, currentColor 16%, transparent)}
+.pg-pass-mark{display:grid; place-items:center; font-weight:800; font-size:19px; background:rgba(255,255,255,.14); color:var(--pg-glow)}
+.pg-pass-chip{display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 10px; border-radius:13px; font-size:12px; font-weight:600;
+  background:var(--pg-deep-2); color:var(--pg-on-deep)}
+.pg-pass-chip i{width:7px; height:7px; border-radius:4px; background:var(--pg-glow)}
+.pg-herobox:not(.pg-herobox--pass) .pg-pass-chip{background:rgba(0,0,0,.18); color:inherit; align-self:center}
 .pg-herobox--soft .pg-pass-chip,.pg-herobox--plain .pg-pass-chip{color:var(--pg-accent-ink); background:var(--pg-soft)}
 /* Hero · تصویر زمینه */
 .pg-herobox--cover{min-height:250px; display:flex; align-items:flex-end; padding:26px 22px; color:#FFFFFF; background:var(--pg-accent)}
@@ -298,3 +328,8 @@
 .pg-feats--list{grid-template-columns:minmax(0, 1fr); gap:8px}
 .pg-feats--list .pg-feat{flex-direction:row; align-items:center; gap:12px; padding:12px 14px}
 .pg-feats--list .pg-feat-emo{margin:0; flex:none}
+/* کاشی لینک = کاشی رنگی عبور */
+.pg-links--tiles .pg-link{background:var(--pg-soft); border-color:transparent; color:var(--pg-accent-ink)}
+.pg-links--tiles .pg-link-tile{background:var(--pg-surface)}
+.pg-links--tiles .pg-link-txt b{font-weight:800}
+.pg-links--tiles .pg-link-txt small{color:inherit; opacity:.8}

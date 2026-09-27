@@ -4,7 +4,7 @@
 
     {
       "v": 2,
-      "theme":  {"accent": "#2A63F5", "mode": "auto", "radius": "soft", "radius_px": 18, "bg": "tint"},
+      "theme":  {"accent": "#1D55F0", "mode": "auto", "radius": "soft", "radius_px": 18, "bg": "tint"},
       "header": {"enabled": true, "style": "bar", "title": "...", ...},
       "tabbar": {"enabled": true, "style": "floating"},
       "pages":  [{"id": "home", "title": "خانه", "icon": "home",
@@ -31,7 +31,7 @@ SCHEMA_VERSION = 2
 
 # ---------- تم ----------
 THEME_FIELDS: dict[str, dict[str, Any]] = {
-    "accent": {"type": "color", "default": "#2A63F5"},
+    "accent": {"type": "color", "default": "#1D55F0"},
     "mode": {"type": "select", "options": ["auto", "light", "dark"], "default": "auto"},
     "radius": {"type": "select", "options": ["soft", "round", "sharp", "custom"], "default": "soft"},
     "radius_px": {"type": "int", "min": 0, "max": 32, "default": 18},
@@ -40,8 +40,8 @@ THEME_FIELDS: dict[str, dict[str, Any]] = {
 
 # رنگ‌های آماده (توکن‌های accent-* سیستم طراحی «کاشی»)
 SWATCHES = [
-    ["لاجوردی", "#2A63F5"], ["بنفش", "#6A55E0"], ["فیروزه‌ای", "#0E8FAE"], ["سبز", "#12A071"],
-    ["زعفرانی", "#E09A1F"], ["مرجانی", "#E0573E"], ["گلی", "#E0457B"], ["شب", "#1F2A44"],
+    ["آبی عبور", "#1D55F0"], ["سرمه‌ای", "#0A2572"], ["بنفش", "#6A55E0"], ["فیروزه‌ای", "#0E8FAE"],
+    ["سبز", "#12A071"], ["کهربایی", "#E09A1F"], ["مرجانی", "#E0573E"], ["گلی", "#E0457B"],
 ]
 
 # دسته‌های کامپوننت (رنگ یعنی معنا): write=محتوا، act=اقدام، media=رسانه، shop=فروش، frame=ساختار

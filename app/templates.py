@@ -104,9 +104,9 @@ def shop() -> dict:
 
 def vpn() -> dict:
     """به سبک عبور: کارت سرمه‌ای، پلن‌ها، راهنمای اتصال و پشتیبانی."""
-    return _tpl("vpn", "فروش سرویس اینترنت", "به سبک عبور: پلن‌ها، راهنمای اتصال و پشتیبانی", "digital", "#0A2572", [
+    return _tpl("vpn", "فروش سرویس اینترنت", "به سبک عبور: پلن‌ها، راهنمای اتصال و پشتیبانی", "digital", "#1D55F0", [
         _page("home", "خانه", "home", [
-            _b("hero", {"title": "{name}", "subtitle": "اینترنت آزاد، پایدار و سریع.\nمسیرت با ماست.", "style": "solid"}),
+            _b("hero", {"title": "{name}", "subtitle": "اینترنت آزاد، پایدار و سریع.\nمسیرت با ماست.", "style": "pass", "align": "start", "chip": "همهٔ سرورها فعال"}),
             _b("features", {"title": "چرا ما؟", "items": [
                 {"emoji": "⚡", "title": "سرعت بالا", "desc": "سرورهای اختصاصی"},
                 {"emoji": "🛡️", "title": "پایدار", "desc": "بدون قطعی"},
@@ -134,12 +134,12 @@ def vpn() -> dict:
             _b("text", {"title": "پشتیبانی", "body": "هر سوالی داشتی در ربات بپرس. تا ۱۰ دقیقه جواب می‌دیم."}),
             _b("button", {"label": "پیام به پشتیبانی", "url": "", "style": "soft"}),
         ]),
-    ], header={"enabled": True, "style": "bar", "title": "{name}"},
+    ], header={"enabled": True, "style": "plain", "title": "{name}"},
        note="اتصال مستقیم به پنل PasarGuard (ساخت خودکار سرویس بعد از خرید) در مرحلهٔ بک‌اند اضافه می‌شود.")
 
 
 def portfolio() -> dict:
-    return _tpl("portfolio", "پورتفولیو", "نمونه‌کار، دربارهٔ من و راه‌های همکاری", "personal", "#1F2A44", [
+    return _tpl("portfolio", "پورتفولیو", "نمونه‌کار، دربارهٔ من و راه‌های همکاری", "personal", "#0A2572", [
         _page("home", "خانه", "home", [
             _b("hero", {"title": "{name}", "subtitle": "طراح محصول · تهران", "style": "plain", "align": "start"}),
             _b("text", {"title": "دربارهٔ من", "body": "چند خط دربارهٔ کار و تجربه‌ات بنویس."}),

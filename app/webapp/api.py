@@ -17,7 +17,7 @@ import time
 from app import blocks, secure
 from app.config import config
 from app.db import Database, effective_plan, load_doc
-from app.plans import Plan
+from app.plans import PLANS, Plan
 
 from .auth import AuthError, WebAppUser, verify
 
@@ -152,6 +152,8 @@ class Api:
             "apps": [_app_json(a) for a in apps],
             "can_create": len(apps) < plan.max_apps,
             "bot": await self.db.get_setting("bot_username", ""),
+            # برای بلیت‌های پلن در صفحهٔ حساب؛ خرید همیشه در خود ربات است
+            "plans": [dict(_plan_json(p), price_stars=p.price_stars, features=list(p.features)) for p in PLANS.values()],
         }
 
     async def app(self, init_data: str, app_id: object) -> dict:

@@ -353,6 +353,7 @@
   }
 
   function goPage(id) {
+    if ($('sheet').classList.contains('on')) closeSheet();
     S.pageId = id;
     S.selected = null;
     select();
@@ -418,28 +419,74 @@
 
   /* ---------- Sheet ---------- */
   let sheetClose = null;
-  function openSheet(build, onClose, tool) {
+  /* live: ویرایش زنده. شیت نیمه‌قد و بدون پرده است، بوم بالای آن دیده
+     و لمس می‌شود و چیزی که ویرایش می‌شود زیر نوار بالا می‌نشیند.
+     live.focus عنصری را برمی‌گرداند که باید دیده شود. */
+  function openSheet(build, onClose, tool, live) {
     const sheet = $('sheet');
     if (sheet.classList.contains('on') && sheetClose) { const cb = sheetClose; sheetClose = null; cb(); }
     sheet.textContent = '';
-    sheet.appendChild(h('div', 'grip'));
+    if (live) {
+      const grip = h('button', 'grip');
+      grip.type = 'button';
+      grip.setAttribute('aria-label', 'بزرگ یا کوچک کردن پنل');
+      grip.addEventListener('click', () => { sheet.classList.toggle('full'); haptic(); });
+      sheet.appendChild(grip);
+    } else {
+      sheet.appendChild(h('div', 'grip'));
+    }
     build(sheet);
     sheet.scrollTop = 0;
+    sheet.classList.remove('full');
+    sheet.classList.toggle('live', !!live);
+    $('scrim').classList.toggle('live', !!live);
+    $('editor').classList.toggle('live-editing', !!live);
+    $('editor').classList.toggle('live-tabbar', !!(live && live.tabbar));
+    watchLive(!!live);
     sheet.classList.add('on');
     $('scrim').classList.add('on');
     sheetClose = onClose || null;
+    if (live && live.focus) focusLive(live.focus);
     document.querySelectorAll('.toolbar button').forEach(b => b.classList.toggle('on', b.dataset.act === tool));
     if (tg && tg.BackButton) tg.BackButton.show();
   }
   function closeSheet() {
-    $('sheet').classList.remove('on');
-    $('scrim').classList.remove('on');
+    $('sheet').classList.remove('on', 'full');
+    $('scrim').classList.remove('on', 'live');
+    $('editor').classList.remove('live-editing', 'live-tabbar');
+    watchLive(false);
     document.querySelectorAll('.toolbar button').forEach(b => b.classList.remove('on'));
     if (tg && tg.BackButton) tg.BackButton.hide();
     const cb = sheetClose;
     sheetClose = null;
     if (cb) cb();
   }
+  /* ارتفاع واقعی شیت زنده → --live-h، تا بوم به همان اندازه جا بگذارد
+     و نوار پایین مینی‌اپ درست بالای شیت بماند */
+  let liveObs = null;
+  function watchLive(on) {
+    const root = document.documentElement, sheet = $('sheet');
+    if (on && !liveObs && window.ResizeObserver) {
+      liveObs = new ResizeObserver(() => root.style.setProperty('--live-h', sheet.offsetHeight + 'px'));
+      liveObs.observe(sheet);
+    } else if (!on && liveObs) {
+      liveObs.disconnect();
+      liveObs = null;
+      root.style.removeProperty('--live-h');
+    }
+  }
+  function focusLive(getEl) {
+    // دو فریم: بوم با requestAnimationFrame دوباره ساخته می‌شود
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const el = getEl();
+      if (!el) return;
+      const bar = document.querySelector('#editor .appbar').getBoundingClientRect().bottom;
+      const top = el.getBoundingClientRect().top + window.scrollY - bar - 26;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }));
+  }
+  const blockEl = id => document.querySelector(`#canvas .pg-block[data-id="${CSS.escape(id)}"]`);
+
   function sheetHead(parent, cat, iconName, title, sub) {
     const head = h('div', 'sh-head');
     const t = h('div', 'sh-title');
@@ -768,7 +815,6 @@
     const spec = S.schema.blocks[block.type];
     S.selected = id;
     renderCanvas();
-    scrollToBlock(id);
 
     openSheet(sheet => {
       sheetHead(sheet, spec.cat, spec.icon, spec.title, spec.desc);
@@ -860,7 +906,7 @@
       S.selected = null;
       renderCanvas();
       saveNow();
-    });
+    }, null, { focus: () => blockEl(id) });
   }
 
   function moveToPageSheet(id) {
@@ -891,8 +937,9 @@
   }
 
   function scrollToBlock(id) {
+    if ($('editor').classList.contains('live-editing')) { focusLive(() => blockEl(id)); return; }
     requestAnimationFrame(() => {
-      const el = document.querySelector(`.pg-block[data-id="${CSS.escape(id)}"]`);
+      const el = blockEl(id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
   }
@@ -1059,7 +1106,7 @@
       sheetHead(sheet, 'frame', 'header', 'سربرگ', 'بالای همهٔ صفحه‌ها؛ اسم و لوگوی مینی‌اپ.');
       groupFields(sheet, S.schema.header, S.doc.header);
       sheet.appendChild(h('p', 'caption sw-note', 'اگر عنوان خالی بماند، اسم مینی‌اپ نشان داده می‌شود.'));
-    }, () => { S.selected = null; renderCanvas(); saveNow(); });
+    }, () => { S.selected = null; renderCanvas(); saveNow(); }, null, { focus: () => document.querySelector('#canvas') });
   }
 
   function tabbarSheet() {
@@ -1086,7 +1133,7 @@
         st.appendChild(r);
       });
       sheet.appendChild(st);
-    }, saveNow);
+    }, saveNow, null, { tabbar: true });
   }
 
   /* ---------- صفحه‌ها ---------- */
@@ -1205,7 +1252,7 @@
       };
       drawRadius();
       sheet.appendChild(radiusBox);
-    }, saveNow, 'theme');
+    }, saveNow, 'theme', {});
   }
 
   /* ---------- پیش‌نمایش ---------- */

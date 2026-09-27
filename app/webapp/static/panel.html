@@ -1,74 +1,76 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl" data-base="__BASE__">
+<html lang="fa" dir="rtl" data-base="__BASE__" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>EasySaz</title>
+<title>ایزی‌ساز</title>
 <link rel="preload" href="__BASE__static/fonts/peyda-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="__BASE__static/fonts/peyda-800.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="__BASE__static/peyda.css">
-<link rel="stylesheet" href="__BASE__static/render.css?v=1">
-<link rel="stylesheet" href="__BASE__static/panel.css?v=1">
+<link rel="stylesheet" href="__BASE__static/tokens.css?v=2">
+<link rel="stylesheet" href="__BASE__static/render.css?v=2">
+<link rel="stylesheet" href="__BASE__static/panel.css?v=2">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-<div id="boot" class="boot"><div class="mark"></div></div>
+<div id="boot" class="boot" aria-hidden="true"><span class="boot-tile"></span></div>
 
-<!-- شروع: صفحه خالی و انتخاب اسم -->
+<!-- شروع: صفحهٔ خالی و انتخاب اسم (EmptyCanvas) -->
 <section id="onboard" class="screen onboard" hidden>
-  <div class="ob-top"><span class="wordmark">EasySaz</span></div>
-  <div class="ob-canvas" aria-hidden="true">
+  <div class="ob-top"><span class="wordmark">ایزی‌ساز</span></div>
+  <div class="ob-frame" aria-hidden="true">
     <i class="ob-line ob-l1"></i><i class="ob-line ob-l2"></i><i class="ob-line ob-l3"></i>
-    <div class="mark ob-spark"></div>
+    <span class="ob-plus" data-icon="plus"></span>
   </div>
   <div class="ob-body">
-    <h1>یک اسم برای مینی‌اپت انتخاب کن</h1>
-    <p>صفحه‌ت فعلاً خالیه. بعد از انتخاب اسم، با کامپوننت‌های آماده می‌سازیش.</p>
-    <label class="field big">
-      <input id="ob-name" maxlength="40" placeholder="مثلاً: کافه نارنج" autocomplete="off">
-    </label>
+    <h1 class="title-1">یک اسم برای مینی‌اپت انتخاب کن</h1>
+    <p class="body">صفحه‌ت فعلاً خالیه. بعد از انتخاب اسم، با کامپوننت‌های آماده می‌سازیش.</p>
+    <label for="ob-name" class="sr">اسم مینی‌اپ</label>
+    <input id="ob-name" class="ob-input" maxlength="40" placeholder="مثلاً: کافه نارنج" autocomplete="off">
     <div id="ob-chips" class="chips"></div>
-    <p class="hint">بعداً هم می‌تونی عوضش کنی.</p>
+    <p class="caption hint">بعداً هم می‌تونی عوضش کنی.</p>
   </div>
-  <div class="ob-cta"><button id="ob-go" class="btn primary block" disabled>شروع ساخت</button></div>
+  <button id="ob-go" class="btn primary block" disabled>شروع ساخت</button>
 </section>
 
 <!-- ادیتور -->
 <section id="editor" class="screen editor" hidden>
-  <header class="bar" id="bar">
-    <button class="bar-app" id="bar-app">
-      <span class="bar-ava" id="bar-ava"></span>
-      <span class="bar-txt"><b id="bar-name"></b><small id="bar-status"></small></span>
+  <header class="appbar">
+    <button class="appbar-app" id="bar-app" aria-label="برگهٔ مینی‌اپ">
+      <span class="appbar-tile" id="bar-initial"></span>
+      <span class="appbar-txt"><b class="title-2" id="bar-name"></b><span class="caption status" id="bar-status"><i class="dot"></i><span></span></span></span>
     </button>
-    <span class="save" id="save"><i></i><span>ذخیره شد</span></span>
+    <span class="caption save" id="save"><i class="dot"></i><span>ذخیره شد</span></span>
   </header>
   <div id="canvas"></div>
   <div id="empty" class="empty" hidden>
-    <div class="empty-ico"></div>
-    <h2>صفحه‌ت خالیه</h2>
-    <p>اولین کامپوننت رو اضافه کن تا مینی‌اپت جون بگیره.</p>
-    <button class="btn primary" id="empty-add">افزودن کامپوننت</button>
+    <span class="cat-tile cat-write" data-icon="plus"></span>
+    <b class="title-2">صفحه‌ت خالیه</b>
+    <span class="caption">اولین کامپوننت رو اضافه کن تا مینی‌اپت جون بگیره.</span>
+    <button class="btn primary sm" id="empty-add">افزودن کامپوننت</button>
   </div>
-  <nav class="dock" id="dock">
-    <button data-act="add"><i class="di di-add"></i><span>افزودن</span></button>
-    <button data-act="theme"><i class="di di-theme"></i><span>ظاهر</span></button>
-    <button data-act="preview"><i class="di di-eye"></i><span>پیش‌نمایش</span></button>
-    <button data-act="publish" class="pub"><span>انتشار</span></button>
+  <nav class="dock" id="dock" aria-label="ابزارها">
+    <button data-act="add"><span data-icon="plus"></span><span class="label">افزودن</span></button>
+    <button data-act="theme"><span data-icon="palette"></span><span class="label">ظاهر</span></button>
+    <button data-act="preview"><span data-icon="eye"></span><span class="label">پیش‌نمایش</span></button>
+    <button data-act="publish" class="dock-publish"><i class="dot"></i>انتشار</button>
   </nav>
   <button class="exit-preview" id="exit-preview" hidden>بستن پیش‌نمایش</button>
 </section>
 
 <section id="blocked" class="screen blocked" hidden>
-  <div class="mark"></div>
-  <h1>پنل EasySaz</h1>
-  <p id="blocked-msg">این پنل فقط داخل تلگرام و از ربات @EasySazBot باز می‌شه.</p>
+  <span class="cat-tile cat-brand big" data-icon="bot"></span>
+  <h1 class="title-1">پنل ایزی‌ساز</h1>
+  <p class="body" id="blocked-msg">این پنل داخل تلگرام و از ربات @EasySazBot باز می‌شه.</p>
+  <a class="btn secondary" href="#demo" id="demo-link">دیدن نسخهٔ نمایشی</a>
 </section>
 
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status"><span class="toast-ico"></span><span class="toast-txt"></span></div>
 
-<script src="__BASE__static/render.js?v=1"></script>
-<script src="__BASE__static/panel.js?v=1"></script>
+<script src="__BASE__static/render.js?v=2"></script>
+<script src="__BASE__static/demo.js?v=2"></script>
+<script src="__BASE__static/panel.js?v=2"></script>
 </body>
 </html>

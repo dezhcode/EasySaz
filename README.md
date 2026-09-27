@@ -27,12 +27,18 @@
 پایه: سربرگ، متن، دکمه، لیست لینک، تصویر، سوالات متداول، شبکه‌های اجتماعی، اطلاعیه، جداکننده.
 PRO: کارت محصول، گالری، ویژگی‌ها.
 
+هر کامپوننت یک دسته دارد (محتوا، اقدام، رسانه، فروش، ساختار) که رنگش در کاتالوگ ثابت است.
+
 صفحه هر مینی اپ یک سند JSON است، نه HTML. `app/blocks.py` تنها منبع حقیقت است:
 - سرور هر سند را قبل از ذخیره پاکسازی می‌کند (فقط لینک https، طول‌ها محدود، سقف پلن).
 - ادیتور فرم هر کامپوننت را از همان اسکیما می‌سازد.
 - `static/render.js` صفحه را فقط با `textContent` می‌سازد، پس تزریق اسکریپت ممکن نیست.
 
 **افزودن کامپوننت جدید:** یک ورودی در `SCHEMA` داخل `app/blocks.py`، یک تابع `R.<type>` در `render.js`، استایل آن در `render.css` و یک آیکون در `UI` داخل `panel.js`.
+
+## طراحی و فرانت‌اند
+
+ظاهر از سیستم طراحی «ایزی‌ساز — کاشی» می‌آید (زبان طراحی عبور: سطح تخت، خط مو، رنگ یعنی معنا). روش همگام نگه داشتن طراحی و کد، و حالت نمایشی `/panel#demo` در `design/README.md` آمده است.
 
 ## معماری
 
@@ -51,7 +57,10 @@ app/client/handlers.py   ربات‌های مشتری در حالت کنترل �
 app/webapp/wsgi.py       مسیرهای /panel، /a/<slug>، /static، /api
 app/webapp/api.py        API پنل و صفحه عمومی
 app/webapp/auth.py       بررسی امضای initData (با توکن هر ربات)
-app/webapp/static/       panel.* (ادیتور)، page.* (مینی اپ عمومی)، render.* (موتور مشترک)
+app/webapp/static/       panel.* (ادیتور)، page.* (مینی اپ عمومی)، render.* (موتور مشترک)،
+                         tokens.css (ساخته از design/tokens.json)، demo.js (حالت نمایشی)
+design/                  توکن‌های سیستم طراحی و قانون همگامی
+scripts/build_tokens.py  design/tokens.json → tokens.css
 ```
 
 ## امنیت
@@ -70,5 +79,5 @@ app/webapp/static/       panel.* (ادیتور)، page.* (مینی اپ عموم
 pip install -r requirements.txt
 cp .env.example .env     # مقادیر را پر کن
 python check_setup.py
-python test_smoke.py     # ۶۰ تست بدون شبکه
+python test_smoke.py     # ۶۵ تست بدون شبکه
 ```

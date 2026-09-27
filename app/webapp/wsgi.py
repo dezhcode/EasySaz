@@ -135,6 +135,8 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
 
     if path.startswith("/a/") and method == "GET":
         slug = path[3:].strip("/")
+        if slug == "demo":  # حالت نمایشی فرانت‌اند؛ داده از localStorage مرورگر (demo.js)
+            return _send(start_response, "200 OK", _html("page.html", "کافه نارنج"), "text/html; charset=utf-8", page_headers)
         if not _SLUG.match(slug):
             return _send(start_response, "404 Not Found", b"not found", "text/plain")
         title = "EasySaz"

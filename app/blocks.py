@@ -4,7 +4,7 @@
 
     {
       "v": 1,
-      "theme":  {"accent": "#2F6BFF", "mode": "auto", "radius": "soft", "bg": "tint"},
+      "theme":  {"accent": "#2A63F5", "mode": "auto", "radius": "soft", "bg": "tint"},
       "blocks": [{"id": "b1a2c3", "type": "hero", "props": {...}}, ...]
     }
 
@@ -26,17 +26,22 @@ SCHEMA_VERSION = 1
 
 # ---------- تم ----------
 THEME_FIELDS: dict[str, dict[str, Any]] = {
-    "accent": {"type": "color", "default": "#2F6BFF"},
+    "accent": {"type": "color", "default": "#2A63F5"},
     "mode": {"type": "select", "options": ["auto", "light", "dark"], "default": "auto"},
     "radius": {"type": "select", "options": ["soft", "round", "sharp"], "default": "soft"},
-    "bg": {"type": "select", "options": ["tint", "plain", "glow"], "default": "tint"},
+    "bg": {"type": "select", "options": ["tint", "plain"], "default": "tint"},
 }
 
-# رنگ های آماده ای که در ادیتور پیشنهاد می شوند
+# رنگ‌های آماده (توکن‌های accent-* سیستم طراحی «کاشی»)
 SWATCHES = [
-    "#2F6BFF", "#6A55E0", "#0E8FAE", "#12A071", "#E09A1F",
-    "#E0573E", "#E0457B", "#1F2A44",
+    ["لاجوردی", "#2A63F5"], ["بنفش", "#6A55E0"], ["فیروزه‌ای", "#0E8FAE"], ["سبز", "#12A071"],
+    ["زعفرانی", "#E09A1F"], ["مرجانی", "#E0573E"], ["گلی", "#E0457B"], ["شب", "#1F2A44"],
 ]
+
+# دسته‌های کامپوننت (رنگ یعنی معنا): write=محتوا، act=اقدام، media=رسانه، shop=فروش، frame=ساختار
+CATEGORIES = {
+    "write": "محتوا", "act": "اقدام و ارتباط", "media": "رسانه", "shop": "فروش", "frame": "ساختار",
+}
 
 SOCIAL_KINDS = [
     "telegram", "instagram", "whatsapp", "youtube", "x", "website", "phone", "email",
@@ -47,6 +52,7 @@ SOCIAL_KINDS = [
 # premium=True یعنی فقط در پلن های پولی قابل افزودن است.
 SCHEMA: dict[str, dict[str, Any]] = {
     "hero": {
+        "cat": "write",
         "title": "سربرگ",
         "icon": "sparkle",
         "desc": "عنوان بزرگ، توضیح کوتاه و لوگو",
@@ -55,13 +61,14 @@ SCHEMA: dict[str, dict[str, Any]] = {
             {"key": "title", "label": "عنوان", "type": "text", "max": 60, "default": "به مینی اپ من خوش اومدی"},
             {"key": "subtitle", "label": "توضیح", "type": "textarea", "max": 200, "default": "اینجا همه چیز رو یک جا پیدا می کنی."},
             {"key": "image", "label": "آدرس لوگو یا تصویر (اختیاری)", "type": "image", "default": ""},
-            {"key": "style", "label": "سبک", "type": "select", "default": "gradient",
-             "options": [["gradient", "گرادینت"], ["soft", "ملایم"], ["plain", "ساده"]]},
+            {"key": "style", "label": "سبک", "type": "select", "default": "solid",
+             "options": [["solid", "پررنگ"], ["soft", "ملایم"], ["plain", "ساده"]]},
             {"key": "align", "label": "چینش", "type": "select", "default": "center",
              "options": [["center", "وسط"], ["start", "راست"]]},
         ],
     },
     "text": {
+        "cat": "write",
         "title": "متن",
         "icon": "text",
         "desc": "یک پاراگراف با عنوان",
@@ -74,6 +81,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         ],
     },
     "button": {
+        "cat": "act",
         "title": "دکمه",
         "icon": "button",
         "desc": "یک دکمه که به لینک می رود",
@@ -86,6 +94,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         ],
     },
     "links": {
+        "cat": "act",
         "title": "لیست لینک",
         "icon": "links",
         "desc": "چند لینک زیر هم، مثل لینک بیو",
@@ -104,6 +113,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         ],
     },
     "image": {
+        "cat": "media",
         "title": "تصویر",
         "icon": "image",
         "desc": "یک تصویر با زیرنویس",
@@ -116,6 +126,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         ],
     },
     "faq": {
+        "cat": "write",
         "title": "سوالات متداول",
         "icon": "faq",
         "desc": "سوال و جواب های بازشونده",
@@ -133,6 +144,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         ],
     },
     "social": {
+        "cat": "act",
         "title": "شبکه های اجتماعی",
         "icon": "social",
         "desc": "آیکون راه های ارتباطی",
@@ -153,6 +165,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         ],
     },
     "notice": {
+        "cat": "write",
         "title": "اطلاعیه",
         "icon": "notice",
         "desc": "یک نوار رنگی برای خبر مهم",
@@ -164,6 +177,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         ],
     },
     "divider": {
+        "cat": "frame",
         "title": "جداکننده",
         "icon": "divider",
         "desc": "فاصله یا خط بین بخش ها",
@@ -175,6 +189,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
     },
     # ----- پریمیوم -----
     "cards": {
+        "cat": "shop",
         "title": "کارت محصول",
         "icon": "cards",
         "desc": "محصول یا خدمت با قیمت و دکمه",
@@ -199,6 +214,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         ],
     },
     "gallery": {
+        "cat": "media",
         "title": "گالری",
         "icon": "gallery",
         "desc": "اسلایدر افقی تصاویر",
@@ -213,6 +229,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         ],
     },
     "features": {
+        "cat": "shop",
         "title": "ویژگی ها",
         "icon": "features",
         "desc": "شبکه ای از مزیت ها با ایموجی",
@@ -237,6 +254,19 @@ _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f‪-‮⁦-⁩]")
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 _ID = re.compile(r"^[a-z0-9_-]{3,24}$")
 _TG_USER = re.compile(r"^@?[A-Za-z][A-Za-z0-9_]{3,31}$")
+
+
+# ترتیب کاتالوگ «افزودن کامپوننت»: دسته به دسته
+CATALOG_ORDER = [
+    "hero", "text", "notice", "faq",
+    "button", "links", "social",
+    "image", "gallery",
+    "cards", "features",
+    "divider",
+]
+
+# مقدارهای قدیمی که هنوز در صفحه‌های ذخیره‌شده هستند
+_LEGACY = {("hero", "style", "gradient"): "solid"}
 
 
 def new_block_id() -> str:
@@ -382,7 +412,10 @@ def clean_page(doc: Any, *, max_blocks: int, premium: bool) -> dict:
         if not isinstance(bid, str) or not _ID.match(bid) or bid in seen:
             bid = new_block_id()
         seen.add(bid)
-        props = raw.get("props") if isinstance(raw.get("props"), dict) else {}
+        props = dict(raw.get("props")) if isinstance(raw.get("props"), dict) else {}
+        for (lt, lk, lv), new in _LEGACY.items():
+            if btype == lt and props.get(lk) == lv:
+                props[lk] = new
         clean = {f["key"]: _clean_field(f, props.get(f["key"], _default_of(f))) for f in spec["fields"]}
         blocks.append({"id": bid, "type": btype, "props": clean})
 
@@ -403,6 +436,8 @@ def public_schema() -> dict:
     return {
         "version": SCHEMA_VERSION,
         "blocks": SCHEMA,
+        "order": CATALOG_ORDER,
+        "categories": CATEGORIES,
         "theme": THEME_FIELDS,
         "swatches": SWATCHES,
     }

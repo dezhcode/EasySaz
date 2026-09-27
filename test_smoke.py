@@ -183,7 +183,7 @@ def test_blocks() -> None:
     }
     clean = blocks.clean_page(doc, max_blocks=10, premium=False)
     b = clean["blocks"]
-    ok(clean["theme"]["accent"] == "#2F6BFF" and clean["theme"]["mode"] == "auto", "تم نامعتبر به پیش فرض برمی گردد")
+    ok(clean["theme"]["accent"] == "#2A63F5" and clean["theme"]["mode"] == "auto", "تم نامعتبر به پیش فرض برمی گردد")
     ok(len(b) == 3, "نوع ناشناخته حذف می شود")
     ok(b[0]["props"]["url"] == "" and "evil" not in b[0]["props"], "لینک javascript و کلید اضافه حذف می شود")
     ok(len(b[0]["props"]["label"]) == 40, "طول متن بریده می شود")
@@ -200,6 +200,9 @@ def test_blocks() -> None:
         except blocks.PageError:
             ok(True, why)
     ok(blocks.social_href("whatsapp", "+98 912 000 0000") == "https://wa.me/989120000000", "لینک واتساپ")
+    legacy = blocks.clean_page({"theme": {"bg": "glow"}, "blocks": [{"type": "hero", "props": {"style": "gradient"}}]}, max_blocks=8, premium=False)
+    ok(legacy["blocks"][0]["props"]["style"] == "solid" and legacy["theme"]["bg"] == "tint", "دادهٔ قدیمی (گرادیان/درخشان) به سیستم طراحی تازه نگاشت می‌شود")
+    ok(set(blocks.CATALOG_ORDER) == set(blocks.SCHEMA) and all(b["cat"] in blocks.CATEGORIES for b in blocks.SCHEMA.values()), "هر کامپوننت دسته و جای کاتالوگ دارد")
 
 
 def test_auth() -> None:
@@ -225,8 +228,15 @@ def test_web() -> None:
     ok(call("GET", "/static/render.js")["status"] == 200, "فایل ثابت")
     ok(call("GET", "/static/../../.env")["status"] == 404, "جلوگیری از خروج از پوشه static")
     ok(call("GET", "/static/fonts/peyda-400.woff2")["headers"]["Content-Type"] == "font/woff2", "فونت")
+    tokens = call("GET", "/static/tokens.css")
+    ok(tokens["status"] == 200 and b"--brand:" in tokens["body"] and b"--pg-accent:" in tokens["body"], "توکن‌های سیستم طراحی سرو می‌شوند")
+    import subprocess
+    built = subprocess.run([sys.executable, "scripts/build_tokens.py"], capture_output=True, cwd=os.path.dirname(os.path.abspath(__file__)))
+    ok(built.returncode == 0 and call("GET", "/static/tokens.css")["body"] == tokens["body"], "tokens.css با design/tokens.json همگام است")
+    demo = call("GET", "/a/demo")
+    ok(demo["status"] == 200 and b"demo.js" in demo["body"], "صفحهٔ نمایشی /a/demo")
     st, schema = jcall("GET", "/api/schema", uid=None)
-    ok(st == 200 and "hero" in schema["blocks"], "اسکیما")
+    ok(st == 200 and "hero" in schema["blocks"] and schema["order"][0] == "hero" and "write" in schema["categories"], "اسکیما با دسته‌ها و ترتیب کاتالوگ")
     st, _ = jcall("GET", "/api/me", uid=None)
     ok(st == 401, "بدون initData: ۴۰۱")
     st, _ = jcall("GET", "/api/me", uid=7, token=CLIENT_TOKEN)

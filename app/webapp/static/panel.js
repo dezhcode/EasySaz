@@ -72,6 +72,7 @@
     sun: 'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
     moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
     minus: 'M6 12h12',
+    hand: 'M9 11V5a2 2 0 0 1 4 0v5M13 10a2 2 0 0 1 4 0v1M17 11a2 2 0 0 1 4 0v3a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.4L5 14a2 2 0 0 1 3.3-2.2L9 13',
   });
   function ico(name, cls) {
     const s = document.createElementNS(SVG_NS, 'svg');
@@ -227,7 +228,7 @@
   /* ---------- صفحه‌ها ---------- */
   const TABS = ['home', 'templates', 'account'];
   function show(id, asTab) {
-    ['home', 'account', 'onboard', 'templates', 'editor', 'blocked'].forEach(s => { $(s).hidden = s !== id; });
+    ['home', 'account', 'onboard', 'templates', 'editor', 'easy', 'blocked'].forEach(s => { $(s).hidden = s !== id; });
     const splash = $('splash');
     if (splash && !splash.classList.contains('off')) { splash.classList.add('off'); setTimeout(() => splash.remove(), 450); }
     S.screen = id;
@@ -575,7 +576,7 @@
      کوتاه (بیشتر، افزودن، انتشار) شیت‌اند. */
   function openEditor() {
     popAll();
-    show('editor');
+    show(S.mode === 'pro' ? 'editor' : 'easy');
     renderAll();
   }
   async function leaveEditor() {
@@ -586,6 +587,7 @@
   }
 
   function renderAll() {
+    if (S.screen === 'easy') { renderEasy(); return; }
     renderBar();
     renderPages();
     renderSecs();
@@ -602,6 +604,8 @@
     st.title = pub + (save ? ' · ' + save : ' · ذخیره شد');
     st.className = 'caption status ' + (S.saveState || (live && !S.app.dirty ? 'live' : ''));
     $('bar-publish').classList.toggle('dirty', !!S.app.dirty || !live);
+    const es = $('easy-status');
+    if (es) { es.querySelector('span').textContent = save || pub; es.className = st.className; es.title = st.title; }
     document.querySelectorAll('.saved').forEach(drawSaved);
   }
   /* «ذخیره شد» کنار نوار بالای زیرصفحه‌ها */
@@ -826,7 +830,8 @@
   function travel(from, to, label) {
     if (!from.length) return;
     if ($('sheet').classList.contains('on')) closeSheet();
-    popAll();
+    // زیرصفحه‌هایی که به بخشِ قدیمی اشاره دارند بسته می‌شوند؛ نمای ساده می‌ماند
+    while (S.stack.length && !S.stack[S.stack.length - 1].safeUndo) { const pg = S.stack.pop(); if (pg.onPop) pg.onPop(); pg.el.remove(); }
     to.push(JSON.stringify(S.doc));
     const snap = from.pop();
     S.doc = ES.normalize(JSON.parse(snap));
@@ -835,6 +840,7 @@
     if (!S.doc.pages.find(p => p.id === S.pageId)) S.pageId = S.doc.pages[0].id;
     S.app.dirty = true;
     renderAll();
+    if (S.stack.length) queueRefresh(S.stack[S.stack.length - 1]); else document.body.classList.remove('has-sub');
     renderUndo();
     scheduleSave();
     select();
@@ -852,7 +858,9 @@
     scheduleSave();
     if (quiet) return;
     const top = S.stack[S.stack.length - 1];
-    if (top) queueRefresh(top); else renderSecs();
+    if (top) queueRefresh(top);
+    else if (S.screen === 'easy') renderEasyQ();
+    else renderSecs();
   }
   function queueRefresh(pg) {
     if (pg.queued) return;
@@ -892,6 +900,7 @@
      هر زیرصفحه تمام‌صفحه است و خودش اسکرول می‌خورد. pg.refresh بعد از هر
      تغییر (و وقتی زیرصفحهٔ رویی بسته شد) صدا زده می‌شود. */
   S.stack = [];
+  S.mode = (() => { try { return localStorage.getItem('es-editor-mode') || 'simple'; } catch (e) { return 'simple'; } })();
   function push(build) {
     const el = h('section', 'sub');
     const pg = { el, refresh: null, onPop: null, redrawers: [] };
@@ -924,7 +933,7 @@
     if (top) { queueRefresh(top); syncBack(); return; }
     document.body.classList.remove('has-sub');
     syncBack();
-    if (S.screen === 'editor' && S.doc) renderAll();
+    if ((S.screen === 'editor' || S.screen === 'easy') && S.doc) renderAll();
   }
   /* نوار بالای زیرصفحه: برگشت، مسیر، عنوان، و انتهای نوار */
   function subTop(el, crumb, title, end) {
@@ -1034,7 +1043,7 @@
   /* دکمهٔ برگشت بومی تلگرام: شیت، زیرصفحه، ادیتور یا زیرصفحه‌های بیرون از تب */
   function syncBack() {
     if (!tg || !tg.BackButton) return;
-    const need = $('sheet').classList.contains('on') || (S.stack && S.stack.length) || S.screen === 'editor'
+    const need = $('sheet').classList.contains('on') || (S.stack && S.stack.length) || S.screen === 'editor' || S.screen === 'easy'
       || (!S.asTab && (S.screen === 'onboard' || S.screen === 'templates') && S.app);
     if (need) tg.BackButton.show(); else tg.BackButton.hide();
   }
@@ -2223,6 +2232,8 @@
       subTop(el, S.app.name, 'تنظیمات');
       const body = h('div', 'sbody');
       el.appendChild(body);
+      const mode = selectControl({ label: 'حالت ادیتور', options: [['simple', 'ساده (سؤال‌محور)'], ['pro', 'حرفه‌ای (همهٔ ابزارها)']] }, S.mode, v => { setMode(v); });
+      body.appendChild(mode);
       const card = h('div', 'appcard');
       const logo = S.doc.header && ES.safeUrl(S.doc.header.logo, true);
       const tile = h('span', 'appbar-tile');
@@ -2784,6 +2795,725 @@
     botG.appendChild(grow('media', 'star', 'پلن‌ها و پرداخت', 'با ستارهٔ تلگرام، بدون درگاه', null, () => openBot('plans')));
   }
 
+  /* ===================== حالت ساده (سؤال‌محور) =====================
+     برای کاربر مبتدی: صفحهٔ اول ادیتور چک‌لیست «کارهای مانده» است. هر کار یک
+     سؤال ساده با یک فیلد بزرگ است (easyAsk). «دیدن مینی‌اپ» خود مینی‌اپ را
+     نشان می‌دهد و زدن روی هر قسمت یک کارت کوچک با سه کار باز می‌کند: متن،
+     شکل، بیشتر (easyCard). افزودن با زبان کاربر است (easyAdd). نوار پایین فقط
+     سه دکمه دارد. ادیتور کامل همان «حالت حرفه‌ای» است. */
+  const EASY_NAMES = {
+    hero: 'معرفی بالای صفحه', text: 'متن', notice: 'خبر یا تخفیف', faq: 'سؤال‌های مشتری', steps: 'راهنما',
+    stats: 'عددهای مهم', button: 'دکمه', links: 'دکمه‌های لینک', social: 'راه‌های تماس', apps: 'دانلود برنامه',
+    image: 'عکس', gallery: 'گالری عکس', cards: 'محصولات', pricing: 'قیمت‌ها', features: 'ویژگی‌ها',
+    passcard: 'کارت اشتراک', calc: 'محاسبهٔ قیمت', divider: 'فاصله',
+  };
+  const easyName = b => b === 'header' ? 'نوار بالا' : (EASY_NAMES[b.type] || specOf(b).title);
+  const SOCIAL_NAMES = { telegram: 'تلگرام', instagram: 'اینستاگرام', whatsapp: 'واتساپ', youtube: 'یوتیوب', x: 'ایکس', website: 'سایت', phone: 'تلفن', email: 'ایمیل' };
+  const allBlocks = () => S.doc.pages.reduce((a, p) => a.concat(p.blocks.map(b => ({ page: p, block: b }))), []);
+  const skipKey = () => 'es-skip-' + (S.app ? S.app.id : '');
+  function skipped() { try { return JSON.parse(localStorage.getItem(skipKey())) || []; } catch (e) { return []; } }
+  function setSkipped(key, on) {
+    const s = skipped().filter(k => k !== key);
+    if (on) s.push(key);
+    try { localStorage.setItem(skipKey(), JSON.stringify(s)); } catch (e) {}
+  }
+
+  /* مقصد یک دکمه یا لینک: از جواب ساده (آیدی یا شماره) لینک کامل ساخته می‌شود */
+  const DESTS = [
+    { key: 'telegram', title: 'تلگرام', icon: 'telegram', cat: 'act', label: 'آیدی تلگرامت', ph: 'naranj_cafe', pre: '@',
+      url: v => 'https://t.me/' + v.replace(/^@/, '').replace(/^https?:\/\/t\.me\//, ''), read: u => (u.match(/t\.me\/(.+)$/) || [])[1] },
+    { key: 'instagram', title: 'اینستاگرام', icon: 'instagram', cat: 'shop', label: 'آیدی اینستاگرامت', ph: 'naranj.cafe', pre: '@',
+      url: v => 'https://instagram.com/' + v.replace(/^@/, ''), read: u => (u.match(/instagram\.com\/(.+)$/) || [])[1] },
+    { key: 'whatsapp', title: 'واتساپ', icon: 'whatsapp', cat: 'write', label: 'شمارهٔ واتساپت', ph: '0912 345 6789', tel: true,
+      url: v => { let d = faDigits(v).replace(/\D/g, ''); if (d.startsWith('0')) d = '98' + d.slice(1); return d ? 'https://wa.me/' + d : ''; },
+      read: u => { const m = u.match(/wa\.me\/(\d+)/); return m ? '0' + m[1].replace(/^98/, '') : ''; } },
+    { key: 'site', title: 'سایت خودم', icon: 'website', cat: 'media', label: 'آدرس سایتت', ph: 'example.com',
+      url: v => v ? (/^https?:\/\//i.test(v) ? v : 'https://' + v) : '', read: u => u.replace(/^https?:\/\//, '') },
+  ];
+  const faDigits = s => String(s || '').replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+  function destOf(url) {
+    url = url || '';
+    if (emptyUrl(url)) return { dest: DESTS[0], value: '' };
+    const d = /t\.me\//.test(url) ? DESTS[0] : /instagram\.com/.test(url) ? DESTS[1] : /wa\.me\//.test(url) ? DESTS[2] : DESTS[3];
+    return { dest: d, value: d.read(url) || '' };
+  }
+
+  /* ---------- کارها: از خود مینی‌اپ ساخته می‌شوند ---------- */
+  function easyTasks() {
+    const T = [];
+    const skips = skipped();
+    const hd = S.doc.header;
+    const blocks = allBlocks();
+    const add = t => { t.skipped = !t.done && skips.indexOf(t.key) >= 0; T.push(t); };
+
+    add({ key: 'logo', kind: 'image', cat: 'media', icon: 'image', title: 'لوگو را بگذار', q: 'لوگوی کسب‌وکارت را بگذار',
+      sub: 'بالای مینی‌اپ و روی ربات دیده می‌شود', done: !!hd.logo, doneSub: 'گذاشته شد',
+      value: () => hd.logo || '',
+      apply: v => {
+        hd.logo = v;
+        if (v) hd.enabled = true;
+        blocks.forEach(({ block }) => { if (block.type === 'hero' && !block.props.image) block.props.image = v; });
+      },
+      preview: box => mini(box, [], { header: Object.assign({}, hd, { enabled: true }) }) });
+
+    blocks.filter(({ block }) => block.type === 'text' && /بنویس/.test(block.props.body || '')).slice(0, 1).forEach(({ block }) => {
+      add({ key: 'text:' + block.id, kind: 'textarea', cat: 'write', icon: 'text', title: `«${block.props.title || 'متن'}» را بنویس`,
+        q: `«${block.props.title || 'متن'}» را بنویس`, sub: 'چند خط کوتاه کافی است؛ همان‌طور که با مشتری حرف می‌زنی.',
+        done: false, ph: block.props.body, value: () => '', apply: v => { block.props.body = v; },
+        preview: box => mini(box, [block]) });
+    });
+
+    const social = blocks.find(({ block }) => block.type === 'social');
+    const phoneItem = social && (social.block.props.items || []).find(it => it.kind === 'phone');
+    add({ key: 'phone', kind: 'phone', cat: 'act', icon: 'phone', title: 'شمارهٔ تماست چیه؟', q: 'شمارهٔ تماست چیه؟',
+      sub: 'مشتری‌ها با یک لمس زنگ می‌زنند.', done: !!(phoneItem && phoneItem.value), doneSub: phoneItem ? phoneItem.value : '',
+      value: () => { const s = allBlocks().find(({ block }) => block.type === 'social'); const it = s && s.block.props.items.find(x => x.kind === 'phone'); return it ? it.value : ''; },
+      apply: v => {
+        let s = allBlocks().find(({ block }) => block.type === 'social');
+        if (!s) {
+          if (!v) return;
+          const b = defaultBlock('social', { items: [] });
+          S.doc.pages[0].blocks.push(b);
+          s = { page: S.doc.pages[0], block: b };
+        }
+        const items = s.block.props.items;
+        let it = items.find(x => x.kind === 'phone');
+        if (!it) { it = { kind: 'phone', value: '' }; items.push(it); }
+        it.value = v;
+      },
+      preview: box => {
+        const s = allBlocks().find(({ block }) => block.type === 'social');
+        mini(box, [s ? s.block : defaultBlock('social', { items: [{ kind: 'telegram', value: '' }, { kind: 'phone', value: '' }] })]);
+      } });
+
+    const ids = social ? (social.block.props.items || []).filter(it => it.kind !== 'phone') : [];
+    if (ids.length) {
+      const names = ids.map(it => SOCIAL_NAMES[it.kind] || it.kind);
+      add({ key: 'socials:' + social.block.id, kind: 'socials', items: ids, cat: 'act', icon: ids[0].kind,
+        title: `آیدی ${names.join(' و ')}ت`, q: `آیدی ${names.join(' و ')}ت چیه؟`,
+        sub: 'فقط آیدی را بنویس؛ لینک کامل را خودمان می‌سازیم. هر کدام را نداری خالی بگذار.',
+        done: ids.every(it => it.value), doneSub: ids.filter(it => it.value).map(it => it.value).join(' · '),
+        preview: box => mini(box, [social.block]) });
+    }
+
+    blocks.filter(({ block }) => block.type === 'button').slice(0, 1).forEach(({ block }) => {
+      add({ key: 'btn:' + block.id, kind: 'dest', cat: 'shop', icon: 'button', title: `دکمهٔ «${block.props.label || 'دکمه'}» کجا برود؟`,
+        q: `با زدن «${block.props.label || 'دکمه'}» مشتری کجا برود؟`, sub: 'مثلاً جایی که سفارش‌ها را می‌گیری.',
+        done: !emptyUrl(block.props.url), doneSub: destOf(block.props.url).dest.title + ' · ' + destOf(block.props.url).value,
+        value: () => block.props.url, apply: v => { block.props.url = v; }, preview: box => mini(box, [block]) });
+    });
+
+    blocks.filter(({ block }) => block.type === 'image' && !block.props.src).slice(0, 1).forEach(({ block }) => {
+      add({ key: 'img:' + block.id, kind: 'image', cat: 'media', icon: 'image', title: `عکس «${block.props.caption || 'تصویر'}» را بگذار`,
+        q: 'یک عکس بگذار', sub: block.props.caption || 'عکس خوب، مشتری را زودتر راضی می‌کند.', done: false,
+        value: () => block.props.src || '', apply: v => { block.props.src = v; }, preview: box => mini(box, [block]) });
+    });
+
+    add({ key: 'bot', kind: 'bot', cat: 'brand', icon: 'bot', title: 'رباتت را وصل کن', q: 'رباتت را وصل کن',
+      sub: 'تا مینی‌اپ با دکمهٔ منوی ربات خودت باز شود. توکن ربات را در @EasySazBot می‌فرستی.',
+      done: !!S.app.bot_username, doneSub: S.app.bot_username ? '@' + S.app.bot_username : '' });
+    return T;
+  }
+
+  let easyQueued = false;
+  function renderEasyQ() {
+    if (easyQueued) return;
+    easyQueued = true;
+    requestAnimationFrame(() => { easyQueued = false; renderEasy(); });
+  }
+  /* ---------- صفحهٔ اول: چک‌لیست ---------- */
+  function renderEasy() {
+    if (!S.doc || S.screen !== 'easy') return;
+    $('easy-name').textContent = S.app.name;
+    renderBar();
+    const body = $('easy-body');
+    body.textContent = '';
+    const tasks = easyTasks();
+    const todo = tasks.filter(t => !t.done && !t.skipped);
+    const finished = tasks.filter(t => t.done || t.skipped);
+    const total = tasks.length + 2;
+    const pct = Math.round((finished.length + 2) / total * 100);
+
+    const card = h('div', 'g-ready');
+    const m = h('div', 'g-ready-m');
+    m.append(h('span', 'g-ready-k', S.app.name),
+      h('span', 'g-ready-t', todo.length ? `مینی‌اپت ${pct}٪ آماده است` : 'همه‌چیز آماده است!'));
+    const rail = h('div', 'g-rail');
+    const fill = h('i');
+    fill.style.width = pct + '%';
+    rail.appendChild(fill);
+    m.append(rail, h('span', 'g-ready-k', todo.length ? `${todo.length} کار کوچک مانده · هر کدام یک سؤال` : (S.app.published_at && !S.app.dirty ? 'منتشر شده؛ هر وقت خواستی عوضش کن' : 'فقط مانده که منتشرش کنی')));
+    const thumbBtn = h('button', 'g-thumb');
+    thumbBtn.type = 'button';
+    thumbBtn.setAttribute('aria-label', 'دیدن مینی‌اپ');
+    const th = h('div', 'g-thumb-in');
+    ES.render(th, S.doc, { page: S.doc.pages[0].id, appName: S.app.name });
+    thumbBtn.appendChild(th);
+    thumbBtn.addEventListener('click', () => { haptic(); tapView(); });
+    card.append(m, thumbBtn);
+    body.appendChild(card);
+
+    const row = (t, isDone) => {
+      const r = h('button', 'todo' + (isDone ? ' todo-ok' : '') + (t.skipped ? ' todo-skip' : ''));
+      r.type = 'button';
+      const c = h('span', 'todo-c');
+      if (isDone) c.appendChild(ico(t.skipped ? 'minus' : 'check'));
+      const txt = h('span', 'row-m');
+      txt.append(h('b', 'row-t', isDone && t.doneTitle ? t.doneTitle : t.title),
+        h('span', 'row-s' + (t.ltr || t.kind === 'phone' ? ' ltr' : ''), isDone ? (t.skipped ? 'فعلاً رد شد · بزن تا جواب بدی' : (t.doneSub || 'انجام شد')) : t.sub));
+      r.append(c);
+      if (!isDone) r.appendChild(catTile(t.cat, t.icon));
+      r.append(txt, ico('arrow', 'chev'));
+      r.addEventListener('click', () => { haptic(); if (t.onTap) t.onTap(); else easyAsk(isDone ? [t.key] : todo.map(x => x.key), t.key); });
+      return r;
+    };
+    if (todo.length) {
+      const sec = h('div', 'g-sec');
+      sec.append(h('b', '', 'کارهای مانده'), h('span', '', 'بزن تا جواب بدی'));
+      body.appendChild(sec);
+      const g = h('div', 'grp mx');
+      todo.forEach(t => g.appendChild(row(t)));
+      body.appendChild(g);
+      const go = h('button', 'btn btn-d btn-block g-start');
+      go.type = 'button';
+      go.append(ico('bolt'), document.createTextNode(`شروع جواب‌دادن (${todo.length} سؤال)`));
+      go.addEventListener('click', () => { haptic(); easyAsk(todo.map(x => x.key)); });
+      body.appendChild(go);
+    }
+    const sec2 = h('div', 'g-sec');
+    sec2.append(h('b', '', todo.length ? 'انجام شد' : 'همه انجام شد'), h('span', '', 'هر وقت خواستی عوضشان کن'));
+    body.appendChild(sec2);
+    const g2 = h('div', 'grp mx');
+    g2.appendChild(row({ key: 'name', doneTitle: 'اسم مینی‌اپ', doneSub: S.app.name, onTap: renameSheet }, true));
+    const sw = (S.schema.swatches.find(([, c]) => c.toLowerCase() === (S.doc.theme.accent || '').toLowerCase()) || ['رنگ دلخواه'])[0];
+    g2.appendChild(row({ key: 'color', doneTitle: 'رنگ و حال‌وهوا', doneSub: sw, onTap: themePage }, true));
+    finished.forEach(t => g2.appendChild(row(Object.assign({ doneTitle: t.title.replace(/ چیه؟$| را بگذار$| را وصل کن$/, '') }, t), true)));
+    body.appendChild(g2);
+
+    const see = h('button', 'btn btn-s btn-block g-see');
+    see.type = 'button';
+    see.append(ico('eye'), document.createTextNode('دیدن مینی‌اپ و عوض کردن هر چیز'));
+    see.addEventListener('click', () => { haptic(); tapView(); });
+    body.appendChild(see);
+    if (!todo.length) {
+      const pub = h('button', 'btn btn-p btn-block g-pub');
+      pub.type = 'button';
+      pub.append(ico('send'), document.createTextNode('انتشار و گرفتن لینک مینی‌اپ'));
+      pub.addEventListener('click', () => { haptic(); publishSheet(); });
+      body.appendChild(pub);
+    }
+  }
+
+  /* ---------- یک سؤال در هر صفحه ---------- */
+  function easyAsk(queue, startKey) {
+    let i = Math.max(0, startKey ? queue.indexOf(startKey) : 0);
+    push((el, pg) => {
+      el.classList.add('sub-ask');
+      const top = h('header', 'q-top');
+      const close = iconBtn('x', 'بستن', pop, 'icon-btn sm');
+      const dots = h('div', 'q-dots');
+      const skip = h('button', 'q-skip', 'رد شو');
+      skip.type = 'button';
+      top.append(close, dots, skip);
+      const body = h('div', 'q-body');
+      const foot = h('div', 'q-foot');
+      const next = h('button', 'q-next');
+      next.type = 'button';
+      foot.appendChild(next);
+      el.append(top, body, foot);
+      let redrawPv = null;
+      const task = () => easyTasks().find(t => t.key === queue[i]);
+      const move = () => {
+        if (i >= queue.length - 1) {
+          pop();
+          const left = easyTasks().filter(t => !t.done && !t.skipped).length;
+          notify('success');
+          toast(left ? `عالی! ${left} کار دیگر مانده` : 'همه‌چیز آماده است!');
+          return;
+        }
+        i++;
+        draw();
+      };
+      skip.addEventListener('click', () => { haptic(); const t = task(); if (t && !t.done) setSkipped(t.key, true); move(); });
+      next.addEventListener('click', () => { haptic(); const t = task(); if (t) setSkipped(t.key, false); move(); });
+      function draw() {
+        const t = task();
+        if (!t) { move(); return; }
+        dots.textContent = '';
+        queue.forEach((k, j) => dots.appendChild(h('i', j < i ? 'ok' : j === i ? 'on' : '')));
+        skip.hidden = queue.length === 1 && t.done;
+        body.textContent = '';
+        body.append(h('span', 'q-k', queue.length > 1 ? `سؤال ${i + 1} از ${queue.length}` + (i === queue.length - 1 ? ' · آخری' : '') : 'ویرایش'),
+          h('div', 'q-t', t.q || t.title), h('div', 'q-s', t.sub || ''));
+        redrawPv = null;
+        if (t.preview) {
+          const pv = h('div', 'q-pv');
+          const tag = h('div', 'q-pv-t');
+          tag.append(h('i', 'dot'), document.createTextNode('در مینی‌اپ این‌جا می‌آید'));
+          const box = h('div', 'q-pv-box');
+          pv.append(tag, box);
+          body.appendChild(pv);
+          redrawPv = () => t.preview(box);
+          redrawPv();
+        }
+        body.appendChild(askInput(t));
+        const last = i >= queue.length - 1;
+        const nt = !last && easyTasks().find(x => x.key === queue[i + 1]);
+        next.textContent = '';
+        if (last) next.append(ico('check'), document.createTextNode(queue.length > 1 ? 'تمام شد' : 'ذخیره'));
+        else next.append(document.createTextNode('بعدی' + (nt ? ': ' + nt.title : '')), ico('arrow'));
+        el.scrollTop = 0;
+      }
+      pg.refresh = () => { if (redrawPv) redrawPv(); };
+      pg.safeUndo = true;
+      draw();
+    });
+  }
+  /* ورودی هر نوع سؤال؛ هر تغییر همان لحظه در مینی‌اپ ذخیره می‌شود */
+  function askInput(t) {
+    const wrap = h('div', 'q-in-wrap');
+    const set = v => { t.apply(v); changed(); };
+    const bigInput = (opts) => {
+      const box = h('label', 'q-in' + (opts.ltr ? ' ltr' : ''));
+      if (opts.icon) box.appendChild(ico(opts.icon));
+      if (opts.pre) box.appendChild(h('span', 'q-pre', opts.pre));
+      const inp = h('input');
+      inp.value = opts.value || '';
+      inp.placeholder = opts.ph || '';
+      if (opts.tel) { inp.inputMode = 'tel'; inp.autocomplete = 'tel'; }
+      inp.addEventListener('input', () => opts.onInput(inp.value.trim()));
+      box.appendChild(inp);
+      if (!opts.nofocus) setTimeout(() => { try { inp.focus({ preventScroll: true }); } catch (e) {} }, 320);
+      return box;
+    };
+    if (t.kind === 'text' || t.kind === 'phone') {
+      wrap.appendChild(bigInput({ value: t.value(), ph: t.kind === 'phone' ? '0912 345 6789' : t.ph, ltr: t.ltr || t.kind === 'phone',
+        tel: t.kind === 'phone', icon: t.kind === 'phone' ? 'phone' : null, pre: t.pre, onInput: v => set(t.kind === 'phone' ? faDigits(v) : v) }));
+    } else if (t.kind === 'socials') {
+      t.items.forEach((it, k) => {
+        const f = h('div', 'q-dest');
+        f.appendChild(h('span', 'lbl', SOCIAL_NAMES[it.kind] || it.kind));
+        f.appendChild(bigInput({ value: it.value, ph: it.kind === 'website' ? 'example.com' : 'naranj_cafe', ltr: true,
+          pre: it.kind === 'website' || it.kind === 'email' ? '' : '@', nofocus: k > 0, onInput: v => { it.value = v.replace(/^@/, ''); changed(); } }));
+        wrap.appendChild(f);
+      });
+    } else if (t.kind === 'textarea') {
+      const ta = h('textarea', 'q-ta');
+      ta.rows = 5;
+      ta.value = t.value();
+      ta.placeholder = t.ph || '';
+      ta.addEventListener('input', () => set(ta.value));
+      wrap.appendChild(ta);
+      setTimeout(() => { try { ta.focus({ preventScroll: true }); } catch (e) {} }, 320);
+    } else if (t.kind === 'image') {
+      const pick = h('button', 'q-img');
+      pick.type = 'button';
+      const draw = () => {
+        pick.textContent = '';
+        const src = ES.safeUrl(t.value(), true);
+        if (src) { const im = h('img'); im.alt = ''; im.src = src; pick.appendChild(im); pick.appendChild(h('span', 'q-img-t', 'عوض کردن عکس')); }
+        else pick.append(ico('upload'), h('b', '', 'انتخاب عکس از گوشی'), h('span', '', 'PNG، JPG یا WEBP'));
+      };
+      pick.addEventListener('click', async () => {
+        pick.classList.add('busy');
+        try {
+          const url = await uploadImage();
+          if (url) { set(url); notify('success'); draw(); }
+        } catch (err) { failed(err); } finally { pick.classList.remove('busy'); }
+      });
+      draw();
+      wrap.appendChild(pick);
+    } else if (t.kind === 'dest') {
+      let { dest, value } = destOf(t.value());
+      const grid = h('div', 'choice');
+      const field = h('div', 'q-dest');
+      const drawField = () => {
+        field.textContent = '';
+        field.appendChild(h('span', 'lbl', dest.label));
+        field.appendChild(bigInput({ value, ph: dest.ph, ltr: true, tel: dest.tel, pre: dest.pre,
+          onInput: v => { value = v; set(v ? dest.url(v) : ''); } }));
+      };
+      DESTS.forEach(d => {
+        const c = h('button', 'ch' + (d === dest ? ' on' : ''));
+        c.type = 'button';
+        c.append(catTile(d.cat, d.icon), document.createTextNode(d.title));
+        c.addEventListener('click', () => {
+          dest = d;
+          grid.querySelectorAll('.ch').forEach(x => x.classList.toggle('on', x === c));
+          select();
+          drawField();
+          if (value) set(dest.url(value));
+        });
+        grid.appendChild(c);
+      });
+      drawField();
+      wrap.append(grid, field);
+    } else if (t.kind === 'bot') {
+      const b = h('button', 'btn btn-s btn-block q-bot');
+      b.type = 'button';
+      b.append(ico('bot'), document.createTextNode(t.done ? `وصل است: ${t.doneSub}` : 'اتصال در ربات ایزی‌ساز'));
+      b.addEventListener('click', () => openBot('connect'));
+      wrap.appendChild(b);
+      wrap.appendChild(h('p', 'q-note', 'بعد از اتصال، این مورد خودش تیک می‌خورد. اگر الان وقت نداری «رد شو» را بزن.'));
+    }
+    return wrap;
+  }
+
+  /* ---------- «ببین و بزن»: خود مینی‌اپ؛ زدن روی هر قسمت = کارت کوچک ---------- */
+  function tapView(focusId) {
+    push((el, pg) => {
+      el.classList.add('sub-tap');
+      const hint = h('div', 'tap-hint');
+      const x = iconBtn('x', 'بستن', pop, 'tap-x');
+      const left = h('button', 'tap-left');
+      left.type = 'button';
+      left.addEventListener('click', () => { haptic(); pop(); });
+      hint.append(x, ico('hand'), h('span', 'grow', 'روی هر چیزی بزن تا عوضش کنی'), left);
+      const view = h('div', 'tapw');
+      el.append(hint, view, easyBar());
+      const draw = () => {
+        const n = easyTasks().filter(t => !t.done && !t.skipped).length;
+        left.textContent = '';
+        left.append(ico(n ? 'layers' : 'check'), document.createTextNode(n ? `${n} کار مانده` : 'چک‌لیست'));
+        ES.render(view, S.doc, {
+          page: page().id, appName: S.app.name, editing: true, selected: S.tapSel || null,
+          onPick: id => { haptic(); easyCard(id); },
+          onPickHeader: () => { haptic(); easyCard('header'); },
+          onNavigate: id => { S.pageId = id; S.tapSel = null; draw(); view.scrollTop = 0; },
+        });
+        view.classList.toggle('focusing', !!S.tapSel);
+      };
+      pg.refresh = draw;
+      pg.view = view;
+      pg.safeUndo = true;
+      pg.onPop = () => { S.tapSel = null; };
+      draw();
+      if (focusId) setTimeout(() => easyCard(focusId), 250);
+    });
+  }
+  function tapTop() { const t = S.stack[S.stack.length - 1]; return t && t.view ? t : null; }
+  /* کارت پایین را طوری باز کن که قسمت انتخاب‌شده بالای آن دیده شود */
+  function scrollTapTo(id) {
+    const t = tapTop();
+    if (!t) return;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const el = id === 'header' ? t.view.querySelector('.pg-header') : t.view.querySelector(`.pg-block[data-id="${CSS.escape(id)}"]`);
+      if (!el) return;
+      const hd = id === 'header' ? null : t.view.querySelector('.pg-header');
+      const top = el.getBoundingClientRect().top - t.view.getBoundingClientRect().top + t.view.scrollTop;
+      t.view.scrollTo({ top: Math.max(0, top - (hd ? hd.offsetHeight : 0) - 20), behavior: 'smooth' });
+    }));
+  }
+  function easyBar() {
+    const bar = h('nav', 'bar3');
+    bar.setAttribute('aria-label', 'ابزارها');
+    const mk = (cls, icon, label, fn) => {
+      const b = h('button', cls);
+      b.type = 'button';
+      b.append(ico(icon), h('span', '', label));
+      b.addEventListener('click', () => { haptic(); fn(); });
+      bar.appendChild(b);
+    };
+    mk('add', 'plus', 'افزودن', easyAdd);
+    mk('', 'palette', 'رنگ', themePage);
+    mk('pub', 'send', 'انتشار', publishSheet);
+    return bar;
+  }
+
+  /* پیام «برگرد» چند ثانیه بعد از هر کار روی کارت */
+  function undoToast(text) {
+    let u = $('undo');
+    if (!u) {
+      u = h('div', 'undo');
+      u.id = 'undo';
+      u.setAttribute('role', 'status');
+      document.body.appendChild(u);
+    }
+    u.textContent = '';
+    const b = h('button', '');
+    b.type = 'button';
+    b.append(ico('undo'), document.createTextNode('برگرد'));
+    b.addEventListener('click', () => { u.classList.remove('on'); undo(); });
+    u.append(h('span', '', text), b);
+    u.classList.add('on');
+    clearTimeout(undoToast.t);
+    undoToast.t = setTimeout(() => u.classList.remove('on'), 4200);
+  }
+
+  let cardTab = 'text';
+  function easyCard(id) {
+    const isHeader = id === 'header';
+    const f = isHeader ? null : findBlock(id);
+    if (!isHeader && !f) return;
+    const block = f && f.block;
+    const spec = isHeader ? { cat: 'frame', icon: 'header', desc: 'اسم و لوگو، بالای همهٔ صفحه‌ها' } : specOf(block);
+    S.tapSel = id;
+    const t = tapTop();
+    if (t) t.refresh();
+    scrollTapTo(id);
+    document.body.classList.add('carding');
+    openSheet(sheet => {
+      sheet.classList.add('card3');
+      const head = h('div', 'sh-head');
+      const tt = h('div', 'sh-title');
+      tt.append(h('div', 'title-2', easyName(isHeader ? 'header' : block)), h('div', 'caption', spec.desc || ''));
+      const ok = h('button', 'sh-x ok');
+      ok.type = 'button';
+      ok.setAttribute('aria-label', 'تمام');
+      ok.appendChild(ico('check'));
+      ok.addEventListener('click', closeSheet);
+      head.append(catTile(spec.cat, spec.icon), tt, ok);
+      const tabs = h('div', 'tabs3');
+      const body = h('div', 'card3-b');
+      const TABS3 = [['text', 'text', 'متن'], ['look', 'palette', 'شکل'], ['more', 'more', 'بیشتر']];
+      const draw = () => {
+        tabs.textContent = '';
+        TABS3.forEach(([k, icon, label]) => {
+          const b = h('button', k === cardTab ? 'on' : '');
+          b.type = 'button';
+          b.append(ico(icon), document.createTextNode(label));
+          b.addEventListener('click', () => { cardTab = k; select(); draw(); });
+          tabs.appendChild(b);
+        });
+        body.textContent = '';
+        if (cardTab === 'text') cardText(body, id, block);
+        else if (cardTab === 'look') cardLook(body, id, block);
+        else cardMore(body, id, block);
+      };
+      sheet.append(head, tabs, body);
+      draw();
+    }, () => {
+      $('sheet').classList.remove('card3');
+      document.body.classList.remove('carding');
+      S.tapSel = null;
+      const tp = tapTop();
+      if (tp) tp.refresh();
+    });
+  }
+  /* متن: فقط فیلدهای اصلی؛ فهرست‌ها با یک خط برای هر آیتم */
+  function cardText(body, id, block) {
+    if (id === 'header') {
+      S.schema.header.filter(f => ['title', 'subtitle', 'logo'].indexOf(f.key) >= 0).forEach(f => {
+        body.appendChild(control(f, S.doc.header[f.key], v => { S.doc.header[f.key] = v; if (v) S.doc.header.enabled = true; changed(); }));
+      });
+      return;
+    }
+    const spec = specOf(block);
+    const ok = f => !f.when || Object.keys(f.when).every(k => f.when[k].indexOf(block.props[k]) >= 0);
+    const fields = spec.fields.filter(f => !f.look && ok(f) && ['text', 'textarea', 'url', 'image', 'list'].indexOf(f.type) >= 0);
+    if (!fields.length) { body.appendChild(h('p', 'q-note', 'این قسمت متنی ندارد؛ از «شکل» ظاهرش را عوض کن.')); return; }
+    fields.forEach(f => {
+      if (f.type === 'list') { body.appendChild(simpleList(block, f)); return; }
+      if (f.type === 'url') {
+        body.appendChild(destField(f.label, () => block.props[f.key], v => { block.props[f.key] = v; changed(); }));
+        return;
+      }
+      body.appendChild(control(f, block.props[f.key], v => { block.props[f.key] = v; changed(); }));
+    });
+  }
+  /* «کجا برود؟» جمع‌وجور: انتخاب مقصد + آیدی */
+  function destField(label, get, setUrl) {
+    let { dest, value } = destOf(get());
+    const wrap = h('div', 'field dest-f');
+    wrap.appendChild(h('span', 'label', label === 'لینک' ? 'با زدن، کجا برود؟' : label));
+    const pills = h('div', 'seg dest-seg');
+    const inp = h('input');
+    inp.className = 'ltr';
+    const drawInp = () => { inp.placeholder = dest.ph; inp.inputMode = dest.tel ? 'tel' : 'text'; };
+    DESTS.forEach(d => {
+      const b = h('button', d === dest ? 'on' : '', d.title.replace(' خودم', ''));
+      b.type = 'button';
+      b.addEventListener('click', () => {
+        dest = d;
+        pills.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+        drawInp();
+        if (value) setUrl(dest.url(value));
+        select();
+      });
+      pills.appendChild(b);
+    });
+    inp.value = value;
+    drawInp();
+    inp.addEventListener('input', () => { value = inp.value.trim(); setUrl(value ? dest.url(value) : ''); });
+    wrap.append(pills, inp);
+    return wrap;
+  }
+  function simpleList(block, fd) {
+    const wrap = h('div', 'field slist');
+    wrap.appendChild(h('span', 'label', fd.label));
+    const box = h('div', 'slist-b');
+    wrap.appendChild(box);
+    const main = fd.fields.find(x => x.type === 'text' || x.type === 'textarea' || x.type === 'select');
+    const url = fd.fields.find(x => x.type === 'url');
+    const second = !url && fd.fields.filter(x => (x.type === 'text' || x.type === 'textarea') && x !== main)[0];
+    const add = h('button', 'add-item', '+ افزودن ' + (fd.item_label || 'مورد'));
+    add.type = 'button';
+    const draw = () => {
+      box.textContent = '';
+      const items = block.props[fd.key] || [];
+      items.forEach((it, i) => {
+        const card = h('div', 'slist-i');
+        const top = h('div', 'slist-h');
+        top.appendChild(h('span', 'item-n', String(i + 1)));
+        const del = h('button', 'slist-x');
+        del.type = 'button';
+        del.setAttribute('aria-label', 'حذف');
+        del.appendChild(ico('trash'));
+        del.addEventListener('click', () => { items.splice(i, 1); changed(); draw(); undoToast('حذف شد'); });
+        top.appendChild(h('span', 'grow'));
+        top.appendChild(del);
+        card.appendChild(top);
+        const one = f => {
+          if (!f) return;
+          if (f.type === 'select') card.appendChild(selectControl(f, it[f.key], v => { it[f.key] = v; changed(); }));
+          else if (f.type === 'url') card.appendChild(destField(f.label, () => it[f.key], v => { it[f.key] = v; changed(); }));
+          else card.appendChild(control(f, it[f.key], v => { it[f.key] = v; changed(); }));
+        };
+        one(main);
+        if (main && main.type === 'select') one(fd.fields.find(x => x.type === 'text'));
+        one(url || second);
+        box.appendChild(card);
+      });
+      add.hidden = items.length >= (fd.max_items || 10);
+    };
+    add.addEventListener('click', () => { block.props[fd.key] = block.props[fd.key] || []; block.props[fd.key].push(blankItem(fd)); changed(); draw(); haptic(); });
+    draw();
+    wrap.appendChild(add);
+    return wrap;
+  }
+  function cardLook(body, id, block) {
+    if (id === 'header') {
+      const f = S.schema.header.find(x => x.key === 'style');
+      body.appendChild(selectControl(f, S.doc.header.style, v => { S.doc.header.style = v; changed(); undoToast('شکل عوض شد'); }));
+    } else {
+      const variants = (S.schema.variants || {})[block.type] || [];
+      if (variants.length) {
+        const strip = variantStrip(block, variants, () => { changed(); undoToast('شکل عوض شد'); });
+        strip.querySelector('.label').textContent = 'یکی را بزن';
+        body.appendChild(strip);
+      } else body.appendChild(h('p', 'q-note', 'این قسمت فقط یک شکل دارد.'));
+    }
+    const note = h('div', 'look-note');
+    note.append(ico('palette'), h('span', '', 'رنگ همه‌چیز از دکمهٔ «رنگ» پایین صفحه می‌آید؛ این‌جا فقط شکل همین قسمت است.'));
+    body.appendChild(note);
+  }
+  function cardMore(body, id, block) {
+    const list = h('div', 'acts');
+    const act = (icon, label, fn, opt) => {
+      opt = opt || {};
+      const b = h('button', 'act' + (opt.danger ? ' danger' : ''));
+      b.type = 'button';
+      b.append(ico(icon), h('span', 'grow', label));
+      b.disabled = !!opt.disabled;
+      b.addEventListener('click', () => { haptic(); fn(); });
+      list.appendChild(b);
+    };
+    if (id === 'header') {
+      act('eye', S.doc.header.enabled ? 'پنهان کردن نوار بالا' : 'نشان دادن نوار بالا', () => {
+        S.doc.header.enabled = !S.doc.header.enabled; changed(); closeSheet(); undoToast(S.doc.header.enabled ? 'نوار بالا روشن شد' : 'نوار بالا پنهان شد');
+      });
+      act('settings', 'همهٔ تنظیمات (حالت حرفه‌ای)', () => { closeSheet(); framePage(); });
+      body.appendChild(list);
+      return;
+    }
+    const f = findBlock(id);
+    act('up', 'یکی بالاتر', () => { moveBlock(id, -1); scrollTapTo(id); undoToast('جابه‌جا شد'); cardMore(body, id, block); body.firstChild && body.removeChild(body.firstChild); }, { disabled: f.index <= 0 });
+    act('down', 'یکی پایین‌تر', () => { moveBlock(id, 1); scrollTapTo(id); undoToast('جابه‌جا شد'); cardMore(body, id, block); body.firstChild && body.removeChild(body.firstChild); }, { disabled: f.index >= f.page.blocks.length - 1 });
+    act('copy', 'یکی دیگر مثل همین', () => { const c = copyBlock(id); if (c) { closeSheet(); undoToast('تکثیر شد'); } });
+    act('trash', 'حذف', () => {
+      const cur = findBlock(id);
+      if (!cur) return;
+      cur.page.blocks.splice(cur.index, 1);
+      notify('warning');
+      closeSheet();
+      changed();
+      undoToast('حذف شد');
+    }, { danger: true });
+    act('settings', 'همهٔ تنظیمات این قسمت (حرفه‌ای)', () => { closeSheet(); editPage(id); });
+    body.appendChild(list);
+  }
+
+  /* ---------- افزودن با زبان کاربر ---------- */
+  const INTENTS = [
+    { key: 'contact', cat: 'act', icon: 'phone', title: 'راه تماس', sub: 'تلفن، تلگرام، اینستاگرام',
+      block: () => defaultBlock('social', { items: [{ kind: 'phone', value: '' }, { kind: 'telegram', value: '' }, { kind: 'instagram', value: '' }] }) },
+    { key: 'menu', cat: 'shop', icon: 'shop', title: 'منو یا محصولات', sub: 'فهرست با قیمت یا توضیح',
+      block: () => defaultBlock('links', { items: [
+        { label: 'دستهٔ اول', note: 'قیمت یا توضیح کوتاه', url: '' },
+        { label: 'دستهٔ دوم', note: 'قیمت یا توضیح کوتاه', url: '' },
+        { label: 'دستهٔ سوم', note: 'قیمت یا توضیح کوتاه', url: '' }] }) },
+    { key: 'news', cat: 'write', icon: 'notice', title: 'خبر یا تخفیف', sub: 'یک خط مهم با رنگ',
+      block: () => defaultBlock('notice', { text: '۲۰٪ تخفیف ویژه تا آخر هفته' }) },
+    { key: 'faq', cat: 'write', icon: 'faq', title: 'سؤال‌های مشتری', sub: 'ساعت کاری، ارسال، پرداخت',
+      block: () => defaultBlock('faq', { title: 'سؤال‌های پرتکرار', items: [
+        { q: 'ساعت کاری‌تون چیه؟', a: 'هر روز از ۹ صبح تا ۹ شب.' },
+        { q: 'ارسال دارید؟', a: 'بله، به همهٔ شهرها.' },
+        { q: 'چطور پرداخت کنم؟', a: 'کارت‌به‌کارت یا درگاه آنلاین.' }] }) },
+    { key: 'photo', cat: 'media', icon: 'image', title: 'عکس', sub: 'یک عکس با زیرنویس',
+      block: () => defaultBlock('image', { caption: '' }) },
+    { key: 'order', cat: 'brand', icon: 'button', title: 'دکمهٔ سفارش', sub: 'مشتری را به سفارش می‌برد',
+      block: () => defaultBlock('button', { label: 'سفارش آنلاین', url: '' }) },
+  ];
+  function easyAdd() {
+    openSheet(sheet => {
+      sheetHead(sheet, 'brand', 'plus', 'می‌خوای چی به مشتری نشون بدی؟', 'یکی را بزن؛ با محتوای نمونه اضافه می‌شود و بعد عوضش می‌کنی.');
+      const grid = h('div', 'intents');
+      INTENTS.forEach(it => {
+        const b = h('button', 'intent');
+        b.type = 'button';
+        const t = h('span', 'intent-t');
+        t.append(h('b', '', it.title), h('span', '', it.sub));
+        b.append(catTile(it.cat, it.icon), t);
+        b.addEventListener('click', () => {
+          haptic();
+          const block = it.block();
+          if (totalBlocks() >= S.plan.max_blocks) { upsellSheet(`پلن ${S.plan.title} حداکثر ${S.plan.max_blocks} کامپوننت دارد.`); return; }
+          page().blocks.push(block);
+          notify('success');
+          closeSheet();
+          changed();
+          if (tapTop()) { tapTop().refresh(); setTimeout(() => easyCard(block.id), 200); }
+          else tapView(block.id);
+        });
+        grid.appendChild(b);
+      });
+      sheet.appendChild(grid);
+      const pro = h('button', 'intent-pro');
+      pro.type = 'button';
+      pro.append(document.createTextNode('همهٔ امکانات و بخش‌های آماده در '), h('b', '', 'حالت حرفه‌ای'));
+      pro.addEventListener('click', () => { closeSheet(); addSheet(); });
+      sheet.appendChild(pro);
+    });
+  }
+
+  /* منوی «⋯» حالت ساده: بقیهٔ ابزارها یک‌جا */
+  function easyMore() {
+    openSheet(sheet => {
+      sheetHead(sheet, 'brand', 'settings', S.app.name, 'ابزارهای بیشتر');
+      const list = h('div', 'acts');
+      const act = (icon, label, fn, note) => {
+        const b = h('button', 'act');
+        b.type = 'button';
+        b.append(ico(icon), h('span', 'grow', label));
+        if (note) b.appendChild(h('small', '', note));
+        b.addEventListener('click', () => { haptic(); closeSheet(); fn(); });
+        list.appendChild(b);
+      };
+      act('eye', 'پیش‌نمایش', previewPage, 'همان که مشتری می‌بیند');
+      act('layers', 'صفحه‌ها', () => pagesPage(), S.doc.pages.length + ' صفحه');
+      act('template', 'قالب‌ها', () => templatesScreen(false));
+      act('settings', 'تنظیمات و ربات', settingsPage);
+      act('brush', 'حالت حرفه‌ای', () => setMode('pro'), 'همهٔ ابزارها');
+      sheet.appendChild(list);
+    });
+  }
+  function setMode(mode) {
+    S.mode = mode;
+    try { localStorage.setItem('es-editor-mode', mode); } catch (e) {}
+    openEditor();
+    toast(mode === 'pro' ? 'حالت حرفه‌ای: همهٔ ابزارها' : 'حالت ساده');
+  }
+
   /* ---------- اتصال رویدادها ---------- */
   function wire() {
     document.querySelectorAll('[data-icon]').forEach(el => el.appendChild(ico(el.dataset.icon)));
@@ -2797,6 +3527,10 @@
     window.addEventListener('resize', () => { placeNav(); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeNav);
     $('ed-back').addEventListener('click', () => { haptic(); leaveEditor(); });
+    $('easy-back').addEventListener('click', () => { haptic(); leaveEditor(); });
+    $('easy-more').addEventListener('click', () => { haptic(); easyMore(); });
+    $('easy-app').addEventListener('click', () => { haptic(); settingsPage(); });
+    $('easy').appendChild(easyBar());
     $('bar-undo').addEventListener('click', () => { haptic(); undo(); });
     $('bar-redo').addEventListener('click', () => { haptic(); redo(); });
     $('scrim').addEventListener('click', closeSheet);
@@ -2818,11 +3552,11 @@
       tg.BackButton.onClick(() => {
         if ($('sheet').classList.contains('on')) closeSheet();
         else if (S.stack.length) pop();
-        else if (S.screen === 'editor') leaveEditor();
+        else if (S.screen === 'editor' || S.screen === 'easy') leaveEditor();
         else if (S.screen === 'templates' && !S.asTab && S.app) openEditor();
         else if (S.screen === 'onboard' && S.me && S.me.apps.length) tab('home');
       });
-      tg.onEvent('themeChanged', () => { applyChrome(); if (S.doc && S.screen === 'editor') renderAll(); });
+      tg.onEvent('themeChanged', () => { applyChrome(); if (S.doc && (S.screen === 'editor' || S.screen === 'easy')) renderAll(); });
       tg.onEvent('safeAreaChanged', applyChrome);
       tg.onEvent('contentSafeAreaChanged', applyChrome);
     }

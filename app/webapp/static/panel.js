@@ -951,7 +951,8 @@
      هر زیرصفحه تمام‌صفحه است و خودش اسکرول می‌خورد. pg.refresh بعد از هر
      تغییر (و وقتی زیرصفحهٔ رویی بسته شد) صدا زده می‌شود. */
   S.stack = [];
-  S.mode = (() => { try { return localStorage.getItem('es-editor-mode') || 'simple'; } catch (e) { return 'simple'; } })();
+  // پیش‌فرض ادیتور بخش‌ها (طرح د) است؛ حالت ساده (سؤال‌محور) از تنظیمات روشن می‌شود
+  S.mode = (() => { try { return localStorage.getItem('es-editor-mode') === 'simple' ? 'simple' : 'pro'; } catch (e) { return 'pro'; } })();
   function push(build) {
     const el = h('section', 'sub');
     const pg = { el, refresh: null, onPop: null, redrawers: [] };
@@ -2321,7 +2322,7 @@
       kitRow.append(catTile(kit ? 'story' : 'brand', kit ? 'book' : 'template'), kg, ico('arrow', 'chev'));
       kitRow.addEventListener('click', () => { haptic(); popAll(); templatesScreen(false); });
       body.appendChild(kitRow);
-      const mode = selectControl({ label: 'حالت ادیتور', options: [['simple', 'ساده (سؤال‌محور)'], ['pro', 'حرفه‌ای (همهٔ ابزارها)']] }, S.mode, v => { setMode(v); });
+      const mode = selectControl({ label: 'حالت ادیتور', options: [['pro', 'بخش‌ها (همهٔ ابزارها)'], ['simple', 'ساده (سؤال‌محور)']] }, S.mode, v => { setMode(v); });
       body.appendChild(mode);
       const card = h('div', 'appcard');
       const logo = S.doc.header && ES.safeUrl(S.doc.header.logo, true);

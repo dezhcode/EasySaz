@@ -26,9 +26,9 @@
     if (tg) { try { tg.setBackgroundColor(bg); tg.setHeaderColor(bg); tg.setBottomBarColor && tg.setBottomBarColor(bg); } catch (e) {} }
   }
 
-  function state(iconName, title, text, theme) {
+  function state(iconName, title, text, theme, kit) {
     root.textContent = '';
-    const pal = ES.applyTheme(root, theme || {});
+    const pal = ES.applyTheme(root, theme || {}, kit);
     const box = ES.h('div', 'state');
     const tile = ES.h('div', 'state-tile');
     tile.appendChild(ES.icon(iconName));
@@ -54,12 +54,13 @@
     if (data.paused) { state('spark', data.name, 'این مینی‌اپ موقتاً در دسترس نیست.'); return; }
     const doc = ES.normalize(data.doc);
     const empty = doc.pages.every(pg => !(pg.blocks || []).length);
-    if (empty) { state('spark', data.name, 'به‌زودی اینجا چیزهای خوبی می‌بینی.', doc.theme); return; }
+    if (empty) { state('spark', data.name, 'به‌زودی اینجا چیزهای خوبی می‌بینی.', doc.theme, doc.kit); return; }
     let current = decodeURIComponent(location.hash.slice(1)) || null;
     const draw = () => {
       const pal = ES.render(root, doc, {
         page: current,
         appName: data.name,
+        appKey: slug,
         fixedChrome: true,
         branding: data.branding ? { bot: data.brand_bot } : null,
         onNavigate: id => {

@@ -928,3 +928,34 @@ body.has-sub{overflow:hidden}
 .intent-pro b{color:var(--brand)}
 body.carding .scrim{background:transparent}
 body.has-sub .undo{top:calc(var(--safe-t) + 66px)}
+
+/* ===== قالب‌های اختصاصی (کیت) =====
+   کارت نصب با پوستهٔ خود قالب (برای شب‌نوشت: تیره)، حتی در پنل روشن؛
+   تا کاربر همان چیزی را ببیند که نصب می‌کند. */
+.cat-story,.ic.story{background:#1B1216; color:#F0626F}
+.tpl-kits{display:flex; flex-direction:column; gap:10px; padding:14px var(--pad) 6px}
+.tpl-kits-h{display:flex; flex-direction:column; gap:2px}
+.tpl-kits-h b{font-size:15px; font-weight:800}
+.tpl-kits-h span{font-size:12px; color:var(--ink-3)}
+.kit-card{display:grid; grid-template-columns:124px minmax(0, 1fr); gap:14px; padding:12px; border-radius:var(--radius-xl); background:#0B090C; color:#EDE4D6; border:1px solid #33282F; box-shadow:0 18px 34px -20px rgba(11,9,12,.8)}
+.kit-thumb{position:relative; height:250px; padding:0; border:1px solid #33282F; border-radius:12px; overflow:hidden; background:#0B090C; cursor:pointer}
+.kit-thumb .pg-page{position:absolute; top:0; right:0; width:390px; min-height:790px; transform:scale(.318); transform-origin:top right; pointer-events:none}
+.kit-thumb .pg-block{animation:none}
+.kit-info{display:flex; flex-direction:column; gap:6px; min-width:0}
+.kit-k{font-size:11px; font-weight:700; color:#F0626F}
+.kit-t{font-family:'Aref Ruqaa', serif; font-size:32px; line-height:1.25; font-weight:700}
+.kit-d{margin:0; font-size:12.5px; line-height:1.8; color:#CFC3B5}
+.kit-parts{display:flex; flex-wrap:wrap; gap:5px}
+.kit-parts span{font-size:10.5px; font-weight:700; line-height:18px; padding:0 7px; border-radius:4px; border:1px solid #33282F; color:#A89A8E}
+.kit-tag{display:none}
+.kit-go{margin-top:auto; height:44px; font-size:13.5px}
+.kit-card .kit-go.btn-p{background:#EDE4D6; color:#0B090C; border-color:transparent}
+.kit-card .kit-go.btn-s{background:transparent; color:#EDE4D6; border:1px solid #33282F}
+.kit-go .ico{width:18px; height:18px}
+
+/* سؤال‌های شب‌نوشت: متن بلند فصل، و «این یکی را ندارم» */
+.q-ta--long{min-height:220px; font-size:15px; line-height:2}
+.q-extra{display:block; margin:14px auto 0; padding:8px 12px; border:0; background:none; color:var(--danger); font:inherit; font-size:13px; font-weight:700; text-decoration:underline; text-underline-offset:4px; cursor:pointer}
+/* پیش‌نمایش قالب تیره داخل صفحه‌های روشن پنل: زمینهٔ خود قالب */
+.q-pv-box.pg-kit-shab{background:var(--pg-bg); padding:14px !important}
+.pv-stage.pg-kit-shab{background:var(--pg-bg); padding:14px !important; border-radius:var(--radius-lg)}

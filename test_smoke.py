@@ -235,11 +235,29 @@ def test_blocks() -> None:
         for v in variants:
             assert set(v["props"]) <= looks, (btype, v["id"])
             props = dict(blocks.default_props(btype), **v["props"])
-            doc = {"pages": [{"blocks": [{"id": "bvar00001", "type": btype, "props": props, "style": v["style"]}]}]}
+            doc = {"kit": blocks.SCHEMA[btype].get("kit", "base"),
+                   "pages": [{"blocks": [{"id": "bvar00001", "type": btype, "props": props, "style": v["style"]}]}]}
             out = blocks.clean_page(doc, max_blocks=10, premium=True)["pages"][0]["blocks"][0]
             assert all(out["props"][k] == val for k, val in v["props"].items()), (btype, v["id"])
             assert out.get("style", {}) == v["style"], (btype, v["id"], out.get("style"))
-    ok(set(blocks.VARIANTS) == set(blocks.SCHEMA), "همهٔ سبک‌های آماده معتبرند و هر کامپوننت سبک دارد")
+    ok(set(blocks.VARIANTS) >= {k for k, b in blocks.SCHEMA.items() if not b.get("kit")},
+       "همهٔ سبک‌های آماده معتبرند و هر کامپوننت عمومی سبک دارد")
+
+    # قالب شب‌نوشت: کامپوننت‌های اختصاصی فقط در قالب خودشان
+    story = {"type": "story", "props": {"title": "x", "chapters": [{"title": "۱", "body": "متن", "lock": "yes"}]}}
+    shab = blocks.clean_page({"kit": "shab", "pages": [{"blocks": [story, {"type": "text"}]}]}, max_blocks=8, premium=False)
+    ch = shab["pages"][0]["blocks"][0]["props"]["chapters"][0]
+    ok(shab["kit"] == "shab" and len(shab["pages"][0]["blocks"]) == 2 and ch["lock"] is False and ch["url"] == "",
+       "کامپوننت داستان در قالب شب‌نوشت ذخیره و پاکسازی می‌شود")
+    base = blocks.clean_page({"kit": "nope", "pages": [{"blocks": [story, {"type": "text"}]}]}, max_blocks=8, premium=False)
+    ok(base["kit"] == "base" and [b["type"] for b in base["pages"][0]["blocks"]] == ["text"],
+       "قالب ناشناخته پایه می‌شود و کامپوننت داستان بیرون قالبش حذف می‌شود")
+    big = {"type": "story", "props": {"chapters": [{"body": "ا" * 8000}] * 30}}
+    try:
+        blocks.clean_page({"kit": "shab", "pages": [{"blocks": [big]}]}, max_blocks=8, premium=False)
+        ok(False, "سقف متن داستان‌ها")
+    except blocks.PageError:
+        ok(True, "سقف مجموع متن فصل‌ها رعایت می‌شود")
 
 
 def test_auth() -> None:
@@ -313,9 +331,14 @@ def test_web() -> None:
 
     st, tp = jcall("GET", "/api/templates", uid=None)
     ok(st == 200 and tp["templates"] and tp["categories"], "API قالب‌ها")
-    free_tpl = next(t for t in tp["templates"] if not t["premium"])
+    free_tpl = next(t for t in tp["templates"] if not t["premium"] and t["kit"] == "base")
     st, _ = jcall("POST", "/api/app/save", {"id": app_id, "doc": free_tpl["doc"]})
     ok(st == 200, "قالب رایگان در پلن رایگان ذخیره می‌شود")
+    shab_tpl = next(t for t in tp["templates"] if t["kit"] == "shab")
+    cut = dict(shab_tpl["doc"], pages=shab_tpl["doc"]["pages"][:2])
+    st, res = jcall("POST", "/api/app/save", {"id": app_id, "doc": cut})
+    ok(st == 200 and res["doc"]["kit"] == "shab" and res["doc"]["pages"][1]["blocks"][0]["type"] == "story",
+       "نسخهٔ رایگان قالب شب‌نوشت (دو صفحه) ذخیره می‌شود")
     pro_tpl = next(t for t in tp["templates"] if t["premium"])
     st, _ = jcall("POST", "/api/app/save", {"id": app_id, "doc": pro_tpl["doc"]})
     ok(st == 402, "قالب PRO در پلن رایگان ذخیره نمی‌شود")

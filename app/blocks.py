@@ -46,8 +46,31 @@ SWATCHES = [
 
 # دسته‌های کامپوننت (رنگ یعنی معنا): write=محتوا، act=اقدام، media=رسانه، shop=فروش، frame=ساختار
 CATEGORIES = {
-    "write": "محتوا", "act": "اقدام و ارتباط", "media": "رسانه", "shop": "فروش", "frame": "ساختار",
+    "story": "داستان", "write": "محتوا", "act": "اقدام و ارتباط", "media": "رسانه", "shop": "فروش", "frame": "ساختار",
 }
+
+# ---------- قالب‌ها (کیت) ----------
+# هر مینی‌اپ روی یک «قالب» سوار است: سیستم طراحی (رنگ، حروف، سربرگ) و
+# کامپوننت‌های اختصاصی خودش را دارد؛ نوار پایین در همه مشترک است.
+# «base» همان سیستم طراحی کاشی است. کامپوننتی که "kit" دارد فقط در همان
+# قالب ساخته و ذخیره می‌شود. کامپوننت‌های عمومی در همهٔ قالب‌ها هستند و با
+# پوستهٔ همان قالب رنگ می‌گیرند؛ "generic" فهرست آن‌هایی است که ادیتور در
+# این قالب پیشنهاد می‌دهد.
+KITS: dict[str, dict[str, Any]] = {
+    "base": {
+        "title": "کاشی",
+        "desc": "قالب پیش‌فرض ایزی‌ساز؛ روشن و همه‌کاره",
+    },
+    "shab": {
+        "title": "شب‌نوشت",
+        "desc": "برای کانال‌های داستان و رمان: قفسهٔ کتاب، فصل‌ها، صفحهٔ خواندن و نشان‌گذاری",
+        "tagline": "تاریک و آرام تا چشم شب‌ها خسته نشود؛ قرمز فقط جایی که هیجان هست.",
+        "accent": "#C8192F",
+        "accents": [["خون", "#C8192F"], ["شمع", "#E9A854"], ["مه", "#8FA6B8"], ["زهر", "#7FA35A"]],
+        "generic": ["text", "notice", "button", "links", "social", "image", "faq", "divider"],
+    },
+}
+STORY_TEXT_MAX = 200_000  # مجموع حرف‌های همهٔ فصل‌ها در یک مینی‌اپ
 
 SOCIAL_KINDS = [
     "telegram", "instagram", "whatsapp", "youtube", "x", "website", "phone", "email",
@@ -416,7 +439,103 @@ SCHEMA: dict[str, dict[str, Any]] = {
              ]},
         ],
     },
+    # ----- قالب شب‌نوشت (فقط در kit=shab) -----
+    "story": {
+        "cat": "story",
+        "kit": "shab",
+        "title": "داستان",
+        "icon": "book",
+        "desc": "یک داستان یا رمان با جلد و فصل‌ها؛ هر فصل در صفحهٔ خواندن باز می‌شود",
+        "premium": False,
+        "fields": [
+            {"key": "title", "label": "اسم داستان", "type": "text", "max": 60, "default": "داستان تازه"},
+            {"key": "genre", "label": "ژانر", "type": "text", "max": 20, "default": "وحشت"},
+            {"key": "status", "label": "وضعیت", "type": "select", "default": "ongoing",
+             "options": [["ongoing", "ادامه دارد"], ["done", "تمام شده"]]},
+            {"key": "blurb", "label": "خلاصه (اختیاری)", "type": "textarea", "max": 400, "default": ""},
+            {"key": "cover", "label": "تصویر جلد (اختیاری)", "type": "image", "default": ""},
+            {"key": "tone", "label": "رنگ جلد", "type": "select", "look": True, "default": "blood",
+             "options": [["blood", "خون"], ["night", "شب"], ["ash", "خاکستر"], ["moss", "خزه"], ["candle", "شمع"]]},
+            {"key": "url", "label": "لینک کانال (برای فصل‌های قفل)", "type": "url", "default": ""},
+            {"key": "chapters", "label": "فصل‌ها", "type": "list", "max_items": 60, "item_label": "فصل",
+             "fields": [
+                 {"key": "title", "label": "اسم فصل", "type": "text", "max": 80, "default": "فصل تازه"},
+                 {"key": "body", "label": "متن فصل (پاراگراف‌ها را با یک خط خالی جدا کن؛ «***» یعنی جداکننده)",
+                  "type": "textarea", "max": 8000, "default": ""},
+                 {"key": "note", "label": "برچسب کوچک (مثلاً «امروز»)", "type": "text", "max": 24, "default": ""},
+                 {"key": "lock", "label": "فقط در کانال (اینجا فقط چند خط اولش)", "type": "bool", "default": False},
+                 {"key": "url", "label": "لینک این فصل در کانال (اختیاری)", "type": "url", "default": ""},
+             ],
+             "default": [
+                 {"title": "فصل اول", "body": "اولین جملهٔ داستانت را این‌جا بنویس.", "note": "", "lock": False, "url": ""},
+             ]},
+        ],
+    },
+    "shab_continue": {
+        "cat": "story",
+        "kit": "shab",
+        "title": "ادامهٔ خواندن",
+        "icon": "bookmark",
+        "desc": "هر خواننده از همان‌جا که مانده ادامه می‌دهد",
+        "premium": False,
+        "fields": [
+            {"key": "title", "label": "عنوان", "type": "text", "max": 40, "default": "ادامهٔ خواندن"},
+            {"key": "subtitle", "label": "زیرعنوان", "type": "text", "max": 60, "default": "از همان‌جا که ماندی"},
+        ],
+    },
+    "shab_shelf": {
+        "cat": "story",
+        "kit": "shab",
+        "title": "قفسه",
+        "icon": "shelf",
+        "desc": "جلد همهٔ داستان‌ها کنار هم، خودکار",
+        "premium": False,
+        "fields": [
+            {"key": "title", "label": "عنوان", "type": "text", "max": 40, "default": "قفسه"},
+            {"key": "layout", "label": "چیدمان", "type": "select", "look": True, "default": "shelf",
+             "options": [["shelf", "قفسهٔ کشویی"], ["grid", "شبکه"]]},
+        ],
+    },
+    "shab_latest": {
+        "cat": "story",
+        "kit": "shab",
+        "title": "فصل‌های تازه",
+        "icon": "list",
+        "desc": "آخرین فصل‌های همهٔ داستان‌ها، خودکار",
+        "premium": False,
+        "fields": [
+            {"key": "title", "label": "عنوان", "type": "text", "max": 40, "default": "فصل‌های تازه"},
+            {"key": "count", "label": "چند فصل", "type": "int", "min": 2, "max": 10, "default": 4},
+        ],
+    },
+    "shab_marks": {
+        "cat": "story",
+        "kit": "shab",
+        "title": "نشان‌ها",
+        "icon": "bookmark",
+        "desc": "فصل‌هایی که هر خواننده نشان گذاشته",
+        "premium": False,
+        "fields": [
+            {"key": "title", "label": "عنوان", "type": "text", "max": 40, "default": "نشان‌های من"},
+            {"key": "empty", "label": "متن وقتی خالی است", "type": "text", "max": 120,
+             "default": "هنوز نشانی نگذاشتی. وسط خواندن، نشان بالای صفحه را بزن."},
+        ],
+    },
+    "shab_quote": {
+        "cat": "story",
+        "kit": "shab",
+        "title": "جمله از داستان",
+        "icon": "quote",
+        "desc": "یک جملهٔ درشت و ماندگار از داستان",
+        "premium": False,
+        "fields": [
+            {"key": "text", "label": "جمله", "type": "textarea", "max": 300,
+             "default": "پله‌ها زیر پایم ناله می‌کردند؛ انگار هر کدام اسم کسی را که پیش از من پایین رفته بود به خاطر داشتند."},
+            {"key": "source", "label": "از کجا", "type": "text", "max": 60, "default": ""},
+        ],
+    },
 }
+
 
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f‪-‮⁦-⁩]")
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -431,6 +550,7 @@ CATALOG_ORDER = [
     "image", "gallery",
     "cards", "pricing", "features", "passcard", "calc",
     "divider",
+    "story", "shab_continue", "shab_shelf", "shab_latest", "shab_marks", "shab_quote",
 ]
 
 # مقدارهای قدیمی که هنوز در صفحه‌های ذخیره‌شده هستند
@@ -548,6 +668,7 @@ STYLE_SUPPORT: dict[str, list[str]] = {
     "steps": ["box", "radius", "accent"],
     "apps": ["box", "accent"],
     "stats": ["box", "radius", "accent"],
+    "story": [], "shab_continue": [], "shab_shelf": [], "shab_latest": [], "shab_marks": [], "shab_quote": [],
 }
 
 # ---------- سبک‌های آماده ----------
@@ -661,6 +782,17 @@ VARIANTS: dict[str, list[dict]] = {
         _v("tiles", "کاشی", {"layout": "tiles"}),
         _v("solid", "توپر", {"layout": "strip"}, {"box": "solid"}),
     ],
+    "story": [
+        _v("blood", "خون", {"tone": "blood"}),
+        _v("night", "شب", {"tone": "night"}),
+        _v("ash", "خاکستر", {"tone": "ash"}),
+        _v("moss", "خزه", {"tone": "moss"}),
+        _v("candle", "شمع", {"tone": "candle"}),
+    ],
+    "shab_shelf": [
+        _v("shelf", "قفسه", {"layout": "shelf"}),
+        _v("grid", "شبکه", {"layout": "grid"}),
+    ],
     "features": [
         _v("grid", "دوستونه", {"layout": "grid"}),
         _v("list", "لیستی", {"layout": "list"}),
@@ -689,6 +821,7 @@ TABBAR_FIELDS: list[dict[str, Any]] = [
 PAGE_ICONS = [
     ["home", "خانه"], ["menu", "منو"], ["shop", "فروشگاه"], ["star", "ویژه"],
     ["image", "گالری"], ["info", "درباره"], ["chat", "تماس"], ["user", "حساب"],
+    ["book", "کتاب"], ["list", "فهرست"], ["bookmark", "نشان"], ["send", "کانال"],
 ]
 _PAGE_ICON_KEYS = [k for k, _ in PAGE_ICONS]
 _PAGE_ID = re.compile(r"^[a-z0-9_-]{2,24}$")
@@ -767,14 +900,18 @@ class PageError(ValueError):
     """سند صفحه با محدودیت پلن نمی خواند. متن خطا فارسی و قابل نمایش است."""
 
 
-def _clean_blocks(raw_blocks: Any, premium: bool, seen: set[str]) -> list[dict]:
+def clean_kit(value: Any) -> str:
+    return value if isinstance(value, str) and value in KITS else "base"
+
+
+def _clean_blocks(raw_blocks: Any, premium: bool, seen: set[str], kit: str = "base") -> list[dict]:
     blocks = []
     for raw in raw_blocks if isinstance(raw_blocks, list) else []:
         if not isinstance(raw, dict):
             continue
         btype = raw.get("type")
         spec = SCHEMA.get(btype)
-        if spec is None:
+        if spec is None or spec.get("kit", kit) != kit:
             continue
         if spec["premium"] and not premium:
             raise PageError(f"کامپوننت «{spec['title']}» مخصوص پلن های حرفه ای است")
@@ -812,6 +949,7 @@ def clean_page(doc: Any, *, max_blocks: int, premium: bool, max_pages: int = 1) 
     if len(raw_pages) > max_pages:
         raise PageError(f"پلن فعلی تو حداکثر {max_pages} صفحه دارد")
 
+    kit = clean_kit(doc.get("kit"))
     seen_blocks: set[str] = set()
     seen_pages: set[str] = set()
     pages = []
@@ -824,20 +962,28 @@ def clean_page(doc: Any, *, max_blocks: int, premium: bool, max_pages: int = 1) 
         title = _clean_text(raw.get("title"), 24) or ("خانه" if i == 0 else f"صفحهٔ {i + 1}")
         icon = raw.get("icon") if raw.get("icon") in _PAGE_ICON_KEYS else ("home" if i == 0 else "star")
         pages.append({"id": pid, "title": title, "icon": icon,
-                      "blocks": _clean_blocks(raw.get("blocks"), premium, seen_blocks)})
+                      "blocks": _clean_blocks(raw.get("blocks"), premium, seen_blocks, kit)})
 
     total = sum(len(p["blocks"]) for p in pages)
     if total > max_blocks:
         raise PageError(f"پلن فعلی تو حداکثر {max_blocks} کامپوننت دارد")
+    if story_chars(pages) > STORY_TEXT_MAX:
+        raise PageError(f"متن همهٔ فصل‌ها با هم حداکثر {STORY_TEXT_MAX // 1000} هزار حرف می‌شود")
 
     theme = doc.get("theme") if isinstance(doc.get("theme"), dict) else {}
     return {
         "v": SCHEMA_VERSION,
+        "kit": kit,
         "theme": clean_theme(theme),
         "header": _clean_group(HEADER_FIELDS, doc.get("header")),
         "tabbar": _clean_group(TABBAR_FIELDS, doc.get("tabbar")),
         "pages": pages,
     }
+
+
+def story_chars(pages: list[dict]) -> int:
+    return sum(len(ch.get("body") or "") for pg in pages for b in pg.get("blocks", [])
+               if b.get("type") == "story" for ch in (b.get("props") or {}).get("chapters") or [])
 
 
 def upgrade(doc: Any) -> dict:
@@ -861,6 +1007,7 @@ def empty_page(accent: str | None = None) -> dict:
     theme = clean_theme({"accent": accent} if accent else {})
     return {
         "v": SCHEMA_VERSION,
+        "kit": "base",
         "theme": theme,
         "header": _clean_group(HEADER_FIELDS, {}),
         "tabbar": _clean_group(TABBAR_FIELDS, {}),
@@ -883,4 +1030,5 @@ def public_schema() -> dict:
         "page_icons": PAGE_ICONS,
         "swatches": SWATCHES,
         "variants": VARIANTS,
+        "kits": KITS,
     }

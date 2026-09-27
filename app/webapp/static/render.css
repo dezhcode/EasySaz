@@ -475,3 +475,184 @@
 .pg-box--solid .pg-step-d{background:color-mix(in srgb, var(--pg-on-accent) 18%, transparent); color:inherit}
 .pg-box--solid .pg-steps--timeline .pg-steps-list li::before{background:color-mix(in srgb, var(--pg-on-accent) 25%, transparent)}
 .pg-box--solid .pg-apps--rows .pg-app-ic{background:color-mix(in srgb, var(--pg-on-accent) 16%, transparent); color:inherit}
+
+/* ===================== قالب «شب‌نوشت» =====================
+   کانال‌های داستان و رمان. پوستهٔ تاریک و آرام (توکن‌ها از KITS.shab در
+   render.js)، قرمز «خون» فقط برای تأکید. عنوان‌ها عارف رقعه، متن داستان
+   نوتو نسخ (هر دو OFL، خودمیزبان، فقط زیرمجموعهٔ عربی/فارسی)؛ بقیه پیدا. */
+@font-face{font-family:'Aref Ruqaa'; font-style:normal; font-weight:700; font-display:swap; src:url('fonts/aref-ruqaa-700.woff2') format('woff2');
+  /* رقم‌های فارسی رقعه شبیه هم‌اند (۲ و ۳)؛ رقم‌ها از نسخ می‌آیند */
+  unicode-range:U+0600-065F, U+066A-06EF, U+06FA-06FF, U+0750-077F, U+08A0-08FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC}
+@font-face{font-family:'Noto Naskh Arabic'; font-style:normal; font-weight:400; font-display:swap; src:url('fonts/noto-naskh-400.woff2') format('woff2')}
+.pg-kit-shab{--sh-disp:'Aref Ruqaa', 'Noto Naskh Arabic', serif; --sh-read:'Noto Naskh Arabic', var(--font-sans); --sh-candle:#E9A854}
+.pg-kit-shab .pg-blocks{gap:18px}
+
+/* سربرگ: مهر حرف اول، عنوان رقعه، ترک خونی */
+.pg-kit-shab .pg-header--shab{padding-bottom:4px}
+.pg-kit-shab .pg-header--shab .pg-header-in{gap:12px}
+.sh-av{width:44px; height:44px; border-radius:50%; border:1.5px solid var(--pg-accent); display:grid; place-items:center; flex:none;
+  font-family:var(--sh-disp); font-size:23px; font-weight:700; line-height:1; color:var(--pg-ink); background:var(--pg-surface); overflow:hidden}
+.sh-av.pg-img{padding:0}
+.pg-kit-shab .pg-header--shab .pg-header-txt b{font-family:var(--sh-disp); font-size:30px; font-weight:700; letter-spacing:.3px; line-height:1.3}
+.pg-kit-shab .pg-header--shab .pg-header-txt small{font-size:12px}
+.sh-crack{display:block; width:100%; max-width:560px; height:10px; margin:4px auto 0}
+.sh-crack path{fill:none; stroke:var(--pg-accent); stroke-width:1.2; vector-effect:non-scaling-stroke}
+
+/* کامپوننت‌های عمومی در این پوسته */
+.pg-kit-shab .pg-h2{font-family:var(--sh-disp); font-size:21px; line-height:1.45; font-weight:700; letter-spacing:.2px}
+.pg-kit-shab .pg-body{font-family:var(--sh-read); font-size:16px; line-height:2}
+.pg-kit-shab .pg-card{position:relative; overflow:hidden}
+.pg-kit-shab .pg-text.pg-card::after{content:""; position:absolute; inset:auto 0 0 0; height:3px; background:var(--pg-accent)}
+.pg-kit-shab .pg-btn--primary{background:var(--pg-ink); color:var(--pg-bg)}
+.pg-kit-shab .pg-tabbar--floating{height:60px; border-radius:14px; border:1px solid var(--pg-line); box-shadow:0 18px 30px -14px rgba(0,0,0,.9)}
+.pg-kit-shab .pg-tabbar--floating .pg-tab{color:#8F8178; border-radius:10px}
+.pg-kit-shab .pg-tabbar--floating .pg-tab--on{background:var(--pg-ink); color:var(--pg-bg)}
+.pg-kit-shab .pg-tabbar--floating .pg-tab--on .pg-ico,.pg-kit-shab.pg-dark .pg-tabbar--floating .pg-tab--on .pg-ico{color:var(--pg-bg)}
+.pg-kit-shab .pg-brand{border-radius:6px}
+
+/* پایه‌ها: عنوان بخش، برچسب، دکمه، ریل */
+.sh-sec{display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin:2px 2px 10px}
+.sh-sec-t{margin:0; font-family:var(--sh-disp); font-size:22px; line-height:1.4; font-weight:700}
+.sh-sec span{font-size:12px; color:var(--pg-ink-3)}
+.sh-tag{align-self:flex-start; font-size:10.5px; font-weight:700; line-height:18px; padding:0 7px; border-radius:3px; border:1px solid var(--pg-line); color:var(--pg-ink-3)}
+.sh-btn{height:40px; padding:0 14px; border:0; border-radius:6px; background:var(--pg-ink); color:var(--pg-bg); font:inherit; font-size:13px; font-weight:800;
+  display:inline-flex; align-items:center; gap:6px; cursor:pointer; -webkit-tap-highlight-color:transparent; flex:none}
+.sh-btn .pg-ico{width:16px; height:16px; stroke-width:2.2}
+.sh-btn:active{transform:scale(.97)}
+.sh-rail{height:4px; border-radius:2px; background:var(--pg-sunk); overflow:hidden}
+.sh-rail i{display:block; height:100%; background:var(--pg-accent); border-radius:inherit}
+.sh-empty{margin:0; padding:18px 4px; color:var(--pg-ink-3); font-size:13px; line-height:1.9}
+
+/* جلد کتاب: بی‌تصویر یک نقش ساده با رنگ «تن»؛ با تصویر، سایهٔ پایین برای خوانایی */
+.sh-cover{position:relative; width:78px; height:112px; flex:none; border-radius:4px; overflow:hidden; display:flex; align-items:flex-end; justify-content:center;
+  padding:8px 6px; text-align:center; box-shadow:0 10px 18px -12px #000, inset 0 0 0 1px rgba(255,255,255,.05)}
+.sh-cover b{position:relative; z-index:1; font-family:var(--sh-disp); font-size:15px; line-height:1.3; font-weight:700; color:#F4EBDD; text-shadow:0 1px 8px rgba(0,0,0,.6)}
+.sh-cover--lg{width:104px; height:150px}
+.sh-cover--lg b{font-size:18px}
+.sh-cover .sh-cover-img{position:absolute; inset:0; border-radius:0}
+.sh-cover .sh-cover-img img{width:100%; height:100%; object-fit:cover}
+.sh-cover .sh-cover-img::after{content:""; position:absolute; inset:40% 0 0; background:linear-gradient(transparent, rgba(0,0,0,.85))}
+.sh-motif{position:absolute; inset:0; pointer-events:none}
+.sh-tone-blood{background:linear-gradient(180deg,#2A0B10,#0B090C)}
+.sh-tone-blood .sh-motif::before{content:""; position:absolute; top:14%; right:18%; width:30%; aspect-ratio:1; border-radius:50%; border:1.5px solid var(--pg-accent)}
+.sh-tone-night{background:linear-gradient(180deg,#10141A,#1E2530)}
+.sh-tone-night .sh-motif::before{content:""; position:absolute; left:12%; right:12%; bottom:52%; height:1px; background:var(--sh-candle); opacity:.6}
+.sh-tone-ash{background:linear-gradient(180deg,#2A2528,#0B090C)}
+.sh-tone-ash .sh-motif::before{content:""; position:absolute; top:16%; left:50%; width:2px; height:44%; margin-left:-1px; background:#EDE4D6; opacity:.25}
+.sh-tone-moss{background:linear-gradient(180deg,#18221A,#0B090C)}
+.sh-tone-moss .sh-motif::before{content:""; position:absolute; top:18%; left:22%; width:56%; height:34%; border:1px solid #7FA35A; border-bottom:0; border-radius:60px 60px 0 0; opacity:.55}
+.sh-tone-candle{background:linear-gradient(180deg,#3A2412,#0B090C)}
+.sh-tone-candle .sh-motif::before{content:""; position:absolute; top:16%; left:50%; width:36%; aspect-ratio:1; transform:translateX(-50%); border-radius:50%; background:radial-gradient(circle, rgba(233,168,84,.55), transparent 70%)}
+
+/* ادامهٔ خواندن */
+.sh-cont{position:relative; display:flex; gap:14px; padding:14px; border-radius:var(--pg-radius); background:var(--pg-surface); border:1px solid var(--pg-line); overflow:hidden; cursor:pointer}
+.sh-cont::after{content:""; position:absolute; inset:auto 0 0 0; height:3px; background:var(--pg-accent)}
+.sh-cont-i{flex:1; min-width:0; display:flex; flex-direction:column; gap:6px}
+.sh-cont-t{font-family:var(--sh-disp); font-size:21px; line-height:1.35; font-weight:700}
+.sh-cont-i > small{font-size:12px; color:var(--pg-ink-3)}
+.sh-cont .sh-rail{margin-top:4px}
+.sh-cont-f{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto}
+.sh-cont-f small{font-size:11.5px; color:var(--pg-ink-3)}
+
+/* قفسه */
+.sh-shelf{display:flex; gap:12px; overflow-x:auto; scrollbar-width:none; margin:0 calc(var(--space-4) * -1); padding:0 var(--space-4) 4px; scroll-snap-type:x mandatory}
+.sh-shelf::-webkit-scrollbar{display:none}
+.sh-shelf--grid{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); overflow:visible; margin:0; padding:0}
+.sh-book{width:118px; flex:none; display:flex; flex-direction:column; gap:6px; padding:0; border:0; background:none; color:inherit; font:inherit; text-align:start; cursor:pointer; scroll-snap-align:start}
+.sh-shelf--grid .sh-book{width:auto}
+.sh-book .sh-cover{width:100%; height:auto; aspect-ratio:118/168}
+.sh-book .sh-cover b{font-size:17px}
+.sh-book small{font-size:11px; line-height:1.5; color:var(--pg-ink-3)}
+
+/* ردیف فصل (فهرست داستان، فصل‌های تازه، نشان‌ها) */
+.sh-chs{display:flex; flex-direction:column}
+.sh-ch{display:flex; align-items:center; gap:12px; width:100%; padding:12px 2px; border:0; border-top:1px solid var(--pg-line); background:none; color:inherit; font:inherit; text-align:start; cursor:pointer; -webkit-tap-highlight-color:transparent}
+.sh-ch:active{background:var(--pg-soft)}
+.sh-ch-n{width:34px; height:34px; border-radius:50%; border:1px solid var(--pg-line); display:grid; place-items:center; flex:none; font-size:14px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums}
+.sh-ch-t{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.55}
+.sh-ch-t b{font-size:14.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.sh-ch-t small{font-size:11.5px; color:var(--pg-ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.sh-ch-s{display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; color:var(--pg-ink-3); flex:none}
+.sh-ch-s .pg-ico{width:14px; height:14px}
+.sh-ch-s.is-lock{color:var(--sh-candle)}
+.sh-ch-s.is-now{color:var(--pg-accent-ink)}
+.sh-ch-s.is-done .pg-ico{stroke-width:2.4}
+
+/* داستان */
+.sh-story{display:flex; flex-direction:column; gap:12px}
+.sh-story-top{display:flex; gap:14px; align-items:stretch}
+.sh-story-i{flex:1; min-width:0; display:flex; flex-direction:column; gap:5px}
+.sh-story-t{margin:0; font-family:var(--sh-disp); font-size:24px; line-height:1.35; font-weight:700}
+.sh-story-m{font-size:12px; color:var(--pg-ink-3)}
+.sh-story-b{margin:2px 0 4px; font-size:13px; line-height:1.85; color:var(--pg-ink-2); display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
+.sh-story-i .sh-btn{align-self:flex-start; margin-top:auto}
+
+/* نشان‌ها */
+.sh-marks-empty{display:flex; flex-direction:column; align-items:center; gap:8px; padding:28px 18px; border:1px dashed var(--pg-line); border-radius:var(--pg-radius); text-align:center}
+.sh-marks-empty .pg-ico{width:26px; height:26px; color:var(--pg-accent)}
+.sh-marks-empty p{margin:0; font-size:13px; line-height:1.9; color:var(--pg-ink-3)}
+
+/* جمله از داستان */
+.sh-quote{margin:0; padding:18px 18px 16px; border-inline-start:3px solid var(--pg-accent); background:linear-gradient(90deg, transparent, var(--pg-soft))}
+.sh-quote-m{display:block; font-family:var(--sh-disp); font-size:44px; line-height:.6; color:var(--pg-accent); height:22px}
+.sh-quote blockquote{margin:0; font-family:var(--sh-read); font-size:17px; line-height:2.05; color:var(--pg-ink)}
+.sh-quote figcaption{margin-top:8px; font-size:12px; color:var(--pg-ink-3)}
+
+/* ---------- لایهٔ خواندن ---------- */
+.pg-kit-shab.sh-open{overflow:hidden}
+.sh-lock,.sh-lock body{overflow:hidden}
+.sh-layer{position:absolute; inset:0; z-index:20; display:flex; flex-direction:column; background:var(--pg-bg); color:var(--pg-ink); animation:sh-in .28s var(--pg-ease) both}
+.sh-layer--fixed{position:fixed; padding-top:var(--pg-top)}
+@keyframes sh-in{from{opacity:0; transform:translateY(12px)}to{opacity:1; transform:none}}
+@media (prefers-reduced-motion:reduce){.sh-layer{animation:none}}
+.sh-scroll{flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch}
+.sh-book-body{padding:12px var(--space-4) 40px}
+.sh-r-top{display:flex; align-items:center; gap:8px; padding:12px 14px 10px; flex:none}
+.sh-ib{width:42px; height:42px; border-radius:10px; border:1px solid var(--pg-line); background:none; color:var(--pg-ink-3); display:grid; place-items:center; flex:none; font:inherit; cursor:pointer}
+.sh-ib .pg-ico{width:20px; height:20px}
+.sh-back{transform:scaleX(-1)}
+.sh-aa{font-size:14px; font-weight:800; color:var(--pg-ink)}
+.sh-mark.on{color:var(--pg-accent); border-color:var(--pg-accent)}
+.sh-mark.on .pg-ico{fill:var(--pg-accent)}
+.sh-r-c{flex:1; min-width:0; text-align:center; display:flex; flex-direction:column; line-height:1.45}
+.sh-r-c b{font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.sh-r-c small{font-size:11px; color:var(--pg-ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.sh-r-prog{height:2px; margin:0 14px; background:var(--pg-sunk); flex:none}
+.sh-r-prog i{display:block; height:100%; width:0; background:var(--pg-accent); transition:width .15s linear}
+.sh-r-art{max-width:620px; margin:0 auto; padding:24px 24px 30px}
+.sh-layer{--sh-fs:18px}
+.sh-r-art{font-size:var(--sh-fs)}
+.sh-r-k{display:block; font-size:12px; font-weight:700; color:var(--pg-accent-ink); letter-spacing:.3px}
+.sh-r-h{margin:2px 0 16px; font-family:var(--sh-disp); font-size:38px; line-height:1.35; font-weight:700}
+.sh-r-p{margin:0 0 14px; font-family:var(--sh-read); font-size:inherit; line-height:2.15; color:#E6DCCC; white-space:pre-line; text-align:justify}
+.sh-drop{font-family:var(--sh-disp); font-size:1.7em; line-height:1; color:var(--pg-accent); font-weight:700}
+.sh-orn{display:flex; justify-content:center; gap:10px; margin:6px 0 18px}
+.sh-orn i{width:6px; height:6px; transform:rotate(45deg); background:var(--pg-accent)}
+.sh-orn i:nth-child(2){background:var(--pg-line)}
+.sh-r-locked .sh-r-p:last-of-type{-webkit-mask-image:linear-gradient(#000 30%, transparent); mask-image:linear-gradient(#000 30%, transparent)}
+.sh-lockbox{display:flex; flex-direction:column; align-items:center; gap:10px; padding:22px 16px; margin:4px 0 10px; border:1px solid var(--pg-line); border-radius:var(--pg-radius); background:var(--pg-surface); text-align:center}
+.sh-lockbox > .pg-ico{width:26px; height:26px; color:var(--sh-candle)}
+.sh-lockbox b{font-size:15px}
+.sh-lockbox small{font-size:12px; color:var(--pg-ink-3)}
+.sh-r-end{display:flex; justify-content:center; margin:26px 0 0}
+.sh-next{width:100%; display:grid; grid-template-columns:1fr auto; align-items:center; gap:2px 10px; padding:14px 16px; border-radius:var(--pg-radius); border:1px solid var(--pg-line); background:var(--pg-surface); color:inherit; font:inherit; text-align:start; cursor:pointer}
+.sh-next small{font-size:11.5px; color:var(--pg-ink-3)}
+.sh-next b{grid-row:2; font-family:var(--sh-disp); font-size:20px; font-weight:700}
+.sh-next .pg-ico{grid-row:1 / 3; grid-column:2; color:var(--pg-accent)}
+.sh-fin{font-family:var(--sh-disp); font-size:22px; color:var(--pg-ink-3)}
+.sh-dock{flex:none; display:flex; align-items:center; gap:8px; margin:0 12px calc(var(--pg-bottom) + 12px); padding:8px; border-radius:12px; background:var(--pg-surface); border:1px solid var(--pg-line); box-shadow:0 -20px 30px -10px var(--pg-bg); position:relative; z-index:2}
+.sh-tog{height:44px; padding:0 11px; border-radius:8px; border:1px solid var(--pg-line); background:none; color:var(--pg-ink-3); font:inherit; font-size:12.5px; font-weight:700; display:inline-flex; align-items:center; gap:6px; cursor:pointer; flex:none}
+.sh-tog .pg-ico{width:17px; height:17px}
+.sh-tog.on{background:#2A1E14; border-color:transparent; color:var(--sh-candle)}
+.sh-meter{flex:1; min-width:0; text-align:center; font-size:11px; color:var(--pg-ink-3); white-space:nowrap}
+.sh-dock .sh-btn{height:44px}
+/* حالت شمع: متن گرم‌تر و کم‌نورتر برای خواندن در تاریکی */
+.sh-candle{--pg-bg:#0D0906}
+.sh-candle .sh-r-p{color:#D9B98C}
+.sh-candle .sh-r-h{color:#E9C9A0}
+/* باران: فقط تصویر، بدون صدا؛ با «کاهش حرکت» ساکن می‌ماند */
+.sh-rain{position:absolute; inset:0; z-index:1; pointer-events:none; opacity:.28;
+  background-image:linear-gradient(105deg, transparent 49.2%, rgba(200,210,230,.7) 50%, transparent 50.8%), linear-gradient(105deg, transparent 49.4%, rgba(200,210,230,.45) 50%, transparent 50.6%);
+  background-size:38px 90px, 23px 60px; animation:sh-rain .5s linear infinite}
+@keyframes sh-rain{to{background-position:-12px 90px, -8px 60px}}
+@media (prefers-reduced-motion:reduce){.sh-rain{animation:none}}

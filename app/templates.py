@@ -22,6 +22,7 @@ CATEGORIES = {
     "digital": "خدمات دیجیتال",
     "personal": "شخصی",
     "edu": "آموزش",
+    "story": "داستان و کانال",
 }
 
 
@@ -41,8 +42,9 @@ def _page(pid: str, title: str, icon: str, items: list[dict]) -> dict:
 
 def _tpl(tid: str, title: str, desc: str, category: str, accent: str, pages: list[dict], *,
          header: dict | None = None, tabbar: dict | None = None, theme: dict | None = None,
-         note: str = "") -> dict:
+         note: str = "", kit: str = "base") -> dict:
     doc = {
+        "kit": kit,
         "theme": {"accent": accent, "mode": "light", "radius": "soft", "bg": "tint", **(theme or {})},
         "header": {"enabled": False, **(header or {})},
         "tabbar": {"enabled": True, "style": "floating", **(tabbar or {})},
@@ -53,7 +55,7 @@ def _tpl(tid: str, title: str, desc: str, category: str, accent: str, pages: lis
     return {
         "id": tid, "title": title, "desc": desc, "category": category, "accent": accent,
         "premium": premium, "pages": len(doc["pages"]), "blocks": len(blocks.all_blocks(doc)),
-        "note": note, "doc": doc,
+        "note": note, "kit": doc["kit"], "doc": doc,
     }
 
 
@@ -194,7 +196,67 @@ def academy() -> dict:
     ], header={"enabled": True, "style": "solid", "title": "{name}"})
 
 
-TEMPLATES: list[dict] = [cafe(), shop(), vpn(), portfolio(), linkbio(), academy()]
+_CH13 = [
+    {"title": "کلید", "note": "", "lock": False, "url": "", "body": (
+        "کلید را زیر گلدان خشک‌شدهٔ کنار در گذاشته بودند؛ همان‌جا که بنگاهی گفته بود. سرد بود، سردتر از هوای آبان.\n\n"
+        "خانه بوی نم و نفتالین می‌داد. پرده‌ها را کنار زدم و نور کم‌رنگ عصر روی کف چوبی پهن شد. "
+        "همه‌چیز عادی بود، جز یک چیز: ساعت دیواری هال کار می‌کرد. خانه‌ای که شش سال خالی مانده بود.\n\n"
+        "***\n\n"
+        "شب اول صدای آب آمد. از آشپزخانه. شیر را بسته بودم؛ مطمئن بودم.")},
+    {"title": "صدای قدم‌ها", "note": "", "lock": False, "url": "", "body": (
+        "شب دوم صدا از سقف بود. آرام، سنگین، درست هم‌وزن قدم‌های خودم.\n\n"
+        "خانه یک طبقه بود. سقفش شیروانی بود و زیر شیروانی را با آجر پر کرده بودند؛ این را بنگاهی با افتخار گفته بود، "
+        "انگار عیبی را پوشانده باشد.\n\n"
+        "چراغ‌قوه را برداشتم و تا صبح بیدار ماندم. قدم‌ها ساعت سه ایستادند؛ درست بالای تختم.")},
+    {"title": "زیرزمین", "note": "امروز", "lock": False, "url": "", "body": (
+        "پله‌ها زیر پایم ناله می‌کردند؛ انگار هر کدام اسم کسی را که پیش از من پایین رفته بود به خاطر داشتند. "
+        "چراغ‌قوه فقط دایرهٔ کوچکی از تاریکی را کنار می‌زد و بقیه‌اش، سنگین و خیس، سر جایش می‌ماند.\n\n"
+        "ته زیرزمین، کنار دیگ‌های زنگ‌زده، در کوچکی بود که هیچ‌وقت ندیده بودم. رویش با گچ نوشته بودند: «سیزده». "
+        "و زیرش، با خطی که هنوز خشک نشده بود: «منتظرت بودیم.»\n\n"
+        "***\n\n"
+        "صدای قدم‌ها از بالای سرم آمد. این بار دو نفر بودند.")},
+    {"title": "در سیزدهم", "note": "به‌زودی", "lock": True, "url": "", "body": (
+        "دستگیره گرم بود؛ گرم مثل دستی که تازه رهایش کرده باشند. در را که باز کردم، "
+        "بوی نفتالین برگشت، این بار از پشت سرم.")},
+]
+_TRAIN = [
+    {"title": "ایستگاه متروک", "note": "", "lock": False, "url": "", "body": (
+        "قطار ساعت ۲۳:۴۰ هیچ‌وقت در برنامه نبود، ولی هر شب می‌آمد.\n\n"
+        "نگهبان پیر ایستگاه می‌گفت فقط کسانی سوارش می‌شوند که بلیت ندارند. "
+        "من بلیت داشتم. توی جیبم بود. تا وقتی که دیگر نبود.")},
+    {"title": "واگن آخر", "note": "", "lock": False, "url": "", "body": (
+        "واگن آخر پر بود از آدم‌هایی که همه یک‌جور نشسته بودند: رو به پنجره، دست‌ها روی زانو.\n\n"
+        "هیچ‌کدام در شیشه تصویر نداشتند. جز من.")},
+]
+
+
+def shab() -> dict:
+    """قالب اختصاصی «شب‌نوشت»: کتابخانهٔ داستان برای کانال‌ها، با پوسته و کامپوننت‌های خودش."""
+    return _tpl("shab", "شب‌نوشت", "کتابخانهٔ داستان برای کانال‌ها: قفسه، فصل‌ها، صفحهٔ خواندن و نشان‌گذاری", "story", "#C8192F", [
+        _page("library", "کتابخانه", "book", [
+            _b("shab_continue"),
+            _b("shab_shelf"),
+            _b("shab_latest", {"count": 3}),
+            _b("button", {"label": "عضویت در کانال", "url": ""}),
+        ]),
+        _page("stories", "داستان‌ها", "list", [
+            _b("story", {"title": "خانهٔ شمارهٔ ۱۳", "genre": "وحشت", "status": "ongoing", "tone": "blood",
+                         "blurb": "خانه‌ای که شش سال خالی مانده، ولی ساعتش هنوز کار می‌کند.", "chapters": _CH13}),
+            _b("story", {"title": "آخرین قطار", "genre": "معمایی", "status": "ongoing", "tone": "night",
+                         "blurb": "قطاری که در هیچ برنامه‌ای نیست و هر شب می‌آید.", "chapters": _TRAIN}),
+        ]),
+        _page("marks", "نشان‌ها", "bookmark", [
+            _b("shab_marks"),
+        ]),
+        _page("channel", "کانال", "send", [
+            _b("shab_quote", {"source": "خانهٔ شمارهٔ ۱۳ · زیرزمین"}),
+            _b("text", {"title": "دربارهٔ کانال", "body": "هر شب ساعت ۱۱ یک فصل تازه. داستان‌ها را این‌جا راحت‌تر بخوان؛ هر جا بمانی، دفعهٔ بعد از همان‌جا ادامه می‌دهی."}),
+        ]),
+    ], header={"enabled": True, "title": "{name}", "subtitle": "کانال داستان · هر شب یک فصل"},
+       tabbar={"style": "floating"}, kit="shab")
+
+
+TEMPLATES: list[dict] = [shab(), cafe(), shop(), vpn(), portfolio(), linkbio(), academy()]
 BY_ID = {t["id"]: t for t in TEMPLATES}
 
 

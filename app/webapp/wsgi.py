@@ -189,7 +189,7 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
         elif method == "POST" and path in ("/api/app/create", "/api/app/rename", "/api/app/save",
                                            "/api/app/publish", "/api/app/welcome"):
             action = path.rsplit("/", 1)[1]
-            coro = getattr(api, action)(init_data, _body(environ))
+            coro = getattr(api, action)(init_data, _body(environ, limit=1_000_000 if action in ("save", "publish") else 262_144))
         elif method == "POST" and path == "/api/upload":
             coro = api.upload(init_data, _body(environ, limit=2_200_000))
         elif path.startswith("/api/page/"):

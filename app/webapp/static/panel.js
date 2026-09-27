@@ -115,7 +115,7 @@
     });
     return s;
   }
-  const CAT_DOT = { write: 'var(--write)', act: 'var(--act)', media: 'var(--media)', shop: 'var(--shop)', frame: 'var(--ink-3)' };
+  const CAT_DOT = { story: '#C8192F', write: 'var(--write)', act: 'var(--act)', media: 'var(--media)', shop: 'var(--shop)', frame: 'var(--ink-3)' };
 
   /* ---------- وضعیت ---------- */
   const S = {
@@ -274,6 +274,7 @@
     { key: 'cafe', tpl: 'cafe', cat: 'shop', icon: 'cup', title: 'کافه و رستوران', sub: 'منو، ساعت کاری، سفارش', names: ['کافه نارنج', 'رستوران باغ', 'شیرینی‌سرا'] },
     { key: 'shop', tpl: 'shop', cat: 'write', icon: 'shop', title: 'فروشگاه', sub: 'محصول، قیمت و سفارش', names: ['فروشگاه من', 'گالری لباس', 'دست‌سازه'] },
     { key: 'vpn', tpl: 'vpn', cat: 'navy', icon: 'bolt', title: 'فروش سرویس', sub: 'پلن‌ها و راهنمای اتصال، مثل عبور', names: ['عبور', 'تونل', 'مسیر آزاد'] },
+    { key: 'story', tpl: 'shab', cat: 'story', icon: 'book', title: 'کانال داستان و رمان', sub: 'قالب «شب‌نوشت»: قفسه، فصل‌ها و صفحهٔ خواندن', names: ['کابوس‌های کوتاه', 'قصه‌های شب', 'رمان من'] },
     { key: 'personal', tpl: 'portfolio', cat: 'act', icon: 'user', title: 'شخصی و نمونه‌کار', sub: 'معرفی، نمونه‌کار، همکاری', names: ['استودیو من', 'نمونه‌کارهای سارا', 'طراح آزاد'] },
     { key: 'edu', tpl: 'academy', cat: 'media', icon: 'book', title: 'آموزش', sub: 'دوره‌ها، ثبت‌نام، سوالات', names: ['آموزشگاه', 'کلاس زبان', 'آکادمی کد'] },
     { key: 'other', tpl: 'linkbio', cat: '', icon: 'sparkle', title: 'چیز دیگه', sub: 'یک صفحهٔ ساده با لینک‌ها', names: ['صفحهٔ من', 'لینک‌های من'] },
@@ -431,7 +432,8 @@
     const t = kindTemplate();
     const box = $('wz-moods');
     box.textContent = '';
-    const list = [['رنگ قالب', t.accent]].concat(MOODS)
+    const kit = kitOf(t.kit);
+    const list = kit && kit.accents ? kit.accents.slice(0, 4) : [['رنگ قالب', t.accent]].concat(MOODS)
       .filter((m, i, a) => a.findIndex(x => x[1].toLowerCase() === m[1].toLowerCase()) === i).slice(0, 4);
     if (!W.accent) W.accent = list[0][1];
     list.forEach(([label, accent]) => {
@@ -480,7 +482,11 @@
     }
   }
 
-  /* ===== قالب‌ها (TemplatePicker) ===== */
+  /* ===== قالب‌ها (TemplatePicker) =====
+     دو جور: «قالب اختصاصی» (کیت: پوسته، سربرگ و کامپوننت‌های خودش، مثل
+     شب‌نوشت) که نصب می‌شود، و قالب‌های شروع سریع روی پوستهٔ پایه. */
+  const kitOf = k => (k && k !== 'base' && S.schema.kits && S.schema.kits[k]) || null;
+  const docKit = () => kitOf(S.doc && S.doc.kit);
   function fillName(doc) {
     const name = (S.app && S.app.name) || '';
     return JSON.parse(JSON.stringify(doc).split('{name}').join(name.replace(/["\\]/g, '')));
@@ -496,6 +502,16 @@
     const cats = S.templates.categories;
     let active = 'all';
     const bar = $('tpl-cats'), grid = $('tpl-grid');
+    let kits = $('tpl-kits');
+    if (!kits) { kits = h('div', 'tpl-kits'); kits.id = 'tpl-kits'; bar.parentNode.insertBefore(kits, bar); }
+    kits.textContent = '';
+    const special = S.templates.templates.filter(t => t.kit && t.kit !== 'base');
+    if (special.length) {
+      const lbl = h('div', 'tpl-kits-h');
+      lbl.append(h('b', '', 'قالب‌های اختصاصی'), h('span', '', 'پوسته، سربرگ و کامپوننت‌های مخصوص خودشان'));
+      kits.appendChild(lbl);
+      special.forEach(t => kits.appendChild(kitCard(t, isNew)));
+    }
     const drawCats = () => {
       bar.textContent = '';
       [['all', 'همه']].concat(Object.entries(cats)).forEach(([key, label]) => {
@@ -509,7 +525,7 @@
     };
     const drawGrid = () => {
       grid.textContent = '';
-      S.templates.templates.filter(t => active === 'all' || t.category === active).forEach(t => {
+      S.templates.templates.filter(t => (!t.kit || t.kit === 'base') && (active === 'all' || t.category === active)).forEach(t => {
         const locked = t.premium && !S.plan.premium_blocks;
         const card = h('button', 'tpl-card' + (locked ? ' locked' : ''));
         card.type = 'button';
@@ -534,10 +550,42 @@
     $('tpl-back').onclick = () => openEditor();
   }
 
+  /* کارت قالب اختصاصی: پیش‌نمایش زنده، کامپوننت‌های خودش و «نصب» */
+  const KIT_PARTS = { shab: ['قفسهٔ کتاب', 'ادامهٔ خواندن', 'فصل‌ها', 'صفحهٔ خواندن', 'نشان‌ها', 'باران و شمع'] };
+  function kitCard(t, isNew) {
+    const kit = kitOf(t.kit) || {};
+    const on = S.doc && S.doc.kit === t.kit;
+    const card = h('div', 'kit-card kit-' + t.kit);
+    const thumb = h('button', 'kit-thumb');
+    thumb.type = 'button';
+    thumb.setAttribute('aria-label', 'نصب ' + t.title);
+    const mini = h('div');
+    thumb.appendChild(mini);
+    ES.render(mini, fillName(t.doc), { appName: S.app ? S.app.name : t.title });
+    const info = h('div', 'kit-info');
+    info.append(h('span', 'kit-k', on ? 'نصب شده روی همین مینی‌اپ' : 'قالب اختصاصی'), h('b', 'kit-t', t.title), h('p', 'kit-d', t.desc));
+    const parts = h('div', 'kit-parts');
+    (KIT_PARTS[t.kit] || []).forEach(x => parts.appendChild(h('span', '', x)));
+    info.appendChild(parts);
+    if (kit.tagline) info.appendChild(h('p', 'kit-tag', kit.tagline));
+    const btn = h('button', 'btn btn-block kit-go' + (on ? ' btn-s' : ' btn-p'));
+    btn.type = 'button';
+    btn.append(ico(on ? 'undo' : 'download'), document.createTextNode(on ? 'نصب دوباره (از اول)' : 'نصب روی ' + (S.app ? `«${S.app.name}»` : 'مینی‌اپ')));
+    const go = () => { haptic(); pickTemplate(t, isNew); };
+    btn.addEventListener('click', go);
+    thumb.addEventListener('click', go);
+    info.appendChild(btn);
+    card.append(thumb, info);
+    return card;
+  }
+
   function pickTemplate(t, isNew) {
     if (t.premium && !S.plan.premium_blocks) { upsellSheet(`قالب «${t.title}» کامپوننت‌های حرفه‌ای دارد.`); return; }
+    const special = t.kit && t.kit !== 'base';
     const apply = async () => {
       const doc = fillName(t.doc);
+      const cut = fitToPlan(doc, S.plan);
+      if (S.doc && S.doc.header && S.doc.header.logo && doc.header && !doc.header.logo) doc.header.logo = S.doc.header.logo;
       try {
         const res = await api('app/save', { id: S.app.id, doc });
         S.doc = ES.normalize(res.doc);
@@ -547,11 +595,14 @@
         S.selected = null;
         notify('success');
         openEditor();
-        toast(`قالب «${t.title}» اعمال شد`);
-        if (t.note) setTimeout(() => toast(t.note), 2400);
+        toast(special ? `قالب «${t.title}» نصب شد` : `قالب «${t.title}» اعمال شد`);
+        if (cut) setTimeout(() => toast(`نسخهٔ پلن ${S.plan.title}: ${S.doc.pages.length} صفحهٔ اول؛ بقیه با پلن حرفه‌ای`), 2400);
+        else if (t.note) setTimeout(() => toast(t.note), 2400);
       } catch (err) { failed(err); }
     };
-    if (!isNew && totalBlocks()) confirmBox('قالب تازه جای همهٔ صفحه‌های فعلی می‌نشیند. ادامه می‌دی؟', apply);
+    if (!isNew && totalBlocks()) confirmBox(special
+      ? `قالب «${t.title}» با پوسته و کامپوننت‌های خودش جای همهٔ صفحه‌های فعلی می‌نشیند (لوگو می‌ماند). ادامه می‌دی؟`
+      : 'قالب تازه جای همهٔ صفحه‌های فعلی می‌نشیند. ادامه می‌دی؟', apply);
     else apply();
   }
 
@@ -657,9 +708,9 @@
   const specOf = b => S.schema.blocks[b.type] || { title: b.type, cat: 'frame', icon: 'sparkle', fields: [], desc: '' };
   function mini(el, blocks, extra) {
     ES.render(el, Object.assign({
-      v: 2, theme: S.doc.theme, header: { enabled: false }, tabbar: { enabled: false },
+      v: 2, kit: S.doc.kit, theme: S.doc.theme, header: { enabled: false }, tabbar: { enabled: false },
       pages: [{ id: 'p', title: '', icon: 'home', blocks }],
-    }, extra || {}), { page: 'p', appName: S.app.name, editing: true });
+    }, extra || {}), { page: 'p', appName: S.app.name, editing: true, library: S.doc });
     return el;
   }
   function defaultBlock(type, over) {
@@ -1388,9 +1439,9 @@
     sec.appendChild(row);
     sec.redraw = () => cards.forEach(({ v, b, mini }) => {
       ES.render(mini, {
-        v: 2, theme: S.doc.theme, header: { enabled: false }, tabbar: { enabled: false },
+        v: 2, kit: S.doc.kit, theme: S.doc.theme, header: { enabled: false }, tabbar: { enabled: false },
         pages: [{ id: 'p', title: '', icon: 'home', blocks: [variantBlock(block, v)] }],
-      }, { page: 'p', appName: S.app.name });
+      }, { page: 'p', appName: S.app.name, library: S.doc });
       const on = variantActive(block, v);
       b.classList.toggle('on', on);
       b.setAttribute('aria-checked', on ? 'true' : 'false');
@@ -1855,6 +1906,16 @@
       ['notice', { text: 'تا آخر هفته ۲۰٪ تخفیف روی همهٔ پلن‌ها' }], ['pricing', {}]] },
     { key: 'service', title: 'اشتراک و قیمت دلخواه', sub: 'کارت عبور + ماشین‌حساب قیمت', blocks: () => [['passcard', {}], ['calc', {}]] },
   ];
+  const SHAB_SECTIONS = [
+    { key: 'story', title: 'داستان تازه', sub: 'جلد، خلاصه و فصل‌ها', blocks: () => [['story', { title: 'داستان تازه' }]] },
+    { key: 'library', title: 'کتابخانه', sub: 'ادامهٔ خواندن + قفسه + فصل‌های تازه', blocks: () => [['shab_continue', {}], ['shab_shelf', {}], ['shab_latest', { count: 3 }]] },
+    { key: 'join', title: 'دعوت به کانال', sub: 'متن کوتاه + دکمهٔ عضویت', blocks: () => [
+      ['text', { title: 'دربارهٔ کانال', body: 'هر شب یک فصل تازه. هر جا بمانی، دفعهٔ بعد از همان‌جا ادامه می‌دهی.' }],
+      ['button', { label: 'عضویت در کانال', url: '' }]] },
+    { key: 'quote', title: 'جمله از داستان', sub: 'یک جملهٔ درشت و ماندگار', blocks: () => [['shab_quote', {}]] },
+    { key: 'marks', title: 'نشان‌های خواننده', sub: 'فصل‌هایی که هر کس نشان گذاشته', blocks: () => [['shab_marks', {}]] },
+  ];
+  const sectionsFor = () => (S.doc.kit === 'shab' ? SHAB_SECTIONS : SECTIONS);
   const presetBlocks = sec => sec.blocks().map(([type, props]) => defaultBlock(type, props));
   const presetLocked = sec => !S.plan.premium_blocks && sec.blocks().some(([type]) => S.schema.blocks[type] && S.schema.blocks[type].premium);
 
@@ -1914,12 +1975,23 @@
   }
   function drawReady(body, at) {
     body.appendChild(h('p', 'shint', 'چند کامپوننت که با هم یک بخش کامل می‌سازند. محتوا نمونه است و همه‌چیزش عوض می‌شود.'));
-    SECTIONS.forEach(sec => body.appendChild(presetCard(sec, at)));
+    sectionsFor().forEach(sec => body.appendChild(presetCard(sec, at)));
   }
   function drawSingle(body, at, redraw) {
     const cats = S.schema.categories || {};
+    const kit = docKit();
+    if (kit) {
+      // قالب اختصاصی: اول کامپوننت‌های خودش، بعد عمومی‌هایی که به پوسته‌اش می‌آیند
+      const own = (S.schema.order || []).filter(t => S.schema.blocks[t] && S.schema.blocks[t].kit === S.doc.kit);
+      const label = (text, color) => { const l = h('div', 'clabel'); const d = h('i', 'dot'); d.style.background = color; l.append(d, document.createTextNode(text)); body.appendChild(l); };
+      label('مخصوص ' + kit.title, CAT_DOT.story);
+      own.forEach(t => body.appendChild(compCard(t, at)));
+      label('عمومی', 'var(--ink-3)');
+      (kit.generic || []).forEach(t => { if (S.schema.blocks[t]) body.appendChild(compCard(t, at)); });
+      return;
+    }
     const chips = h('div', 'fchips');
-    [['all', 'همه']].concat(Object.keys(cats).map(k => [k, cats[k]])).forEach(([k, label]) => {
+    [['all', 'همه']].concat(Object.keys(cats).filter(k => k !== 'story').map(k => [k, cats[k]])).forEach(([k, label]) => {
       const c = h('button', 'fchip' + (k === addCat ? ' on' : ''));
       c.type = 'button';
       if (k !== 'all') { const d = h('i', 'dot'); d.style.background = CAT_DOT[k]; c.appendChild(d); }
@@ -1932,7 +2004,7 @@
     let last = null;
     order.forEach(type => {
       const spec = S.schema.blocks[type];
-      if (!spec || (addCat !== 'all' && spec.cat !== addCat)) return;
+      if (!spec || spec.kit || (addCat !== 'all' && spec.cat !== addCat)) return;
       if (addCat === 'all' && spec.cat !== last) {
         last = spec.cat;
         const lbl = h('div', 'clabel');
@@ -2100,13 +2172,14 @@
       const redraw = livePv(el, box => pagePreview(box, 290), 'کل مینی‌اپ، زنده', true);
       const body = h('div', 'sbody');
       el.appendChild(body);
-      secLabel(body, 'رنگ اصلی', 'بقیهٔ رنگ‌ها خودکار ساخته می‌شوند');
+      const kit = docKit();
+      secLabel(body, 'رنگ اصلی', kit ? `رنگ تأکید پوستهٔ «${kit.title}»` : 'بقیهٔ رنگ‌ها خودکار ساخته می‌شوند');
       const grid = h('div', 'swatches');
       const drawSw = () => {
         grid.textContent = '';
         const cur = (theme.accent || '').toLowerCase();
         let preset = false;
-        S.schema.swatches.forEach(([name, color]) => {
+        ((docKit() || {}).accents || S.schema.swatches).forEach(([name, color]) => {
           const on = color.toLowerCase() === cur;
           preset = preset || on;
           const b = h('button', 'sw' + (on ? ' on' : ''));
@@ -2132,6 +2205,13 @@
       };
       drawSw();
       body.appendChild(grid);
+      if (kit) {
+        const note = h('div', 'look-note');
+        note.append(ico('palette'), h('span', '', `زمینه، حروف و گوشه‌ها مال خود قالب «${kit.title}» است و ثابت می‌ماند تا همه‌چیز با هم جور باشد.`));
+        body.appendChild(note);
+        pg.refresh = redraw;
+        return;
+      }
       body.appendChild(selectControl({ label: 'حالت', options: [['light', 'روشن'], ['auto', 'مثل تلگرام'], ['dark', 'تیره']] }, theme.mode, v => set('mode', v)));
       body.appendChild(selectControl({ label: 'پس‌زمینهٔ صفحه', options: [['plain', 'ساده'], ['tint', 'با کمی رنگ']] }, theme.bg, v => set('bg', v)));
       const radiusBox = h('div');
@@ -2159,7 +2239,8 @@
       const body = h('div', 'sbody');
       el.appendChild(body);
       secLabel(body, 'نوار بالا', 'اسم و لوگو، بالای همهٔ صفحه‌ها');
-      groupFields(body, S.schema.header.map(f => f.key === 'enabled' ? Object.assign({}, f, { label: 'نمایش نوار بالا' }) : f), S.doc.header);
+      groupFields(body, S.schema.header.filter(f => !docKit() || (f.key !== 'style' && f.key !== 'align'))
+        .map(f => f.key === 'enabled' ? Object.assign({}, f, { label: 'نمایش نوار بالا' }) : f), S.doc.header);
       body.appendChild(h('p', 'caption sw-note', 'اگر عنوان خالی بماند، اسم مینی‌اپ نشان داده می‌شود.'));
       secLabel(body, 'نوار پایین', 'برای رفتن بین صفحه‌ها');
       if (S.doc.pages.length < 2) {
@@ -2232,6 +2313,14 @@
       subTop(el, S.app.name, 'تنظیمات');
       const body = h('div', 'sbody');
       el.appendChild(body);
+      const kitRow = h('button', 'row go-row');
+      kitRow.type = 'button';
+      const kg = h('span', 'grow');
+      const kit = docKit();
+      kg.append(h('b', 'body-strong', 'قالب: ' + (kit ? kit.title : 'کاشی (پایه)')), h('span', 'caption', kit ? 'پوسته و کامپوننت‌های اختصاصی' : 'قالب‌های اختصاصی مثل «شب‌نوشت» را ببین'));
+      kitRow.append(catTile(kit ? 'story' : 'brand', kit ? 'book' : 'template'), kg, ico('arrow', 'chev'));
+      kitRow.addEventListener('click', () => { haptic(); popAll(); templatesScreen(false); });
+      body.appendChild(kitRow);
       const mode = selectControl({ label: 'حالت ادیتور', options: [['simple', 'ساده (سؤال‌محور)'], ['pro', 'حرفه‌ای (همهٔ ابزارها)']] }, S.mode, v => { setMode(v); });
       body.appendChild(mode);
       const card = h('div', 'appcard');
@@ -2326,6 +2415,13 @@
       : { st: 'warn', t: 'سربرگ ندارد', s: 'مشتری اول باید بفهمد کجا آمده', fix: framePage, fixL: 'روشن کن' });
     out.push(S.app.bot_username ? { st: 'ok', t: 'ربات وصل است', s: '@' + S.app.bot_username, ltr: true }
       : { st: 'warn', t: 'ربات وصل نیست', s: 'بعد از اتصال، مینی‌اپ روی ربات خودت باز می‌شود', fix: () => openBot('connect'), fixL: 'اتصال' });
+    const lockNoLink = allBlocks().filter(({ block }) => block.type === 'story' && emptyUrl(block.props.url)
+      && (block.props.chapters || []).some(c => c.lock && emptyUrl(c.url)));
+    if (lockNoLink.length) {
+      const f = lockNoLink[0];
+      out.push({ st: 'warn', t: 'فصل قفل بدون لینک کانال', s: `«${f.block.props.title || 'داستان'}»: خواننده باید بداند کجا بخواند`,
+        fix: () => { popAll(); goPage(f.page.id); editPage(f.block.id); }, fixL: 'درست کن' });
+    }
     const links = emptyLinks();
     links.slice(0, 3).forEach(e => out.push({ st: 'warn', t: 'یک لینک خالی است', s: e.path, fix: e.fix, fixL: 'درست کن' }));
     if (links.length > 3) out.push({ st: 'warn', t: `${links.length - 3} لینک خالی دیگر`, s: 'بعد از درست کردن بالایی‌ها دوباره نگاه کن' });
@@ -2806,6 +2902,8 @@
     stats: 'عددهای مهم', button: 'دکمه', links: 'دکمه‌های لینک', social: 'راه‌های تماس', apps: 'دانلود برنامه',
     image: 'عکس', gallery: 'گالری عکس', cards: 'محصولات', pricing: 'قیمت‌ها', features: 'ویژگی‌ها',
     passcard: 'کارت اشتراک', calc: 'محاسبهٔ قیمت', divider: 'فاصله',
+    story: 'داستان', shab_continue: 'ادامهٔ خواندن', shab_shelf: 'قفسهٔ داستان‌ها', shab_latest: 'فصل‌های تازه',
+    shab_marks: 'نشان‌های خواننده', shab_quote: 'جمله از داستان',
   };
   const easyName = b => b === 'header' ? 'نوار بالا' : (EASY_NAMES[b.type] || specOf(b).title);
   const SOCIAL_NAMES = { telegram: 'تلگرام', instagram: 'اینستاگرام', whatsapp: 'واتساپ', youtube: 'یوتیوب', x: 'ایکس', website: 'سایت', phone: 'تلفن', email: 'ایمیل' };
@@ -2846,8 +2944,9 @@
     const blocks = allBlocks();
     const add = t => { t.skipped = !t.done && skips.indexOf(t.key) >= 0; T.push(t); };
 
-    add({ key: 'logo', kind: 'image', cat: 'media', icon: 'image', title: 'لوگو را بگذار', q: 'لوگوی کسب‌وکارت را بگذار',
-      sub: 'بالای مینی‌اپ و روی ربات دیده می‌شود', done: !!hd.logo, doneSub: 'گذاشته شد',
+    const shab = S.doc.kit === 'shab';
+    add({ key: 'logo', kind: 'image', cat: 'media', icon: 'image', title: 'لوگو را بگذار', q: shab ? 'عکس یا لوگوی کانالت را بگذار' : 'لوگوی کسب‌وکارت را بگذار',
+      sub: shab ? 'کنار اسم کانال، بالای مینی‌اپ دیده می‌شود' : 'بالای مینی‌اپ و روی ربات دیده می‌شود', done: !!hd.logo, doneSub: 'گذاشته شد',
       value: () => hd.logo || '',
       apply: v => {
         hd.logo = v;
@@ -2863,9 +2962,11 @@
         preview: box => mini(box, [block]) });
     });
 
-    const social = blocks.find(({ block }) => block.type === 'social');
+    if (shab) shabTasks(add, blocks);
+
+    const social = !shab && blocks.find(({ block }) => block.type === 'social');
     const phoneItem = social && (social.block.props.items || []).find(it => it.kind === 'phone');
-    add({ key: 'phone', kind: 'phone', cat: 'act', icon: 'phone', title: 'شمارهٔ تماست چیه؟', q: 'شمارهٔ تماست چیه؟',
+    if (!shab) add({ key: 'phone', kind: 'phone', cat: 'act', icon: 'phone', title: 'شمارهٔ تماست چیه؟', q: 'شمارهٔ تماست چیه؟',
       sub: 'مشتری‌ها با یک لمس زنگ می‌زنند.', done: !!(phoneItem && phoneItem.value), doneSub: phoneItem ? phoneItem.value : '',
       value: () => { const s = allBlocks().find(({ block }) => block.type === 'social'); const it = s && s.block.props.items.find(x => x.kind === 'phone'); return it ? it.value : ''; },
       apply: v => {
@@ -2898,9 +2999,17 @@
 
     blocks.filter(({ block }) => block.type === 'button').slice(0, 1).forEach(({ block }) => {
       add({ key: 'btn:' + block.id, kind: 'dest', cat: 'shop', icon: 'button', title: `دکمهٔ «${block.props.label || 'دکمه'}» کجا برود؟`,
-        q: `با زدن «${block.props.label || 'دکمه'}» مشتری کجا برود؟`, sub: 'مثلاً جایی که سفارش‌ها را می‌گیری.',
+        q: `با زدن «${block.props.label || 'دکمه'}» ${shab ? 'خواننده' : 'مشتری'} کجا برود؟`,
+        sub: shab ? 'آیدی کانالت را بنویس؛ فصل‌های قفل هم به همین کانال می‌روند.' : 'مثلاً جایی که سفارش‌ها را می‌گیری.',
         done: !emptyUrl(block.props.url), doneSub: destOf(block.props.url).dest.title + ' · ' + destOf(block.props.url).value,
-        value: () => block.props.url, apply: v => { block.props.url = v; }, preview: box => mini(box, [block]) });
+        value: () => block.props.url,
+        apply: v => {
+          const old = block.props.url;
+          block.props.url = v;
+          // کانال داستان: لینک فصل‌های قفل هم همین باشد، مگر خودش چیز دیگری گذاشته
+          if (shab) allBlocks().forEach(({ block: b }) => { if (b.type === 'story' && (emptyUrl(b.props.url) || b.props.url === old)) b.props.url = v; });
+        },
+        preview: box => mini(box, [block]) });
     });
 
     blocks.filter(({ block }) => block.type === 'image' && !block.props.src).slice(0, 1).forEach(({ block }) => {
@@ -2913,6 +3022,58 @@
       sub: 'تا مینی‌اپ با دکمهٔ منوی ربات خودت باز شود. توکن ربات را در @EasySazBot می‌فرستی.',
       done: !!S.app.bot_username, doneSub: S.app.bot_username ? '@' + S.app.bot_username : '' });
     return T;
+  }
+
+  /* شب‌نوشت: داستان‌های نمونهٔ قالب را با داستان خود کاربر عوض می‌کنیم.
+     نمونه بودن از روی متن خود قالب شناخته می‌شود (نه چیزی در سند). */
+  function shabSamples() {
+    const titles = new Set(), bodies = new Set(), blurbs = new Set();
+    S.templates.templates.filter(t => t.kit === 'shab').forEach(t => t.doc.pages.forEach(p => p.blocks.forEach(b => {
+      if (b.type !== 'story') return;
+      titles.add(b.props.title);
+      blurbs.add(b.props.blurb);
+      (b.props.chapters || []).forEach(c => bodies.add(c.body));
+    })));
+    titles.add('داستان تازه');
+    bodies.add('اولین جملهٔ داستانت را این‌جا بنویس.');
+    return { titles, bodies, blurbs };
+  }
+  function shabTasks(add, blocks) {
+    const smp = shabSamples();
+    const stories = blocks.filter(({ block }) => block.type === 'story');
+    const nth = ['اول', 'دوم', 'سوم'];
+    stories.slice(0, 3).forEach(({ block }, k) => {
+      const pr = block.props;
+      const sampleTitle = smp.titles.has(pr.title);
+      const chs = () => block.props.chapters || [];
+      const sampleBody = () => !chs().length || chs().some(c => smp.bodies.has(c.body));
+      if (!sampleTitle && !sampleBody()) return;
+      const which = stories.length > 1 ? ` ${nth[k] || ''}` : '';
+      const extra = k > 0 ? { label: `داستان${which} ندارم؛ برش دار`, run: () => {
+        const f = findBlock(block.id);
+        if (f) f.page.blocks.splice(f.index, 1);
+        undoToast('داستان نمونه برداشته شد');
+      } } : null;
+      add({ key: 'stname:' + block.id, kind: 'text', cat: 'story', icon: 'book', title: `اسم داستان${which}ت`,
+        q: `اسم داستان${which}ت چیه؟`, sub: 'همان اسمی که در کانال می‌گذاری؛ روی جلد و قفسه می‌نشیند.',
+        done: !sampleTitle, doneSub: pr.title, ph: 'مثلاً: خانهٔ شمارهٔ ۱۳',
+        value: () => (smp.titles.has(block.props.title) ? '' : block.props.title),
+        apply: v => {
+          block.props.title = v || 'داستان تازه';
+          if (smp.blurbs.has(block.props.blurb)) block.props.blurb = ''; // خلاصهٔ نمونه مال داستان دیگری است
+        }, extra,
+        preview: box => mini(box, [block]) });
+      add({ key: 'stch:' + block.id, kind: 'textarea', cat: 'story', icon: 'text', title: `فصل اول داستان${which}`,
+        q: `فصل اول «${smp.titles.has(block.props.title) ? 'داستانت' : block.props.title}» را بگذار`,
+        sub: 'متن را از کانالت کپی کن و این‌جا بچسبان؛ پاراگراف‌ها را با یک خط خالی جدا کن. فصل‌های بعد را از «دیدن مینی‌اپ» اضافه می‌کنی.',
+        done: !sampleBody(), doneSub: `${chs().length} فصل`, ph: 'اولین جملهٔ داستانت…', extra,
+        value: () => (sampleBody() ? '' : (chs()[0] || {}).body || ''),
+        apply: v => {
+          if (sampleBody()) block.props.chapters = [{ title: 'فصل اول', body: '', note: '', lock: false, url: '' }];
+          block.props.chapters[0].body = v;
+        },
+        preview: box => mini(box, [block]) });
+    });
   }
 
   let easyQueued = false;
@@ -3057,6 +3218,12 @@
           redrawPv();
         }
         body.appendChild(askInput(t));
+        if (t.extra) {
+          const x = h('button', 'q-extra', t.extra.label);
+          x.type = 'button';
+          x.addEventListener('click', () => { haptic(); t.extra.run(); changed(); move(); });
+          body.appendChild(x);
+        }
         const last = i >= queue.length - 1;
         const nt = !last && easyTasks().find(x => x.key === queue[i + 1]);
         next.textContent = '';
@@ -3098,8 +3265,8 @@
         wrap.appendChild(f);
       });
     } else if (t.kind === 'textarea') {
-      const ta = h('textarea', 'q-ta');
-      ta.rows = 5;
+      const ta = h('textarea', 'q-ta' + (t.cat === 'story' ? ' q-ta--long' : ''));
+      ta.rows = t.cat === 'story' ? 9 : 5;
       ta.value = t.value();
       ta.placeholder = t.ph || '';
       ta.addEventListener('input', () => set(ta.value));
@@ -3345,7 +3512,8 @@
     wrap.appendChild(box);
     const main = fd.fields.find(x => x.type === 'text' || x.type === 'textarea' || x.type === 'select');
     const url = fd.fields.find(x => x.type === 'url');
-    const second = !url && fd.fields.filter(x => (x.type === 'text' || x.type === 'textarea') && x !== main)[0];
+    const long = fd.fields.find(x => x.type === 'textarea' && (x.max || 0) >= 1000);
+    const second = long || (!url && fd.fields.filter(x => (x.type === 'text' || x.type === 'textarea') && x !== main)[0]);
     const add = h('button', 'add-item', '+ افزودن ' + (fd.item_label || 'مورد'));
     add.type = 'button';
     const draw = () => {
@@ -3371,7 +3539,7 @@
         };
         one(main);
         if (main && main.type === 'select') one(fd.fields.find(x => x.type === 'text'));
-        one(url || second);
+        one(long || url || second);
         box.appendChild(card);
       });
       add.hidden = items.length >= (fd.max_items || 10);
@@ -3382,7 +3550,9 @@
     return wrap;
   }
   function cardLook(body, id, block) {
-    if (id === 'header') {
+    if (id === 'header' && docKit()) {
+      body.appendChild(h('p', 'q-note', `نوار بالای «${docKit().title}» شکل مخصوص خودش را دارد؛ فقط اسم و عکسش را عوض کن.`));
+    } else if (id === 'header') {
       const f = S.schema.header.find(x => x.key === 'style');
       body.appendChild(selectControl(f, S.doc.header.style, v => { S.doc.header.style = v; changed(); undoToast('شکل عوض شد'); }));
     } else {
@@ -3454,11 +3624,26 @@
     { key: 'order', cat: 'brand', icon: 'button', title: 'دکمهٔ سفارش', sub: 'مشتری را به سفارش می‌برد',
       block: () => defaultBlock('button', { label: 'سفارش آنلاین', url: '' }) },
   ];
+  const SHAB_INTENTS = [
+    { key: 'story', cat: 'story', icon: 'book', title: 'داستان تازه', sub: 'جلد، خلاصه و فصل‌ها',
+      block: () => defaultBlock('story', { title: 'داستان تازه' }) },
+    { key: 'quote', cat: 'story', icon: 'quote', title: 'جمله از داستان', sub: 'یک جملهٔ درشت و ماندگار',
+      block: () => defaultBlock('shab_quote') },
+    { key: 'news', cat: 'write', icon: 'notice', title: 'خبر کانال', sub: 'مثلاً «فصل تازه جمعه شب»',
+      block: () => defaultBlock('notice', { text: 'فصل تازه جمعه شب ساعت ۱۱' }) },
+    { key: 'join', cat: 'act', icon: 'send', title: 'دکمهٔ عضویت', sub: 'خواننده را به کانال می‌برد',
+      block: () => defaultBlock('button', { label: 'عضویت در کانال', url: '' }) },
+    { key: 'text', cat: 'write', icon: 'text', title: 'متن', sub: 'دربارهٔ کانال یا نویسنده',
+      block: () => defaultBlock('text', { title: 'دربارهٔ نویسنده', body: 'چند خط دربارهٔ خودت و داستان‌هایت.' }) },
+    { key: 'photo', cat: 'media', icon: 'image', title: 'عکس', sub: 'یک عکس با زیرنویس',
+      block: () => defaultBlock('image', { caption: '' }) },
+  ];
   function easyAdd() {
+    const shab = S.doc.kit === 'shab';
     openSheet(sheet => {
-      sheetHead(sheet, 'brand', 'plus', 'می‌خوای چی به مشتری نشون بدی؟', 'یکی را بزن؛ با محتوای نمونه اضافه می‌شود و بعد عوضش می‌کنی.');
+      sheetHead(sheet, 'brand', 'plus', shab ? 'می‌خوای چی به خواننده‌ها نشون بدی؟' : 'می‌خوای چی به مشتری نشون بدی؟', 'یکی را بزن؛ با محتوای نمونه اضافه می‌شود و بعد عوضش می‌کنی.');
       const grid = h('div', 'intents');
-      INTENTS.forEach(it => {
+      (shab ? SHAB_INTENTS : INTENTS).forEach(it => {
         const b = h('button', 'intent');
         b.type = 'button';
         const t = h('span', 'intent-t');

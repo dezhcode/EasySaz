@@ -7,28 +7,44 @@
 (function () {
   'use strict';
 
-  const KEY = 'es-demo-v1';
-  const PLAN = { key: 'free', title: 'رایگان', max_apps: 1, max_blocks: 8, premium_blocks: false, branding: true };
+  const KEY = 'es-demo-v2';
+  const PLANS = {
+    free: { key: 'free', title: 'رایگان', max_apps: 1, max_blocks: 8, max_pages: 2, premium_blocks: false, branding: true },
+    pro: { key: 'pro', title: 'حرفه‌ای', max_apps: 3, max_blocks: 40, max_pages: 6, premium_blocks: true, branding: false },
+  };
+  // همان کامپوننت‌هایی که در app/blocks.py پریمیوم‌اند
+  const PREMIUM = ['cards', 'pricing', 'gallery', 'features'];
 
   function sample() {
     return {
-      v: 1,
-      theme: { accent: '#2A63F5', mode: 'auto', radius: 'soft', bg: 'tint' },
-      blocks: [
-        { id: 'bhero0001', type: 'hero', props: { title: 'کافه نارنج', subtitle: 'قهوهٔ تازه‌برشت و کیک خانگی، هر روز از ۸ صبح.', image: '', style: 'solid', align: 'center' } },
-        { id: 'bnote0001', type: 'notice', props: { text: '۲۰٪ تخفیف همهٔ نوشیدنی‌ها تا آخر هفته', tone: 'accent' } },
-        { id: 'blink0001', type: 'links', props: { items: [
-          { label: 'منوی کامل', note: 'نوشیدنی‌ها و کیک‌ها', url: 'https://example.com/menu' },
-          { label: 'کانال تلگرام', note: 'منوی روز و تخفیف‌ها', url: 'https://t.me/durov' }] } },
-        { id: 'btext0001', type: 'text', props: { title: 'درباره ما', body: 'نارنج از ۱۳۹۸ یک گوشهٔ کوچک در خیابان ولیعصر است. دانه‌ها را خودمان برشته می‌کنیم و منو هر فصل عوض می‌شود.', align: 'start' } },
-        { id: 'bbtn00001', type: 'button', props: { label: 'سفارش آنلاین', url: 'https://example.com/order', style: 'primary' } },
-        { id: 'bfaq00001', type: 'faq', props: { title: 'سوالات متداول', items: [
-          { q: 'ساعت کاری کافه چیه؟', a: 'هر روز از ۸ صبح تا ۱۱ شب. جمعه‌ها از ۱۰.' },
-          { q: 'پیک دارید؟', a: 'تا ۳ کیلومتری کافه، رایگان.' }] } },
-        { id: 'bsoc00001', type: 'social', props: { items: [
-          { kind: 'telegram', value: 'durov' }, { kind: 'instagram', value: 'naranj.cafe' }, { kind: 'phone', value: '+982100000000' }] } },
+      v: 2,
+      theme: { accent: '#E0573E', mode: 'auto', radius: 'soft', radius_px: 18, bg: 'tint' },
+      header: { enabled: true, style: 'plain', title: 'کافه نارنج', subtitle: '', logo: '', align: 'start' },
+      tabbar: { enabled: true, style: 'floating' },
+      pages: [
+        { id: 'home', title: 'خانه', icon: 'home', blocks: [
+          { id: 'bhero0001', type: 'hero', props: { title: 'کافه نارنج', subtitle: 'قهوهٔ تازه‌برشت و کیک خانگی، هر روز از ۸ صبح.', image: '', style: 'solid', align: 'center' } },
+          { id: 'bnote0001', type: 'notice', props: { text: '۲۰٪ تخفیف همهٔ نوشیدنی‌ها تا آخر هفته', tone: 'accent' } },
+          { id: 'btext0001', type: 'text', props: { title: 'درباره ما', body: 'نارنج از ۱۳۹۸ یک گوشهٔ کوچک در خیابان ولیعصر است. دانه‌ها را خودمان برشته می‌کنیم و منو هر فصل عوض می‌شود.', align: 'start' }, style: { box: 'card' } },
+          { id: 'bbtn00001', type: 'button', props: { label: 'سفارش آنلاین', url: 'https://example.com/order', style: 'primary' } },
+          { id: 'bsoc00001', type: 'social', props: { items: [
+            { kind: 'telegram', value: 'durov' }, { kind: 'instagram', value: 'naranj.cafe' }, { kind: 'phone', value: '+982100000000' }] } },
+        ] },
+        { id: 'menu', title: 'منو', icon: 'menu', blocks: [
+          { id: 'blink0001', type: 'links', props: { items: [
+            { label: 'نوشیدنی‌های گرم', note: 'اسپرسو، لاته، دمی', url: 'https://example.com/menu#hot' },
+            { label: 'کیک و دسر', note: 'هر روز تازه', url: 'https://example.com/menu#cake' }] } },
+          { id: 'bfaq00001', type: 'faq', props: { title: 'سوالات متداول', items: [
+            { q: 'ساعت کاری کافه چیه؟', a: 'هر روز از ۸ صبح تا ۱۱ شب. جمعه‌ها از ۱۰.' },
+            { q: 'پیک دارید؟', a: 'تا ۳ کیلومتری کافه، رایگان.' }] } },
+        ] },
       ],
     };
+  }
+  function blank() {
+    const s = sample();
+    return { v: 2, theme: s.theme, header: Object.assign({}, s.header, { enabled: false, title: '' }), tabbar: s.tabbar,
+      pages: [{ id: 'home', title: 'خانه', icon: 'home', blocks: [] }] };
   }
 
   function load() {
@@ -40,17 +56,22 @@
   function db() {
     let d = load();
     if (!d) {
-      d = { apps: [] };
+      d = { apps: [], plan: 'free' };
       save(d);
     }
     return d;
   }
+  function plan(d) { return PLANS[d.plan] || PLANS.free; }
+  function pageUrl(base) {
+    return (base || document.documentElement.dataset.base || '/') + 'a/demo';
+  }
   function appJson(a) {
     return {
-      id: a.id, name: a.name, slug: 'demo', url: location.origin + (document.documentElement.dataset.base || '/') + 'a/demo',
+      id: a.id, name: a.name, slug: 'demo', url: new URL(pageUrl(), location.href).href,
       bot_username: a.bot_username || null, mode: a.bot_username ? 'menu' : 'none', status: 'active',
       published_at: a.published ? a.published_at : null, updated_at: a.updated_at,
       dirty: JSON.stringify(a.draft) !== JSON.stringify(a.published),
+      welcome: a.welcome || '',
     };
   }
   function fail(status, message) {
@@ -59,25 +80,52 @@
     return Promise.reject(e);
   }
   function now() { return Math.floor(Date.now() / 1000); }
+  function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  /* همان قیدهای app/blocks.clean_page (نسخهٔ خلاصه) */
+  function check(doc, p) {
+    const pages = (doc && doc.pages) || [];
+    if (pages.length > p.max_pages) return 'پلن ' + p.title + ' حداکثر ' + p.max_pages + ' صفحه دارد';
+    let total = 0;
+    for (const pg of pages) {
+      for (const b of pg.blocks || []) {
+        total++;
+        if (!p.premium_blocks && PREMIUM.indexOf(b.type) >= 0) return 'این کامپوننت مخصوص پلن حرفه‌ای است';
+      }
+    }
+    if (total > p.max_blocks) return 'پلن ' + p.title + ' حداکثر ' + p.max_blocks + ' کامپوننت دارد';
+    return '';
+  }
 
   /* همان شکل پاسخ‌های /api */
   function api(path, body) {
     const d = db();
+    const P = plan(d);
     const find = id => d.apps.find(a => String(a.id) === String(id));
     if (path === 'me') {
-      return Promise.resolve({ user: { id: 1, first_name: 'مهمان' }, plan: PLAN, apps: d.apps.map(appJson), can_create: d.apps.length < PLAN.max_apps, bot: 'EasySazBot' });
+      return Promise.resolve({ user: { id: 1, first_name: 'مهمان' }, plan: P, apps: d.apps.map(appJson), can_create: d.apps.length < P.max_apps, bot: 'EasySazBot' });
+    }
+    if (path === 'demo/plan') {
+      d.plan = PLANS[body && body.key] ? body.key : 'free'; save(d);
+      return Promise.resolve({ plan: plan(d) });
+    }
+    if (path === 'upload') {
+      // در نسخهٔ نمایشی تصویر همان data: URL می‌ماند (سرور واقعی فایل می‌سازد)
+      const data = String((body && body.data) || '');
+      if (!/^data:image\/(png|jpeg|webp);base64,/.test(data)) return fail(400, 'فقط تصویر PNG، JPG یا WEBP');
+      if (data.length > 2000000) return fail(413, 'تصویر خیلی بزرگه');
+      return Promise.resolve({ url: data });
     }
     if (path.indexOf('app?id=') === 0) {
       const a = find(decodeURIComponent(path.split('=')[1]));
       if (!a) return fail(404, 'مینی‌اپ پیدا نشد');
-      return Promise.resolve({ app: appJson(a), doc: a.draft, stats: { visitors: 1284, views_today: 96, views_week: 702 }, plan: PLAN });
+      return Promise.resolve({ app: appJson(a), doc: a.draft, stats: { visitors: 1284, views_today: 96, views_week: 702 }, plan: P });
     }
     if (path === 'app/create') {
       const name = String(body.name || '').trim();
       if (name.length < 2) return fail(400, 'اسم مینی‌اپ حداقل ۲ حرف باشد');
-      if (d.apps.length >= PLAN.max_apps) return fail(402, 'پلن رایگان فقط ۱ مینی‌اپ دارد. برای بیشتر، پلن بگیر.');
-      const empty = { v: 1, theme: sample().theme, blocks: [] };
-      const a = { id: d.apps.length + 1, name: name, draft: empty, published: null, updated_at: now() };
+      if (d.apps.length >= P.max_apps) return fail(402, 'پلن ' + P.title + ' فقط ' + P.max_apps + ' مینی‌اپ دارد. برای بیشتر، پلن بگیر.');
+      const a = { id: d.apps.length + 1, name: name, draft: blank(), published: null, updated_at: now() };
       d.apps.push(a); save(d);
       return Promise.resolve({ app: appJson(a), doc: a.draft });
     }
@@ -89,9 +137,15 @@
       a.name = name; a.updated_at = now(); save(d);
       return Promise.resolve({ app: appJson(a) });
     }
+    if (path === 'app/welcome') {
+      const text = String(body.text || '').trim().slice(0, 1000);
+      a.welcome = text ? escapeHtml(text) : ''; save(d);
+      return Promise.resolve({ app: appJson(a) });
+    }
     if (path === 'app/save' || path === 'app/publish') {
       const doc = JSON.parse(JSON.stringify(body.doc));
-      if (doc.blocks.length > PLAN.max_blocks) return fail(402, 'پلن فعلی تو حداکثر ' + PLAN.max_blocks + ' کامپوننت دارد');
+      const err = check(doc, P);
+      if (err) return fail(402, err);
       a.draft = doc; a.updated_at = now();
       if (path === 'app/publish') { a.published = JSON.parse(JSON.stringify(doc)); a.published_at = now(); }
       save(d);
@@ -102,12 +156,14 @@
 
   /* پاسخ /api/page/demo برای صفحهٔ منتشرشده */
   function page() {
-    const a = db().apps[0];
-    if (a && a.published) return { name: a.name, doc: a.published, branding: true, brand_bot: 'EasySazBot' };
-    return { name: 'کافه نارنج', doc: sample(), branding: true, brand_bot: 'EasySazBot' };
+    const d = db();
+    const a = d.apps[0];
+    const branding = plan(d).branding;
+    if (a && a.published) return { name: a.name, doc: a.published, branding: branding, brand_bot: 'EasySazBot' };
+    return { name: 'کافه نارنج', doc: sample(), branding: branding, brand_bot: 'EasySazBot' };
   }
 
   function reset() { try { localStorage.removeItem(KEY); } catch (e) {} }
 
-  window.EasySazDemo = { api, page, sample, reset };
+  window.EasySazDemo = { api, page, pageUrl, sample, reset };
 })();

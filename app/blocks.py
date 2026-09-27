@@ -1,12 +1,17 @@
 """کامپوننت های آماده و اعتبارسنجی صفحه.
 
-صفحه هر مینی اپ یک سند JSON است، نه HTML:
+صفحه هر مینی اپ یک سند JSON است، نه HTML (نسخهٔ ۲: چندصفحه‌ای):
 
     {
-      "v": 1,
-      "theme":  {"accent": "#2A63F5", "mode": "auto", "radius": "soft", "bg": "tint"},
-      "blocks": [{"id": "b1a2c3", "type": "hero", "props": {...}}, ...]
+      "v": 2,
+      "theme":  {"accent": "#2A63F5", "mode": "auto", "radius": "soft", "radius_px": 18, "bg": "tint"},
+      "header": {"enabled": true, "style": "bar", "title": "...", ...},
+      "tabbar": {"enabled": true, "style": "floating"},
+      "pages":  [{"id": "home", "title": "خانه", "icon": "home",
+                  "blocks": [{"id": "b1a2c3", "type": "hero", "props": {...}, "style": {...}}]}]
     }
+
+سند نسخهٔ ۱ ({"blocks": [...]}) خودکار به یک صفحهٔ «خانه» تبدیل می‌شود.
 
 این فایل تنها منبع حقیقت برای کامپوننت هاست:
 - سرور هر سند را قبل از ذخیره با SCHEMA پاکسازی می کند (کلید ناشناخته
@@ -22,13 +27,14 @@ import re
 import secrets
 from typing import Any
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # ---------- تم ----------
 THEME_FIELDS: dict[str, dict[str, Any]] = {
     "accent": {"type": "color", "default": "#2A63F5"},
     "mode": {"type": "select", "options": ["auto", "light", "dark"], "default": "auto"},
-    "radius": {"type": "select", "options": ["soft", "round", "sharp"], "default": "soft"},
+    "radius": {"type": "select", "options": ["soft", "round", "sharp", "custom"], "default": "soft"},
+    "radius_px": {"type": "int", "min": 0, "max": 32, "default": 18},
     "bg": {"type": "select", "options": ["tint", "plain"], "default": "tint"},
 }
 
@@ -213,6 +219,30 @@ SCHEMA: dict[str, dict[str, Any]] = {
              ]},
         ],
     },
+    "pricing": {
+        "cat": "shop",
+        "title": "پلن‌ها",
+        "icon": "pricing",
+        "desc": "پلن و اشتراک با قیمت و ویژگی‌ها",
+        "premium": True,
+        "fields": [
+            {"key": "title", "label": "عنوان بخش", "type": "text", "max": 60, "default": "پلن‌ها"},
+            {"key": "items", "label": "پلن‌ها", "type": "list", "max_items": 6, "item_label": "پلن",
+             "fields": [
+                 {"key": "name", "label": "نام پلن", "type": "text", "max": 30, "default": "پلن ماهانه"},
+                 {"key": "price", "label": "قیمت", "type": "text", "max": 30, "default": "۹۹ هزار تومان"},
+                 {"key": "period", "label": "دوره", "type": "text", "max": 20, "default": "ماهانه"},
+                 {"key": "features", "label": "ویژگی‌ها (هر خط یکی)", "type": "textarea", "max": 300, "default": "ویژگی اول\nویژگی دوم"},
+                 {"key": "badge", "label": "برچسب (اختیاری)", "type": "text", "max": 16, "default": ""},
+                 {"key": "url", "label": "لینک خرید", "type": "url", "default": ""},
+                 {"key": "cta", "label": "متن دکمه", "type": "text", "max": 20, "default": "خرید"},
+             ],
+             "default": [
+                 {"name": "پایه", "price": "۹۹ هزار تومان", "period": "ماهانه", "features": "ویژگی اول\nویژگی دوم", "badge": "", "url": "", "cta": "خرید"},
+                 {"name": "ویژه", "price": "۲۴۹ هزار تومان", "period": "ماهانه", "features": "همهٔ ویژگی‌های پایه\nپشتیبانی سریع", "badge": "پیشنهادی", "url": "", "cta": "خرید"},
+             ]},
+        ],
+    },
     "gallery": {
         "cat": "media",
         "title": "گالری",
@@ -261,7 +291,7 @@ CATALOG_ORDER = [
     "hero", "text", "notice", "faq",
     "button", "links", "social",
     "image", "gallery",
-    "cards", "features",
+    "cards", "pricing", "features",
     "divider",
 ]
 
@@ -285,6 +315,12 @@ def _clean_text(value: Any, limit: int, multiline: bool = False) -> str:
     return value.strip()[:limit]
 
 
+def _upload_prefix() -> str:
+    from .config import config
+
+    return (config.base_url + "/u/") if config.base_url else ""
+
+
 def clean_url(value: Any, *, images: bool = False) -> str:
     """فقط لینک https (و http برای لینک عادی). بقیه پاک می شود.
 
@@ -294,6 +330,8 @@ def clean_url(value: Any, *, images: bool = False) -> str:
     url = _clean_text(value, 500)
     if not url:
         return ""
+    if images and _upload_prefix() and url.startswith(_upload_prefix()) and re.match(r"^[a-f0-9]{24}\.(jpg|png|webp)$", url[len(_upload_prefix()):]):
+        return url  # تصویر آپلودشده روی سرور خودمان
     low = url.lower()
     if low.startswith("t.me/") or low.startswith("telegram.me/"):
         url, low = "https://" + url, "https://" + low
@@ -342,6 +380,57 @@ def _default_of(field: dict) -> Any:
     return d
 
 
+# ---------- استایل هر کامپوننت (شخصی‌سازی) ----------
+# همهٔ کامپوننت‌ها این تنظیم‌ها را دارند، ولی هر نوع فقط آن‌هایی را که برایش
+# معنی دارد نشان می‌دهد (STYLE_SUPPORT). مقدار خالی یعنی «از ظاهر کل صفحه».
+STYLE_FIELDS: list[dict[str, Any]] = [
+    {"key": "box", "label": "قاب", "type": "select", "default": "auto",
+     "options": [["auto", "پیش‌فرض"], ["card", "کارت"], ["outline", "خطی"], ["soft", "ملایم"], ["solid", "توپر"], ["plain", "بی‌قاب"]]},
+    {"key": "radius", "label": "گوشه‌ها", "type": "int", "min": 0, "max": 40, "default": None},
+    {"key": "pad", "label": "فاصلهٔ داخلی", "type": "select", "default": "md",
+     "options": [["sm", "کم"], ["md", "معمولی"], ["lg", "زیاد"]]},
+    {"key": "accent", "label": "رنگ اختصاصی", "type": "color", "default": ""},
+]
+STYLE_SUPPORT: dict[str, list[str]] = {
+    "hero": ["radius", "pad", "accent"],
+    "text": ["box", "radius", "pad", "accent"],
+    "button": ["radius", "accent"],
+    "links": ["box", "radius", "accent"],
+    "image": ["radius"],
+    "faq": ["box", "radius", "pad", "accent"],
+    "social": ["box", "accent"],
+    "notice": ["box", "radius", "pad", "accent"],
+    "divider": [],
+    "cards": ["box", "radius", "accent"],
+    "pricing": ["box", "radius", "accent"],
+    "gallery": ["radius"],
+    "features": ["box", "radius", "accent"],
+}
+
+# ---------- سربرگ، نوار پایین و صفحه‌ها ----------
+HEADER_FIELDS: list[dict[str, Any]] = [
+    {"key": "enabled", "label": "نمایش سربرگ", "type": "bool", "default": False},
+    {"key": "style", "label": "سبک", "type": "select", "default": "bar",
+     "options": [["bar", "نوار"], ["solid", "توپر"], ["plain", "ساده"]]},
+    {"key": "title", "label": "عنوان", "type": "text", "max": 40, "default": ""},
+    {"key": "subtitle", "label": "زیرعنوان", "type": "text", "max": 60, "default": ""},
+    {"key": "logo", "label": "لوگو", "type": "image", "default": ""},
+    {"key": "align", "label": "چینش", "type": "select", "default": "start",
+     "options": [["start", "راست"], ["center", "وسط"]]},
+]
+TABBAR_FIELDS: list[dict[str, Any]] = [
+    {"key": "enabled", "label": "نمایش نوار پایین", "type": "bool", "default": True},
+    {"key": "style", "label": "سبک", "type": "select", "default": "floating",
+     "options": [["floating", "شناور"], ["docked", "چسبیده"], ["minimal", "فقط آیکن"]]},
+]
+PAGE_ICONS = [
+    ["home", "خانه"], ["menu", "منو"], ["shop", "فروشگاه"], ["star", "ویژه"],
+    ["image", "گالری"], ["info", "درباره"], ["chat", "تماس"], ["user", "حساب"],
+]
+_PAGE_ICON_KEYS = [k for k, _ in PAGE_ICONS]
+_PAGE_ID = re.compile(r"^[a-z0-9_-]{2,24}$")
+
+
 def _clean_field(field: dict, value: Any) -> Any:
     ftype = field["type"]
     if ftype == "text":
@@ -355,6 +444,14 @@ def _clean_field(field: dict, value: Any) -> Any:
     if ftype == "select":
         keys = [o[0] if isinstance(o, list) else o for o in field["options"]]
         return value if value in keys else field.get("default", keys[0])
+    if ftype == "bool":
+        return value if isinstance(value, bool) else field.get("default", False)
+    if ftype == "int":
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return field.get("default")
+        return max(field.get("min", 0), min(field.get("max", 100), int(value)))
+    if ftype == "color":
+        return value if isinstance(value, str) and _HEX.match(value) else field.get("default", "")
     if ftype == "list":
         if not isinstance(value, list):
             return []
@@ -364,6 +461,11 @@ def _clean_field(field: dict, value: Any) -> Any:
                 out.append({f["key"]: _clean_field(f, item.get(f["key"])) for f in field["fields"]})
         return out
     return None
+
+
+def _clean_group(fields: list[dict], raw: Any) -> dict:
+    raw = raw if isinstance(raw, dict) else {}
+    return {f["key"]: _clean_field(f, raw.get(f["key"], _default_of(f))) for f in fields}
 
 
 def default_props(btype: str) -> dict:
@@ -378,8 +480,23 @@ def clean_theme(theme: Any) -> dict:
         val = theme.get(key)
         if spec["type"] == "color":
             out[key] = val if isinstance(val, str) and _HEX.match(val) else spec["default"]
+        elif spec["type"] == "int":
+            out[key] = _clean_field(spec, val)
         else:
             out[key] = val if val in spec["options"] else spec["default"]
+    return out
+
+
+def clean_style(btype: str, raw: Any) -> dict:
+    """فقط تنظیم‌هایی که این نوع پشتیبانی می‌کند و با مقدار غیرپیش‌فرض ذخیره می‌شوند."""
+    raw = raw if isinstance(raw, dict) else {}
+    allowed = STYLE_SUPPORT.get(btype, [])
+    out = {}
+    for f in STYLE_FIELDS:
+        if f["key"] in allowed and f["key"] in raw:
+            val = _clean_field(f, raw[f["key"]])
+            if val not in (None, "", f["default"]):
+                out[f["key"]] = val
     return out
 
 
@@ -387,19 +504,9 @@ class PageError(ValueError):
     """سند صفحه با محدودیت پلن نمی خواند. متن خطا فارسی و قابل نمایش است."""
 
 
-def clean_page(doc: Any, *, max_blocks: int, premium: bool) -> dict:
-    """پاکسازی کامل سند صفحه.
-
-    کلیدها و نوع های ناشناخته بی صدا حذف می شوند (ممکن است از نسخه جدیدتر
-    ادیتور آمده باشند). ولی عبور از سقف پلن خطای صریح می دهد، چون کاربر
-    باید بداند چرا کامپوننتش ذخیره نشد.
-    """
-    doc = doc if isinstance(doc, dict) else {}
-    raw_blocks = doc.get("blocks") if isinstance(doc.get("blocks"), list) else []
-
+def _clean_blocks(raw_blocks: Any, premium: bool, seen: set[str]) -> list[dict]:
     blocks = []
-    seen: set[str] = set()
-    for raw in raw_blocks:
+    for raw in raw_blocks if isinstance(raw_blocks, list) else []:
         if not isinstance(raw, dict):
             continue
         btype = raw.get("type")
@@ -417,27 +524,99 @@ def clean_page(doc: Any, *, max_blocks: int, premium: bool) -> dict:
             if btype == lt and props.get(lk) == lv:
                 props[lk] = new
         clean = {f["key"]: _clean_field(f, props.get(f["key"], _default_of(f))) for f in spec["fields"]}
-        blocks.append({"id": bid, "type": btype, "props": clean})
+        block = {"id": bid, "type": btype, "props": clean}
+        style = clean_style(btype, raw.get("style"))
+        if style:
+            block["style"] = style
+        blocks.append(block)
+    return blocks
 
-    if len(blocks) > max_blocks:
+
+def clean_page(doc: Any, *, max_blocks: int, premium: bool, max_pages: int = 1) -> dict:
+    """پاکسازی کامل سند.
+
+    کلیدها و نوع های ناشناخته بی صدا حذف می شوند (ممکن است از نسخه جدیدتر
+    ادیتور آمده باشند). ولی عبور از سقف پلن خطای صریح می دهد، چون کاربر
+    باید بداند چرا چیزی ذخیره نشد. سقف کامپوننت برای کل مینی‌اپ است.
+    """
+    doc = doc if isinstance(doc, dict) else {}
+    raw_pages = doc.get("pages")
+    if not isinstance(raw_pages, list):
+        # سند نسخهٔ ۱: یک صفحه
+        raw_pages = [{"id": "home", "title": "خانه", "icon": "home", "blocks": doc.get("blocks")}]
+    if not raw_pages:
+        raw_pages = [{"id": "home", "title": "خانه", "icon": "home", "blocks": []}]
+    if len(raw_pages) > max_pages:
+        raise PageError(f"پلن فعلی تو حداکثر {max_pages} صفحه دارد")
+
+    seen_blocks: set[str] = set()
+    seen_pages: set[str] = set()
+    pages = []
+    for i, raw in enumerate(raw_pages):
+        raw = raw if isinstance(raw, dict) else {}
+        pid = raw.get("id")
+        if not isinstance(pid, str) or not _PAGE_ID.match(pid) or pid in seen_pages:
+            pid = "p" + secrets.token_hex(3)
+        seen_pages.add(pid)
+        title = _clean_text(raw.get("title"), 24) or ("خانه" if i == 0 else f"صفحهٔ {i + 1}")
+        icon = raw.get("icon") if raw.get("icon") in _PAGE_ICON_KEYS else ("home" if i == 0 else "star")
+        pages.append({"id": pid, "title": title, "icon": icon,
+                      "blocks": _clean_blocks(raw.get("blocks"), premium, seen_blocks)})
+
+    total = sum(len(p["blocks"]) for p in pages)
+    if total > max_blocks:
         raise PageError(f"پلن فعلی تو حداکثر {max_blocks} کامپوننت دارد")
 
-    return {"v": SCHEMA_VERSION, "theme": clean_theme(doc.get("theme")), "blocks": blocks}
+    theme = doc.get("theme") if isinstance(doc.get("theme"), dict) else {}
+    return {
+        "v": SCHEMA_VERSION,
+        "theme": clean_theme(theme),
+        "header": _clean_group(HEADER_FIELDS, doc.get("header")),
+        "tabbar": _clean_group(TABBAR_FIELDS, doc.get("tabbar")),
+        "pages": pages,
+    }
+
+
+def upgrade(doc: Any) -> dict:
+    """سند ذخیره‌شدهٔ قدیمی (نسخهٔ ۱) را بدون سخت‌گیری پلن به شکل نسخهٔ ۲ درمی‌آورد."""
+    doc = doc if isinstance(doc, dict) else {}
+    if isinstance(doc.get("pages"), list):
+        return doc
+    out = empty_page()
+    out["theme"] = clean_theme(doc.get("theme"))
+    out["pages"][0]["blocks"] = doc.get("blocks") if isinstance(doc.get("blocks"), list) else []
+    return out
+
+
+def all_blocks(doc: dict) -> list[dict]:
+    """همهٔ کامپوننت‌های همهٔ صفحه‌ها (برای شمارش و فیلتر پلن)."""
+    return [b for p in doc.get("pages", []) for b in p.get("blocks", [])]
 
 
 def empty_page(accent: str | None = None) -> dict:
     """صفحه خالی شروع کار. عمدا هیچ کامپوننتی ندارد."""
     theme = clean_theme({"accent": accent} if accent else {})
-    return {"v": SCHEMA_VERSION, "theme": theme, "blocks": []}
+    return {
+        "v": SCHEMA_VERSION,
+        "theme": theme,
+        "header": _clean_group(HEADER_FIELDS, {}),
+        "tabbar": _clean_group(TABBAR_FIELDS, {}),
+        "pages": [{"id": "home", "title": "خانه", "icon": "home", "blocks": []}],
+    }
 
 
 def public_schema() -> dict:
     """نسخه ای از اسکیما که به ادیتور داده می شود."""
+    blocks = {k: dict(v, style=STYLE_SUPPORT.get(k, [])) for k, v in SCHEMA.items()}
     return {
         "version": SCHEMA_VERSION,
-        "blocks": SCHEMA,
+        "blocks": blocks,
         "order": CATALOG_ORDER,
         "categories": CATEGORIES,
         "theme": THEME_FIELDS,
+        "style": STYLE_FIELDS,
+        "header": HEADER_FIELDS,
+        "tabbar": TABBAR_FIELDS,
+        "page_icons": PAGE_ICONS,
         "swatches": SWATCHES,
     }

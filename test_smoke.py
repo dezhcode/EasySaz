@@ -182,7 +182,7 @@ def test_blocks() -> None:
         ],
     }
     clean = blocks.clean_page(doc, max_blocks=10, premium=False)
-    b = clean["blocks"]
+    b = clean["pages"][0]["blocks"]
     ok(clean["theme"]["accent"] == "#2A63F5" and clean["theme"]["mode"] == "auto", "تم نامعتبر به پیش فرض برمی گردد")
     ok(len(b) == 3, "نوع ناشناخته حذف می شود")
     ok(b[0]["props"]["url"] == "" and "evil" not in b[0]["props"], "لینک javascript و کلید اضافه حذف می شود")
@@ -201,7 +201,31 @@ def test_blocks() -> None:
             ok(True, why)
     ok(blocks.social_href("whatsapp", "+98 912 000 0000") == "https://wa.me/989120000000", "لینک واتساپ")
     legacy = blocks.clean_page({"theme": {"bg": "glow"}, "blocks": [{"type": "hero", "props": {"style": "gradient"}}]}, max_blocks=8, premium=False)
-    ok(legacy["blocks"][0]["props"]["style"] == "solid" and legacy["theme"]["bg"] == "tint", "دادهٔ قدیمی (گرادیان/درخشان) به سیستم طراحی تازه نگاشت می‌شود")
+    ok(legacy["pages"][0]["blocks"][0]["props"]["style"] == "solid" and legacy["theme"]["bg"] == "tint", "دادهٔ قدیمی (گرادیان/درخشان) به سیستم طراحی تازه نگاشت می‌شود")
+    v2 = blocks.clean_page({"pages": [
+        {"id": "home", "title": "خانه", "icon": "home", "blocks": [{"type": "text", "props": {}, "style": {"box": "outline", "radius": 99, "accent": "red", "pad": "md", "evil": 1}}]},
+        {"id": "home", "title": "", "icon": "nope", "blocks": [{"type": "divider", "props": {}, "style": {"radius": 4}}]}],
+        "header": {"enabled": True, "style": "x", "logo": "javascript:alert(1)"}, "tabbar": {"style": "docked"}}, max_blocks=8, premium=False, max_pages=2)
+    st = v2["pages"][0]["blocks"][0]["style"]
+    ok(st == {"box": "outline", "radius": 40}, "استایل کامپوننت: گوشه محدود، رنگ نامعتبر و پیش‌فرض‌ها حذف")
+    ok("style" not in v2["pages"][1]["blocks"][0], "استایلی که نوع پشتیبانی نمی‌کند حذف می‌شود")
+    ok(v2["pages"][1]["id"] != "home" and v2["pages"][1]["icon"] == "star" and v2["pages"][1]["title"], "صفحهٔ تکراری/نامعتبر اصلاح می‌شود")
+    ok(v2["header"]["style"] == "bar" and v2["header"]["logo"] == "" and v2["tabbar"]["style"] == "docked", "سربرگ و نوار پایین پاکسازی می‌شوند")
+    try:
+        blocks.clean_page({"pages": [{"blocks": []}] * 3}, max_blocks=8, premium=False, max_pages=2)
+        ok(False, "سقف صفحه")
+    except blocks.PageError:
+        ok(True, "سقف صفحه‌های پلن رعایت می‌شود")
+    try:
+        blocks.clean_page({"pages": [{"blocks": [{"type": "text"}] * 5}, {"blocks": [{"type": "text"}] * 4}]}, max_blocks=8, premium=False, max_pages=2)
+        ok(False, "سقف کل")
+    except blocks.PageError:
+        ok(True, "سقف کامپوننت برای کل مینی‌اپ است، نه هر صفحه")
+    from app import templates
+    for t in templates.TEMPLATES:
+        again = blocks.clean_page(t["doc"], max_blocks=100, premium=True, max_pages=12)
+        assert again["pages"] and t["category"] in templates.CATEGORIES, t["id"]
+    ok(len(templates.TEMPLATES) >= 6 and any(t["premium"] for t in templates.TEMPLATES), "همهٔ قالب‌ها معتبرند و دسته دارند")
     ok(set(blocks.CATALOG_ORDER) == set(blocks.SCHEMA) and all(b["cat"] in blocks.CATEGORIES for b in blocks.SCHEMA.values()), "هر کامپوننت دسته و جای کاتالوگ دارد")
 
 
@@ -247,7 +271,7 @@ def test_web() -> None:
     st, res = jcall("POST", "/api/app/create", {"name": " "})
     ok(st == 400, "اسم خالی رد می شود")
     st, res = jcall("POST", "/api/app/create", {"name": "کافه نارنج"})
-    ok(st == 200 and res["doc"]["blocks"] == [], "ساخت اپ با صفحه خالی")
+    ok(st == 200 and res["doc"]["pages"][0]["blocks"] == [], "ساخت اپ با صفحه خالی")
     app_id, slug = res["app"]["id"], res["app"]["slug"]
     st, res = jcall("POST", "/api/app/create", {"name": "دومی"})
     ok(st == 402, "پلن رایگان: فقط یک مینی اپ")
@@ -260,18 +284,45 @@ def test_web() -> None:
         {"id": "bbtn0001", "type": "button", "props": {"label": "برو", "url": "javascript:x"}},
     ]}
     st, res = jcall("POST", "/api/app/save", {"id": app_id, "doc": doc})
-    ok(st == 200 and res["doc"]["blocks"][1]["props"]["url"] == "" and res["app"]["dirty"], "ذخیره پیش نویس پاکسازی شده")
+    ok(st == 200 and res["doc"]["pages"][0]["blocks"][1]["props"]["url"] == "" and res["app"]["dirty"], "ذخیره پیش نویس پاکسازی شده")
     st, page = jcall("GET", f"/api/page/{slug}", uid=None)
-    ok(st == 200 and page["doc"]["blocks"] == [], "قبل از انتشار صفحه عمومی خالی است")
+    ok(st == 200 and page["doc"]["pages"][0]["blocks"] == [], "قبل از انتشار صفحه عمومی خالی است")
     st, res = jcall("POST", "/api/app/save", {"id": app_id, "doc": {"blocks": [{"type": "cards", "props": {}}]}})
     ok(st == 402, "کامپوننت پریمیوم در پلن رایگان ذخیره نمی شود")
     st, res = jcall("POST", "/api/app/publish", {"id": app_id, "doc": doc})
     ok(st == 200 and not res["app"]["dirty"], "انتشار")
     st, page = jcall("GET", f"/api/page/{slug}", uid=None)
-    ok(len(page["doc"]["blocks"]) == 2 and page["branding"] is True and page["brand_bot"] == "EasySazBot", "صفحه عمومی بعد از انتشار + نشان برند")
+    ok(len(page["doc"]["pages"][0]["blocks"]) == 2 and page["branding"] is True and page["brand_bot"] == "EasySazBot", "صفحه عمومی بعد از انتشار + نشان برند")
     r = call("GET", f"/a/{slug}")
     ok(r["status"] == 200 and "کافه نارنج".encode() in r["body"], "HTML صفحه با عنوان اپ")
     ok(call("GET", "/a/../../x")["status"] == 404, "slug نامعتبر")
+
+    st, tp = jcall("GET", "/api/templates", uid=None)
+    ok(st == 200 and tp["templates"] and tp["categories"], "API قالب‌ها")
+    free_tpl = next(t for t in tp["templates"] if not t["premium"])
+    st, _ = jcall("POST", "/api/app/save", {"id": app_id, "doc": free_tpl["doc"]})
+    ok(st == 200, "قالب رایگان در پلن رایگان ذخیره می‌شود")
+    pro_tpl = next(t for t in tp["templates"] if t["premium"])
+    st, _ = jcall("POST", "/api/app/save", {"id": app_id, "doc": pro_tpl["doc"]})
+    ok(st == 402, "قالب PRO در پلن رایگان ذخیره نمی‌شود")
+
+    import base64
+    png = b"\x89PNG\r\n\x1a\n" + b"0" * 64
+    st, up = jcall("POST", "/api/upload", {"data": "data:image/png;base64," + base64.b64encode(png).decode()})
+    ok(st == 200 and up["url"].startswith("https://example.com/easysaz/u/") and up["url"].endswith(".png"), "آپلود تصویر")
+    served = call("GET", "/u/" + up["url"].rsplit("/", 1)[1])
+    ok(served["status"] == 200 and served["body"] == png and served["headers"]["Content-Type"] == "image/png", "تصویر آپلودشده سرو می‌شود")
+    st, _ = jcall("POST", "/api/upload", {"data": base64.b64encode(b"<svg onload=alert(1)>").decode()})
+    ok(st == 400, "فایل غیرتصویری رد می‌شود")
+    ok(call("GET", "/u/../../.env")["status"] == 404, "مسیر /u/ امن است")
+    img_doc = {"pages": [{"blocks": [{"type": "image", "props": {"src": up["url"]}}]}]}
+    st, res = jcall("POST", "/api/app/save", {"id": app_id, "doc": img_doc})
+    ok(res["doc"]["pages"][0]["blocks"][0]["props"]["src"] == up["url"], "تصویر آپلودشده در سند پذیرفته می‌شود")
+
+    st, res = jcall("POST", "/api/app/welcome", {"id": app_id, "text": "سلام <b>دوست</b>"})
+    ok(st == 200 and res["app"]["welcome"] == "سلام &lt;b&gt;دوست&lt;/b&gt;", "پیام خوش‌آمد از پنل ذخیره و امن می‌شود")
+    st, _ = jcall("POST", "/api/app/welcome", {"id": app_id, "text": "x"}, uid=8)
+    ok(st == 404, "پیام خوش‌آمد اپ دیگران قابل تغییر نیست")
 
 
 def test_bot() -> None:

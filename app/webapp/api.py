@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 
@@ -24,6 +25,34 @@ log = logging.getLogger("easysaz.api")
 
 _RATE: dict[object, list[float]] = {}
 _NAME_CTRL = re.compile(r"[\x00-\x1f\x7f‪-‮⁦-⁩]")
+
+
+UPLOAD_MAX_SIZE = 1_500_000          # هر تصویر بعد از کوچک‌سازی در مرورگر
+UPLOAD_MAX_FILES = 300
+UPLOAD_MAX_BYTES = 60_000_000
+_MAGIC = ((b"\xff\xd8\xff", "jpg"), (b"\x89PNG\r\n\x1a\n", "png"), (b"RIFF", "webp"))
+
+
+def _decode_image(value: object) -> tuple[str, bytes]:
+    """data URL → (نام فایل بر اساس محتوا، بایت‌ها). فقط JPEG، PNG و WEBP واقعی."""
+    import base64
+    import hashlib
+
+    raw = str(value or "")
+    if raw.startswith("data:"):
+        raw = raw.split(",", 1)[-1]
+    try:
+        data = base64.b64decode(raw, validate=True)
+    except (ValueError, TypeError):
+        raise ApiError(400, "تصویر خراب است") from None
+    if not data or len(data) > UPLOAD_MAX_SIZE:
+        raise ApiError(413, "تصویر خیلی بزرگ است")
+    ext = next((e for sig, e in _MAGIC if data.startswith(sig)), None)
+    if ext == "webp" and data[8:12] != b"WEBP":
+        ext = None
+    if not ext:
+        raise ApiError(400, "فقط تصویر JPG، PNG یا WEBP")
+    return f"{hashlib.sha256(data).hexdigest()[:24]}.{ext}", data
 
 
 class ApiError(Exception):
@@ -62,6 +91,7 @@ def _plan_json(plan: Plan) -> dict:
         "title": plan.title,
         "max_apps": plan.max_apps,
         "max_blocks": plan.max_blocks,
+        "max_pages": plan.max_pages,
         "premium_blocks": plan.premium_blocks,
         "branding": plan.branding,
     }
@@ -79,6 +109,7 @@ def _app_json(app) -> dict:  # noqa: ANN001
         "published_at": app["published_at"],
         "updated_at": app["updated_at"],
         "dirty": (app["draft"] or "") != (app["published"] or ""),
+        "welcome": app["welcome"] or "",
     }
 
 
@@ -153,7 +184,8 @@ class Api:
     def _clean(self, body: dict, plan: Plan) -> dict:
         try:
             return blocks.clean_page(
-                body.get("doc"), max_blocks=plan.max_blocks, premium=plan.premium_blocks
+                body.get("doc"), max_blocks=plan.max_blocks, premium=plan.premium_blocks,
+                max_pages=plan.max_pages,
             )
         except blocks.PageError as exc:
             raise ApiError(402, str(exc)) from exc
@@ -174,6 +206,33 @@ class Api:
         app = await self.db.get_app(app["id"])
         return {"doc": doc, "app": _app_json(app)}
 
+    async def welcome(self, init_data: str, body: dict) -> dict:
+        """پیام خوش‌آمد ربات مشتری در حالت کنترل کامل (خالی = متن پیش‌فرض)."""
+        user, _ = await self._owner(init_data, write=True)
+        app = await self._owned(user.id, body.get("id"))
+        text = _NAME_CTRL.sub("", str(body.get("text") or "")).strip()[:1000]
+        # ربات با parse_mode=HTML می‌فرستد؛ متن ساده را escape می‌کنیم
+        from html import escape
+
+        await self.db.set_welcome(app["id"], escape(text, quote=False) if text else None)
+        app = await self.db.get_app(app["id"])
+        return {"app": _app_json(app)}
+
+    async def upload(self, init_data: str, body: dict) -> dict:
+        """ذخیرهٔ تصویر. مرورگر قبلاً آن را کوچک کرده (حداکثر ۱۶۰۰ پیکسل)."""
+        user, _ = await self._owner(init_data, write=True)
+        name, data = _decode_image(body.get("data"))
+        count, total = await self.db.upload_usage(user.id)
+        if count >= UPLOAD_MAX_FILES or total + len(data) > UPLOAD_MAX_BYTES:
+            raise ApiError(402, "فضای تصویرهایت پر شده؛ تصویرهای بلااستفاده را حذف کن")
+        os.makedirs(config.upload_dir, exist_ok=True)
+        path = os.path.join(config.upload_dir, name)
+        if not os.path.exists(path):
+            with open(path, "wb") as fh:
+                fh.write(data)
+        await self.db.record_upload(name, user.id, len(data))
+        return {"url": f"{config.base_url}/u/{name}"}
+
     # ---------- صفحه عمومی ----------
     async def page(self, slug: str) -> dict:
         app = await self.db.get_app_by_slug(slug)
@@ -183,13 +242,18 @@ class Api:
             return {"name": app["name"], "paused": True}
         plan = effective_plan(await self.db.get_user(app["owner_id"]))
         doc = load_doc(app["published"])
-        # اگر پلن صاحب اپ منقضی شده، کامپوننت های بیش از سقف و پریمیوم
-        # نمایش داده نمی شوند؛ صفحه نمی شکند، فقط کوتاه می شود.
-        visible = [
-            b for b in doc.get("blocks", [])
-            if plan.premium_blocks or not blocks.SCHEMA.get(b.get("type"), {}).get("premium")
-        ][: plan.max_blocks]
-        doc["blocks"] = visible
+        # اگر پلن صاحب اپ منقضی شده، صفحه‌ها و کامپوننت‌های بیش از سقف و
+        # پریمیوم نمایش داده نمی‌شوند؛ صفحه نمی‌شکند، فقط کوتاه می‌شود.
+        budget = plan.max_blocks
+        pages = []
+        for pg in doc.get("pages", [])[: plan.max_pages]:
+            visible = [
+                b for b in pg.get("blocks", [])
+                if plan.premium_blocks or not blocks.SCHEMA.get(b.get("type"), {}).get("premium")
+            ][: max(0, budget)]
+            budget -= len(visible)
+            pages.append(dict(pg, blocks=visible))
+        doc["pages"] = pages
         return {
             "name": app["name"],
             "doc": doc,

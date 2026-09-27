@@ -86,7 +86,9 @@
     [h, s, l] = rgbToHsl(...hexToRgb(accent));
     const base = dark ? BASE.dark : BASE.light;
     const bg = theme.bg === 'plain' ? base.bg : mix(base.bg, accent, dark ? 0.06 : 0.05);
-    const radius = RADIUS[theme.radius] || RADIUS.soft;
+    const radius = theme.radius === 'custom'
+      ? Math.max(0, Math.min(32, Number(theme.radius_px) || 0))
+      : (RADIUS[theme.radius] || RADIUS.soft);
     return {
       dark,
       bg,
@@ -102,7 +104,23 @@
         '--pg-ink-3': base.ink3,
         '--pg-line': base.line,
         '--pg-radius': radius + 'px',
+        '--pg-tab-bg': dark ? '#1B2230' : '#0E1525',
       },
+    };
+  }
+
+  /* رنگ اختصاصی یک کامپوننت: همان قانون، فقط برای متغیرهای رنگ اصلی */
+  function accentVars(accent, dark) {
+    if (!/^#[0-9a-f]{6}$/i.test(accent || '')) return null;
+    let [h, s, l] = rgbToHsl(...hexToRgb(accent));
+    if (dark && l < 52) accent = hslToHex(h, s, Math.min(64, l + 14));
+    if (!dark && l > 62) accent = hslToHex(h, s, 52);
+    [h, s, l] = rgbToHsl(...hexToRgb(accent));
+    return {
+      '--pg-accent': accent,
+      '--pg-on-accent': contrast(accent, '#FFFFFF') >= contrast(accent, '#0E1525') ? '#FFFFFF' : '#0E1525',
+      '--pg-accent-ink': dark ? hslToHex(h, Math.min(100, s), 76) : hslToHex(h, Math.min(100, s + 6), Math.max(26, l - 12)),
+      '--pg-soft': alpha(accent, dark ? 0.16 : 0.10),
     };
   }
 
@@ -136,6 +154,15 @@
     website: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z',
     phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z',
     email: 'M3 6h18v12H3zM3 7l9 6 9-6',
+    check: 'M5 12.5l4.5 4.5L19 7.5',
+    // آیکن صفحه‌ها (نوار پایین)
+    home: 'M3 10.5 12 3l9 7.5V21H3z',
+    menu: 'M4 6h16M4 12h16M4 18h10',
+    shop: 'M3 9h18l-1.5 11H4.5zM8 9V6a4 4 0 0 1 8 0v3',
+    star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8L3.5 9.7l5.9-.9z',
+    info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v6M12 7.5v.01',
+    chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.3A8 8 0 1 1 21 12z',
+    user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1',
   };
   function icon(name, cls, size) {
     const s = document.createElementNS(SVG_NS, 'svg');
@@ -169,6 +196,7 @@
     url = url.trim();
     const low = url.toLowerCase();
     if (low.startsWith('https://')) return url;
+    if (images && /^data:image\/(png|jpeg|webp);base64,/.test(low)) return url;
     if (!images && (low.startsWith('http://') || low.startsWith('tel:') || low.startsWith('mailto:'))) return url;
     return '';
   }
@@ -350,6 +378,35 @@
     return e;
   };
 
+  R.pricing = (p, ctx) => {
+    const e = h('section', 'pg-group');
+    if (p.title) e.appendChild(h('h2', 'pg-h2 pg-h2--out', p.title));
+    const list = h('div', 'pg-plans');
+    (p.items || []).forEach(it => {
+      const c = h('article', 'pg-plan' + (it.badge ? ' pg-plan--hot' : ''));
+      const head = h('div', 'pg-plan-h');
+      head.appendChild(h('b', 'pg-plan-name', it.name));
+      if (it.badge) head.appendChild(h('span', 'pg-plan-badge', it.badge));
+      c.appendChild(head);
+      const price = h('div', 'pg-plan-price');
+      price.appendChild(h('b', '', it.price));
+      if (it.period) price.appendChild(h('span', '', it.period));
+      c.appendChild(price);
+      const lines = String(it.features || '').split('\n').map(x => x.trim()).filter(Boolean);
+      if (lines.length) {
+        const ul = h('ul', 'pg-plan-feats');
+        lines.forEach(t => { const li = h('li'); li.append(icon('check'), h('span', '', t)); ul.appendChild(li); });
+        c.appendChild(ul);
+      }
+      const b = linkEl('a', 'pg-btn ' + (it.badge ? 'pg-btn--primary' : 'pg-btn--soft'), it.url, ctx);
+      b.appendChild(h('span', '', it.cta || 'خرید'));
+      c.appendChild(b);
+      list.appendChild(c);
+    });
+    e.appendChild(list);
+    return e;
+  };
+
   R.gallery = (p, ctx) => {
     const e = h('section', 'pg-gallery');
     const track = h('div', 'pg-gal-track');
@@ -378,36 +435,110 @@
     return e;
   };
 
-  /* رندر کل صفحه.
-     opts.editing   : حالت ادیتور (زدن = انتخاب، لینک‌ها باز نمی‌شوند)
-     opts.onPick(id): زدن روی یک کامپوننت در ادیتور
-     opts.selected  : آیدی کامپوننت انتخاب‌شده (قاب BlockFrame)
-     opts.branding  : {bot} برای نشان «ساخته شده با ایزی‌ساز» */
-  function render(root, doc, opts) {
+  /* سند نسخهٔ ۱ ({blocks}) را به شکل نسخهٔ ۲ درمی‌آورد */
+  function normalize(doc) {
+    doc = doc || {};
+    if (Array.isArray(doc.pages) && doc.pages.length) return doc;
+    return Object.assign({}, doc, {
+      header: doc.header || { enabled: false },
+      tabbar: doc.tabbar || { enabled: false },
+      pages: [{ id: 'home', title: 'خانه', icon: 'home', blocks: doc.blocks || [] }],
+    });
+  }
+
+  /* ---------- سربرگ مینی‌اپ ---------- */
+  function renderHeader(hd, ctx, fallbackTitle) {
+    const e = h('header', `pg-header pg-header--${hd.style || 'bar'} pg-align-${hd.align || 'start'}`);
+    const inner = h('div', 'pg-header-in');
+    if (safeUrl(hd.logo, true)) inner.appendChild(imageEl(hd.logo, 'pg-header-logo', ctx));
+    const txt = h('div', 'pg-header-txt');
+    txt.appendChild(h('b', '', hd.title || fallbackTitle || ''));
+    if (hd.subtitle) txt.appendChild(h('small', '', hd.subtitle));
+    inner.appendChild(txt);
+    e.appendChild(inner);
+    return e;
+  }
+
+  /* ---------- نوار پایین (تب‌ها = صفحه‌ها) ---------- */
+  function renderTabbar(doc, current, onNavigate) {
+    const style = (doc.tabbar && doc.tabbar.style) || 'floating';
+    const nav = h('nav', `pg-tabbar pg-tabbar--${style}`);
+    nav.setAttribute('aria-label', 'صفحه‌ها');
+    doc.pages.forEach(pg => {
+      const on = pg.id === current;
+      const b = h('button', 'pg-tab' + (on ? ' pg-tab--on' : ''));
+      b.type = 'button';
+      b.setAttribute('aria-label', pg.title);
+      if (on) b.setAttribute('aria-current', 'page');
+      b.appendChild(icon(pg.icon || 'star'));
+      b.appendChild(h('span', 'pg-tab-label', pg.title));
+      b.addEventListener('click', ev => {
+        ev.stopPropagation();
+        try { tg && tg.HapticFeedback.selectionChanged(); } catch (e) {}
+        onNavigate && onNavigate(pg.id);
+      });
+      nav.appendChild(b);
+    });
+    return nav;
+  }
+
+  function applyBlockStyle(wrap, st, dark) {
+    st = st || {};
+    wrap.classList.add('pg-box--' + (st.box || 'auto'), 'pg-pad--' + (st.pad || 'md'));
+    if (st.radius != null && st.radius !== '') wrap.style.setProperty('--pg-radius', Number(st.radius) + 'px');
+    const av = accentVars(st.accent, dark);
+    if (av) for (const [k, v] of Object.entries(av)) wrap.style.setProperty(k, v);
+  }
+
+  /* رندر کل مینی‌اپ (یک صفحه از آن).
+     opts.page         : آیدی صفحهٔ فعلی (پیش‌فرض صفحهٔ اول)
+     opts.onNavigate(id): زدن روی تب نوار پایین
+     opts.editing      : حالت ادیتور (زدن = انتخاب، لینک‌ها باز نمی‌شوند)
+     opts.onPick(id)   : زدن روی یک کامپوننت در ادیتور
+     opts.onPickHeader : زدن روی سربرگ در ادیتور
+     opts.selected     : آیدی کامپوننت انتخاب‌شده (قاب BlockFrame) یا 'header'
+     opts.appName      : عنوان پیش‌فرض سربرگ
+     opts.branding     : {bot} برای نشان «ساخته شده با ایزی‌ساز»
+     opts.fixedChrome  : سربرگ و نوار پایین به پنجره بچسبند (صفحهٔ منتشرشده) */
+  function render(root, rawDoc, opts) {
     opts = opts || {};
     const ctx = { editing: !!opts.editing };
-    doc = doc || { blocks: [] };
+    const doc = normalize(rawDoc);
     root.textContent = '';
     root.classList.add('pg-page');
     const pal = applyTheme(root, doc.theme);
+    const page = doc.pages.find(p => p.id === opts.page) || doc.pages[0];
+    const hasTabs = !!(doc.tabbar && doc.tabbar.enabled && doc.pages.length > 1);
+    root.classList.toggle('pg-has-tabs', hasTabs);
+    root.classList.toggle('pg-fixed', !!opts.fixedChrome);
+
+    if (doc.header && doc.header.enabled) {
+      const hd = renderHeader(doc.header, ctx, opts.appName);
+      if (ctx.editing) {
+        hd.classList.add('pg-editable');
+        if (opts.selected === 'header') { hd.classList.add('pg-selected'); hd.appendChild(h('span', 'pg-selected-tag', 'ویرایش')); }
+        hd.addEventListener('click', ev => { ev.preventDefault(); opts.onPickHeader && opts.onPickHeader(); });
+      }
+      root.appendChild(hd);
+    }
 
     const list = h('div', 'pg-blocks');
-    (doc.blocks || []).forEach((b, i) => {
+    (page.blocks || []).forEach((b, i) => {
       const fn = R[b.type];
       if (!fn) return;
       let node;
       try { node = fn(b.props || {}, ctx); } catch (e) { return; }
-      const wrap = h('div', 'pg-block');
+      const wrap = h('div', 'pg-block pg-t-' + b.type);
       wrap.dataset.id = b.id;
       wrap.dataset.type = b.type;
       wrap.style.setProperty('--i', i);
+      applyBlockStyle(wrap, b.style, pal.dark);
       wrap.appendChild(node);
       if (ctx.editing) {
         wrap.classList.add('pg-editable');
         if (opts.selected === b.id) {
           wrap.classList.add('pg-selected');
-          const tag = h('span', 'pg-selected-tag', 'ویرایش');
-          wrap.appendChild(tag);
+          wrap.appendChild(h('span', 'pg-selected-tag', 'ویرایش'));
         }
         wrap.addEventListener('click', ev => { ev.preventDefault(); opts.onPick && opts.onPick(b.id); });
       }
@@ -422,8 +553,11 @@
       badge.appendChild(h('span', '', 'ساخته شده با ایزی‌ساز'));
       root.appendChild(badge);
     }
+    if (hasTabs) root.appendChild(renderTabbar(doc, page.id, opts.onNavigate));
+    pal.page = page;
+    pal.doc = doc;
     return pal;
   }
 
-  window.EasySaz = { render, applyTheme, palette, icon, h, openUrl, safeUrl, isDark, ICONS };
+  window.EasySaz = { render, normalize, applyTheme, palette, accentVars, icon, h, openUrl, safeUrl, isDark, ICONS };
 })();

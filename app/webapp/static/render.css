@@ -152,6 +152,79 @@
   font-size:12px; line-height:18px; font-weight:600; color:var(--pg-ink-3); background:var(--pg-surface); box-shadow:inset 0 0 0 1px var(--pg-line); text-decoration:none; cursor:pointer}
 .pg-brand .pg-ico{width:14px; height:14px; color:var(--pg-accent)}
 
+/* ---------- Pricing (پلن‌ها) ---------- */
+.pg-plans{display:flex; flex-direction:column; gap:12px}
+.pg-plan{background:var(--pg-surface); border:1px solid var(--pg-line); border-radius:var(--pg-radius); padding:18px; display:flex; flex-direction:column; gap:10px}
+.pg-plan--hot{border:1.5px solid var(--pg-accent)}
+.pg-plan-h{display:flex; justify-content:space-between; align-items:center; gap:8px}
+.pg-plan-name{font-size:16px; line-height:24px; font-weight:800}
+.pg-plan-badge{padding:2px 10px; border-radius:999px; background:var(--pg-accent); color:var(--pg-on-accent); font-size:11.5px; line-height:20px; font-weight:800}
+.pg-plan-price{display:flex; align-items:baseline; gap:6px}
+.pg-plan-price b{font-size:22px; line-height:28px; font-weight:800; font-variant-numeric:tabular-nums}
+.pg-plan-price span{font-size:13px; color:var(--pg-ink-3)}
+.pg-plan-feats{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; color:var(--pg-ink-2); font-size:14px; line-height:22px}
+.pg-plan-feats li{display:flex; gap:8px; align-items:center}
+.pg-plan-feats .pg-ico{width:16px; height:16px; color:var(--pg-accent); stroke-width:2.2}
+.pg-plan .pg-btn{min-height:46px; font-size:15px}
+
+/* ---------- قاب هر کامپوننت (شخصی‌سازی) ----------
+   فقط توکن عوض می‌شود، پس کنتراست با هر رنگی درست می‌ماند. */
+.pg-box--card :is(.pg-card,.pg-notice,.pg-link,.pg-soc,.pg-pcard,.pg-feat,.pg-plan){background:var(--pg-surface); border:1px solid var(--pg-line); color:var(--pg-ink)}
+.pg-box--outline :is(.pg-card,.pg-notice,.pg-link,.pg-soc,.pg-pcard,.pg-feat,.pg-plan){background:transparent; border:1.5px solid var(--pg-accent); box-shadow:none}
+.pg-box--soft :is(.pg-card,.pg-notice,.pg-link,.pg-soc,.pg-pcard,.pg-feat,.pg-plan){background:var(--pg-soft); border:1px solid transparent; box-shadow:none}
+.pg-box--solid :is(.pg-card,.pg-notice,.pg-link,.pg-soc,.pg-pcard,.pg-feat,.pg-plan){background:var(--pg-accent); color:var(--pg-on-accent); border:1px solid transparent; box-shadow:none}
+.pg-box--solid :is(.pg-body,.pg-qa-a,.pg-link-txt small,.pg-link-go,.pg-pcard p,.pg-price,.pg-feat small,.pg-plan-feats,.pg-plan-price span,.pg-qa-ico,.pg-h2){color:inherit}
+.pg-box--solid :is(.pg-body,.pg-qa-a,.pg-link-txt small,.pg-pcard p,.pg-feat small,.pg-plan-feats){opacity:.86}
+.pg-box--solid :is(.pg-link-tile,.pg-feat-emo){background:color-mix(in srgb, var(--pg-on-accent) 16%, transparent); color:inherit}
+.pg-box--solid :is(.pg-mini-btn,.pg-plan-badge,.pg-plan .pg-btn){background:var(--pg-on-accent); color:var(--pg-accent)}
+.pg-box--solid .pg-plan-feats .pg-ico{color:inherit}
+.pg-box--solid .pg-qa{border-color:color-mix(in srgb, var(--pg-on-accent) 22%, transparent)}
+.pg-box--plain :is(.pg-card,.pg-notice,.pg-link,.pg-soc,.pg-pcard,.pg-feat,.pg-plan){background:transparent; border:1px solid transparent; box-shadow:none}
+.pg-box--plain :is(.pg-card,.pg-notice,.pg-link){padding-inline:4px}
+.pg-pad--sm :is(.pg-card,.pg-notice){padding:12px 14px}
+.pg-pad--lg :is(.pg-card,.pg-notice){padding:26px 24px}
+.pg-pad--sm .pg-herobox--solid,.pg-pad--sm .pg-herobox--soft{padding:22px 18px}
+.pg-pad--lg .pg-herobox--solid,.pg-pad--lg .pg-herobox--soft{padding:46px 26px 42px}
+
+/* ---------- سربرگ مینی‌اپ ---------- */
+.pg-header{margin:calc((var(--pg-top) + 18px) * -1) calc(var(--space-4) * -1) var(--space-3); padding:calc(var(--pg-top) + 12px) var(--space-4) 12px; background:var(--pg-bg); z-index:6}
+.pg-fixed .pg-header{position:sticky; top:0}
+.pg-header-in{display:flex; align-items:center; gap:10px; max-width:560px; margin:0 auto}
+.pg-header.pg-align-center .pg-header-in{justify-content:center; text-align:center}
+.pg-header-logo{width:38px; height:38px; border-radius:11px; flex:none}
+.pg-header-logo .pg-ico{width:18px; height:18px}
+.pg-header-txt{display:flex; flex-direction:column; min-width:0; line-height:22px}
+.pg-header-txt b{font-size:17px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.pg-header-txt small{font-size:12.5px; line-height:18px; color:var(--pg-ink-3)}
+.pg-header--bar{background:var(--pg-surface); border-bottom:1px solid var(--pg-line)}
+.pg-header--solid{background:var(--pg-accent); color:var(--pg-on-accent)}
+.pg-header--solid .pg-header-txt small{color:inherit; opacity:.82}
+
+/* ---------- نوار پایین (TabBar) ---------- */
+.pg-has-tabs{padding-bottom:calc(var(--pg-bottom) + 100px)}
+.pg-tabbar{display:flex; align-items:center; z-index:7; font-family:var(--font-sans)}
+.pg-fixed .pg-tabbar{position:fixed; left:0; right:0; bottom:0}
+.pg-tab{flex:1; display:flex; align-items:center; justify-content:center; gap:6px; border:0; background:none; font:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .15s}
+.pg-tab:active{transform:scale(.94)}
+.pg-tab .pg-ico{width:21px; height:21px}
+.pg-tab-label{font-size:12px; line-height:16px; font-weight:700}
+/* شناور: مثل نوار عبور، قرص تب فعال */
+.pg-tabbar--floating{height:62px; margin:0 14px calc(var(--pg-bottom) + 14px); padding:0 6px; border-radius:22px; background:var(--pg-tab-bg)}
+.pg-tabbar--floating .pg-tab{height:44px; color:rgba(255,255,255,.62); border-radius:16px}
+.pg-tabbar--floating .pg-tab-label{display:none}
+.pg-tabbar--floating .pg-tab--on{flex:0 0 auto; padding:0 14px; background:var(--pg-accent); color:var(--pg-on-accent)}
+.pg-tabbar--floating .pg-tab--on .pg-tab-label{display:inline}
+/* چسبیده: تمام‌عرض با خط مو، آیکن و برچسب */
+.pg-tabbar--docked{padding:6px 6px calc(var(--pg-bottom) + 6px); background:var(--pg-surface); border-top:1px solid var(--pg-line)}
+.pg-tabbar--docked .pg-tab{flex-direction:column; gap:2px; height:52px; color:var(--pg-ink-3)}
+.pg-tabbar--docked .pg-tab--on{color:var(--pg-accent-ink)}
+/* فقط آیکن: قرص سفید شناور، نقطهٔ زیر تب فعال */
+.pg-tabbar--minimal{height:56px; margin:0 40px calc(var(--pg-bottom) + 14px); padding:0 8px; border-radius:999px; background:var(--pg-surface); border:1px solid var(--pg-line)}
+.pg-tabbar--minimal .pg-tab{position:relative; height:44px; color:var(--pg-ink-3)}
+.pg-tabbar--minimal .pg-tab-label{display:none}
+.pg-tabbar--minimal .pg-tab--on{color:var(--pg-accent-ink)}
+.pg-tabbar--minimal .pg-tab--on::after{content:''; position:absolute; bottom:4px; width:5px; height:5px; border-radius:50%; background:var(--pg-accent)}
+
 /* ---------- BlockFrame (فقط در ادیتور) ---------- */
 .pg-editable{border-radius:calc(var(--pg-radius) + 6px); outline:2px solid transparent; outline-offset:5px; transition:outline-color .2s; cursor:pointer}
 .pg-editable:active{outline-color:color-mix(in srgb, var(--brand) 40%, transparent)}

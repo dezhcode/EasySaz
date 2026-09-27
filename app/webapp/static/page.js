@@ -52,11 +52,27 @@
     const data = r.data;
     if (!r.ok) { state('spark', 'پیدا نشد', data.error || 'این مینی‌اپ وجود ندارد.'); return; }
     if (data.paused) { state('spark', data.name, 'این مینی‌اپ موقتاً در دسترس نیست.'); return; }
-    const doc = data.doc || { blocks: [] };
-    if (!doc.blocks || !doc.blocks.length) { state('spark', data.name, 'به‌زودی اینجا چیزهای خوبی می‌بینی.', doc.theme); return; }
-    const pal = ES.render(root, doc, { branding: data.branding ? { bot: data.brand_bot } : null });
-    insets();
-    paint(pal.bg);
+    const doc = ES.normalize(data.doc);
+    const empty = doc.pages.every(pg => !(pg.blocks || []).length);
+    if (empty) { state('spark', data.name, 'به‌زودی اینجا چیزهای خوبی می‌بینی.', doc.theme); return; }
+    let current = decodeURIComponent(location.hash.slice(1)) || null;
+    const draw = () => {
+      const pal = ES.render(root, doc, {
+        page: current,
+        appName: data.name,
+        fixedChrome: true,
+        branding: data.branding ? { bot: data.brand_bot } : null,
+        onNavigate: id => {
+          current = id;
+          try { history.replaceState(null, '', '#' + id); } catch (e) {}
+          draw();
+          window.scrollTo(0, 0);
+        },
+      });
+      insets();
+      paint(pal.bg);
+    };
+    draw();
   }
 
   function view() {

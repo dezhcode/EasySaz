@@ -1,0 +1,229 @@
+/* EasySaz — پنل ساخت
+   پوسته ادیتور رنگ های خودش (--ui-*) را دارد و از تم صفحه کاربر جداست؛
+   بوم وسط (#canvas) همان صفحه واقعی با تم کاربر است. */
+
+:root{
+  --ui-bg:#F2F3F8; --ui-surface:#FFFFFF; --ui-sunk:#ECEEF4;
+  --ui-ink:#0F1222; --ui-ink-2:#4E556B; --ui-ink-3:#8990A4;
+  --ui-line:rgba(15,18,34,.08);
+  --ui-brand:#5B4CF5; --ui-brand-2:#2E9BFF;
+  --ui-grad:linear-gradient(135deg,#6A4DF7 0%,#3B7BFF 60%,#27B4FF 100%);
+  --ui-dock:#0F1222; --ui-dock-ink:#C6CBDA;
+  --ui-danger:#E0453A; --ui-ok:#12A071; --ui-gold:#E0A21F;
+  --ui-shadow:0 18px 40px -20px rgba(15,18,34,.35);
+  --ui-r:18px; --ui-r-lg:24px;
+  --ease:cubic-bezier(.22,.9,.3,1); --spring:cubic-bezier(.34,1.3,.5,1);
+  --safe-t:0px; --safe-b:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+:root.dark{
+  --ui-bg:#0B0D13; --ui-surface:#151821; --ui-sunk:#1C202B;
+  --ui-ink:#F1F3F9; --ui-ink-2:#A6ADBF; --ui-ink-3:#6F7689;
+  --ui-line:rgba(255,255,255,.08);
+  --ui-dock:#1C2030; --ui-dock-ink:#9EA5B8;
+  --ui-shadow:0 18px 40px -20px rgba(0,0,0,.7);
+  color-scheme:dark;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; height:100%; background:var(--ui-bg); color:var(--ui-ink)}
+body{font-family:'Peyda',system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif; font-size:15px; line-height:1.7; -webkit-font-smoothing:antialiased; overscroll-behavior:none}
+button{font:inherit; color:inherit; border:0; background:none; padding:0; cursor:pointer}
+input,textarea,select{font:inherit; color:inherit}
+[hidden]{display:none !important}
+.ico{width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; flex:none}
+
+/* ---------- دکمه ها ---------- */
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:50px; padding:0 22px; border-radius:16px; font-weight:700; transition:transform .16s var(--ease), opacity .2s}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--ui-grad); color:#fff; box-shadow:0 14px 28px -14px rgba(75,80,245,.7)}
+.btn.soft{background:var(--ui-sunk); color:var(--ui-ink)}
+.btn.danger{background:rgba(224,69,58,.1); color:var(--ui-danger)}
+.btn.block{width:100%}
+.btn:disabled{opacity:.45; box-shadow:none; pointer-events:none}
+.btn.sm{min-height:40px; padding:0 14px; border-radius:12px; font-size:14px}
+
+/* ---------- بوت ---------- */
+.mark{width:64px; height:64px; border-radius:20px; background:var(--ui-grad); position:relative; box-shadow:0 18px 36px -16px rgba(75,80,245,.8)}
+.mark::after{content:''; position:absolute; inset:18px; background:#fff; -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l2.2 6.6L21 11l-6.8 2.4L12 20l-2.2-6.6L3 11l6.8-2.4z'/%3E%3C/svg%3E") center/contain no-repeat; mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l2.2 6.6L21 11l-6.8 2.4L12 20l-2.2-6.6L3 11l6.8-2.4z'/%3E%3C/svg%3E") center/contain no-repeat}
+.boot{position:fixed; inset:0; display:grid; place-items:center; background:var(--ui-bg); z-index:50; transition:opacity .35s}
+.boot .mark{animation:pulse 1.4s var(--ease) infinite}
+.boot.out{opacity:0; pointer-events:none}
+@keyframes pulse{50%{transform:scale(.92); opacity:.8}}
+
+.screen{min-height:100vh; min-height:var(--tg-viewport-stable-height,100vh)}
+
+/* ---------- شروع ---------- */
+.onboard{display:flex; flex-direction:column; padding:calc(var(--safe-t) + 16px) 20px calc(var(--safe-b) + 16px)}
+.ob-top{display:flex; justify-content:center; padding:4px 0 14px}
+.wordmark{font-weight:800; font-size:15px; letter-spacing:.2px; background:var(--ui-grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+.ob-canvas{position:relative; height:178px; margin:4px 26px 26px; border-radius:28px; border:1.6px dashed color-mix(in srgb, var(--ui-brand) 38%, transparent); background:
+  radial-gradient(120px 80px at 50% 40%, rgba(91,76,245,.14), transparent),
+  var(--ui-surface); overflow:hidden; animation:rise .6s var(--ease) both}
+.ob-line{position:absolute; right:22px; height:10px; border-radius:6px; background:var(--ui-sunk)}
+.ob-l1{top:26px; width:44%} .ob-l2{top:46px; width:62%} .ob-l3{top:66px; width:30%}
+.ob-spark{position:absolute; left:50%; bottom:26px; width:54px; height:54px; margin-left:-27px; border-radius:18px; animation:float 3.2s ease-in-out infinite}
+.ob-spark::after{inset:15px}
+.ob-body{flex:1; text-align:center; animation:rise .6s .08s var(--ease) both}
+.ob-body h1{margin:0 0 6px; font-size:23px; font-weight:800; letter-spacing:-.3px}
+.ob-body p{margin:0 auto; color:var(--ui-ink-2); max-width:32ch; font-size:14.5px}
+.ob-body .hint{margin-top:12px; font-size:12.5px; color:var(--ui-ink-3)}
+.ob-cta{padding-top:14px; animation:rise .6s .16s var(--ease) both}
+@keyframes rise{from{opacity:0; transform:translateY(14px)}to{opacity:1; transform:none}}
+@keyframes float{50%{transform:translateY(-6px)}}
+
+.field{display:block; margin-top:18px}
+.field input,.field textarea,.field select{width:100%; border:0; outline:0; background:var(--ui-surface); border-radius:14px; padding:13px 14px; box-shadow:inset 0 0 0 1.4px var(--ui-line); transition:box-shadow .2s}
+.field input:focus,.field textarea:focus,.field select:focus{box-shadow:inset 0 0 0 2px var(--ui-brand)}
+.field.big input{font-size:19px; font-weight:700; text-align:center; padding:16px; border-radius:18px}
+.field textarea{resize:none; min-height:92px; line-height:1.7}
+.field .ltr{direction:ltr; text-align:left}
+.field > span{display:block; font-size:13px; font-weight:700; color:var(--ui-ink-2); margin:0 4px 6px}
+.chips{display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:14px}
+.chip{padding:7px 14px; border-radius:999px; background:var(--ui-surface); box-shadow:inset 0 0 0 1px var(--ui-line); font-size:13.5px; font-weight:600; color:var(--ui-ink-2)}
+.chip:active{transform:scale(.95)}
+
+/* ---------- ادیتور ---------- */
+.editor{position:relative}
+.bar{position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:calc(var(--safe-t) + 10px) 14px 10px; background:color-mix(in srgb, var(--ui-bg) 78%, transparent);
+  -webkit-backdrop-filter:blur(18px) saturate(1.6); backdrop-filter:blur(18px) saturate(1.6); border-bottom:1px solid var(--ui-line)}
+.bar-app{display:flex; align-items:center; gap:10px; min-width:0; text-align:right}
+.bar-ava{width:38px; height:38px; border-radius:12px; background:var(--ui-grad); color:#fff; display:grid; place-items:center; font-weight:800; font-size:16px; flex:none}
+.bar-txt{display:flex; flex-direction:column; min-width:0; line-height:1.35}
+.bar-txt b{font-size:15.5px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.bar-txt small{font-size:12px; color:var(--ui-ink-3); display:flex; align-items:center; gap:5px}
+.bar-txt small::before{content:''; width:7px; height:7px; border-radius:50%; background:var(--ui-gold)}
+.bar-txt small.live::before{background:var(--ui-ok)}
+.save{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ui-ink-3); transition:opacity .3s}
+.save i{width:6px; height:6px; border-radius:50%; background:var(--ui-ok)}
+.save.busy i{background:var(--ui-gold); animation:pulse 1s infinite}
+.save.err i{background:var(--ui-danger)}
+
+#canvas{min-height:calc(var(--tg-viewport-stable-height,100vh) - 64px)}
+#canvas.es-page{padding-bottom:calc(var(--safe-b) + 120px)}
+.es-editable{position:relative; border-radius:calc(var(--es-r) + 6px); outline:2px solid transparent; outline-offset:5px; transition:outline-color .2s; cursor:pointer}
+.es-editable:active{outline-color:color-mix(in srgb, var(--es-accent) 40%, transparent)}
+.es-selected{outline-color:var(--ui-brand) !important}
+.es-selected::after{content:'ویرایش'; position:absolute; top:-12px; left:10px; z-index:3; padding:1px 9px; border-radius:8px; background:var(--ui-brand); color:#fff; font-size:11px; font-weight:700; font-family:'Peyda',sans-serif}
+.editor.previewing .es-editable{outline:0 !important; cursor:auto}
+.editor.previewing .es-selected::after{display:none}
+
+.empty{position:absolute; inset:90px 20px auto; text-align:center; padding:34px 20px 26px; border-radius:26px; border:1.6px dashed color-mix(in srgb, var(--ui-brand) 40%, transparent); background:color-mix(in srgb, var(--ui-surface) 70%, transparent); animation:rise .5s var(--ease) both}
+.empty-ico{width:58px; height:58px; margin:0 auto 12px; border-radius:18px; background:var(--ui-grad); position:relative; box-shadow:0 14px 28px -14px rgba(75,80,245,.8)}
+.empty-ico::after{content:'+'; position:absolute; inset:0; display:grid; place-items:center; color:#fff; font-size:32px; font-weight:400; line-height:1}
+.empty h2{margin:0 0 4px; font-size:19px; font-weight:800}
+.empty p{margin:0 0 18px; color:var(--ui-ink-2); font-size:14px}
+
+/* ---------- داک ---------- */
+.dock{position:fixed; z-index:30; left:50%; bottom:calc(var(--safe-b) + 14px); transform:translateX(-50%);
+  display:flex; align-items:center; gap:4px; padding:6px; border-radius:22px; background:var(--ui-dock);
+  box-shadow:0 20px 40px -16px rgba(10,12,24,.55); transition:transform .35s var(--spring), opacity .25s}
+.dock button{display:flex; flex-direction:column; align-items:center; gap:1px; min-width:62px; padding:6px 8px 4px; border-radius:16px; color:var(--ui-dock-ink); font-size:11px; font-weight:600; transition:background .2s, transform .15s}
+.dock button:active{transform:scale(.92)}
+.dock button .ico{width:22px; height:22px}
+.dock .pub{flex-direction:row; min-width:0; padding:0 18px; height:48px; margin-inline-start:4px; background:var(--ui-grad); color:#fff; font-size:14.5px; font-weight:800; border-radius:16px; box-shadow:0 10px 22px -10px rgba(75,80,245,.9)}
+.dock .pub.dirty::before{content:''; width:7px; height:7px; border-radius:50%; background:#fff; margin-left:8px; animation:pulse 1.6s infinite}
+.editor.previewing .dock{transform:translate(-50%, 140%); opacity:0}
+.exit-preview{position:fixed; z-index:31; left:50%; transform:translateX(-50%); bottom:calc(var(--safe-b) + 18px); padding:11px 20px; border-radius:999px; background:var(--ui-dock); color:#fff; font-weight:700; font-size:14px; box-shadow:var(--ui-shadow); animation:rise .3s var(--ease)}
+
+/* ---------- شیت ---------- */
+.scrim{position:fixed; inset:0; z-index:40; background:rgba(8,10,20,.42); opacity:0; pointer-events:none; transition:opacity .28s}
+.scrim.on{opacity:1; pointer-events:auto}
+.sheet{position:fixed; z-index:41; left:0; right:0; bottom:0; max-height:88vh; overflow-y:auto; overscroll-behavior:contain;
+  background:var(--ui-bg); border-radius:26px 26px 0 0; padding:8px 18px calc(var(--safe-b) + 22px);
+  transform:translateY(105%); transition:transform .38s var(--ease); box-shadow:0 -18px 44px -18px rgba(8,10,20,.4)}
+.sheet.on{transform:none}
+.grip{width:40px; height:5px; border-radius:3px; background:var(--ui-line); margin:4px auto 12px; box-shadow:inset 0 0 0 10px color-mix(in srgb, var(--ui-ink) 14%, transparent)}
+.sh-head{display:flex; align-items:center; gap:12px; margin-bottom:6px}
+.sh-ico{width:42px; height:42px; border-radius:14px; display:grid; place-items:center; background:color-mix(in srgb, var(--ui-brand) 12%, transparent); color:var(--ui-brand); flex:none}
+.sh-title{flex:1; min-width:0}
+.sh-title h3{margin:0; font-size:17.5px; font-weight:800; line-height:1.4}
+.sh-title p{margin:0; font-size:12.5px; color:var(--ui-ink-3)}
+.sh-x{width:36px; height:36px; border-radius:12px; background:var(--ui-sunk); display:grid; place-items:center; color:var(--ui-ink-2)}
+.sh-x .ico{width:18px; height:18px}
+.sh-sec{margin-top:20px}
+.sh-sec > h4{margin:0 4px 8px; font-size:13px; color:var(--ui-ink-3); font-weight:700}
+
+/* ابزار کامپوننت */
+.tools{display:flex; gap:8px; margin:12px 0 2px}
+.tools button{flex:1; height:42px; border-radius:13px; background:var(--ui-surface); box-shadow:inset 0 0 0 1px var(--ui-line); display:grid; place-items:center; color:var(--ui-ink-2)}
+.tools button:active{transform:scale(.95)}
+.tools button:disabled{opacity:.35}
+.tools button.del{color:var(--ui-danger)}
+.tools .ico{width:19px; height:19px}
+
+/* انتخاب گزینه */
+.seg{display:flex; padding:4px; gap:4px; background:var(--ui-sunk); border-radius:14px}
+.seg button{flex:1; min-height:38px; border-radius:11px; font-size:13.5px; font-weight:700; color:var(--ui-ink-2); transition:background .2s, color .2s}
+.seg button.on{background:var(--ui-surface); color:var(--ui-ink); box-shadow:0 2px 8px -2px rgba(15,18,34,.18)}
+.pills{display:flex; flex-wrap:wrap; gap:6px}
+.pills button{padding:7px 13px; border-radius:999px; background:var(--ui-surface); box-shadow:inset 0 0 0 1px var(--ui-line); font-size:13px; font-weight:600; color:var(--ui-ink-2)}
+.pills button.on{background:var(--ui-brand); color:#fff; box-shadow:none}
+
+/* فیلد لیستی */
+.items{display:flex; flex-direction:column; gap:8px}
+.item{background:var(--ui-surface); border-radius:16px; box-shadow:inset 0 0 0 1px var(--ui-line); overflow:hidden}
+.item-h{display:flex; align-items:center; gap:8px; padding:10px 12px}
+.item-h b{flex:1; min-width:0; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.item-h .n{width:24px; height:24px; border-radius:8px; background:var(--ui-sunk); display:grid; place-items:center; font-size:12px; font-weight:800; color:var(--ui-ink-3); flex:none}
+.item-h button{width:32px; height:32px; border-radius:10px; display:grid; place-items:center; color:var(--ui-ink-3)}
+.item-h button .ico{width:17px; height:17px}
+.item-h .open-ico{transition:transform .25s var(--ease)}
+.item.open .item-h .open-ico{transform:rotate(180deg)}
+.item-b{padding:0 12px 14px; display:none}
+.item.open .item-b{display:block}
+.item-b .field{margin-top:10px}
+.item-b .field input,.item-b .field textarea{background:var(--ui-bg)}
+.add-item{margin-top:8px; width:100%; min-height:46px; border-radius:14px; border:1.4px dashed color-mix(in srgb, var(--ui-brand) 45%, transparent); color:var(--ui-brand); font-weight:700; font-size:14px}
+
+/* کاتالوگ کامپوننت */
+.cat{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px}
+.cat button{position:relative; text-align:right; padding:14px; border-radius:18px; background:var(--ui-surface); box-shadow:inset 0 0 0 1px var(--ui-line); display:flex; flex-direction:column; gap:6px; transition:transform .16s var(--ease)}
+.cat button:active{transform:scale(.96)}
+.cat .ci{width:40px; height:40px; border-radius:13px; display:grid; place-items:center; background:color-mix(in srgb, var(--ui-brand) 11%, transparent); color:var(--ui-brand)}
+.cat b{font-size:14.5px; font-weight:800}
+.cat small{font-size:12px; color:var(--ui-ink-3); line-height:1.55}
+.cat .pro{position:absolute; top:12px; left:12px; padding:1px 8px; border-radius:8px; background:linear-gradient(135deg,#F6C25B,#E0901F); color:#3D2600; font-size:10.5px; font-weight:800}
+.cat button.locked{opacity:.72}
+
+/* تم */
+.swatches{display:grid; grid-template-columns:repeat(5,1fr); gap:10px}
+.sw{aspect-ratio:1; border-radius:16px; position:relative; box-shadow:inset 0 0 0 1px rgba(0,0,0,.06); transition:transform .18s var(--spring)}
+.sw.on{transform:scale(1.06); box-shadow:0 0 0 3px var(--ui-bg), 0 0 0 5px currentColor}
+.sw.on::after{content:''; position:absolute; inset:34%; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.sw.custom{background:conic-gradient(from 90deg,#FF5A5A,#FFC24B,#5EE08B,#4BC7FF,#6A5CFF,#FF5AC8,#FF5A5A); overflow:hidden}
+.sw.custom input{position:absolute; inset:0; opacity:0; width:100%; height:100%; cursor:pointer}
+
+/* برگه اپ */
+.stats{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+.stat{background:var(--ui-surface); border-radius:16px; padding:12px; text-align:center; box-shadow:inset 0 0 0 1px var(--ui-line)}
+.stat b{display:block; font-size:20px; font-weight:800}
+.stat small{font-size:11.5px; color:var(--ui-ink-3)}
+.row{display:flex; align-items:center; gap:10px; background:var(--ui-surface); border-radius:16px; padding:12px 14px; box-shadow:inset 0 0 0 1px var(--ui-line)}
+.row + .row{margin-top:8px}
+.row .grow{flex:1; min-width:0}
+.row .grow b{display:block; font-size:14px}
+.row .grow small{display:block; font-size:12px; color:var(--ui-ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.row .ltr{direction:ltr; text-align:left}
+.plan-card{border-radius:20px; padding:16px; color:#fff; background:var(--ui-grad); display:flex; align-items:center; gap:12px; box-shadow:0 16px 30px -16px rgba(75,80,245,.8)}
+.plan-card .grow{flex:1}
+.plan-card small{opacity:.8; font-size:12px; display:block}
+.plan-card b{font-size:17px}
+.plan-card button{background:rgba(255,255,255,.2); color:#fff; padding:8px 14px; border-radius:12px; font-weight:700; font-size:13px}
+
+/* انتشار */
+.done{text-align:center; padding:10px 0 4px}
+.done-ico{width:74px; height:74px; margin:4px auto 14px; border-radius:24px; background:linear-gradient(135deg,#1CC48A,#0E9F6E); display:grid; place-items:center; color:#fff; box-shadow:0 16px 30px -14px rgba(18,160,113,.8); animation:pop .5s var(--spring)}
+.done-ico .ico{width:36px; height:36px; stroke-width:2.4}
+.done h3{margin:0; font-size:21px; font-weight:800}
+.done p{margin:4px 0 0; color:var(--ui-ink-2); font-size:14px}
+@keyframes pop{from{transform:scale(.4); opacity:0}}
+.stack{display:flex; flex-direction:column; gap:10px; margin-top:18px}
+
+/* ---------- پیام کوتاه ---------- */
+.toast{position:fixed; z-index:60; left:50%; top:calc(var(--safe-t) + 14px); transform:translate(-50%,-160%); opacity:0; visibility:hidden; padding:10px 18px; border-radius:14px; background:var(--ui-dock); color:#fff; font-size:13.5px; font-weight:600; box-shadow:var(--ui-shadow); transition:transform .35s var(--spring), opacity .2s, visibility 0s .35s; max-width:86vw; text-align:center}
+.toast.on{transform:translate(-50%,0); opacity:1; visibility:visible; transition:transform .35s var(--spring), opacity .2s}
+
+.blocked{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; padding:24px}
+.blocked h1{margin:10px 0 0; font-size:21px}
+.blocked p{margin:0; color:var(--ui-ink-2); max-width:30ch}

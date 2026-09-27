@@ -86,6 +86,10 @@
     [h, s, l] = rgbToHsl(...hexToRgb(accent));
     const base = dark ? BASE.dark : BASE.light;
     const bg = theme.bg === 'plain' ? base.bg : mix(base.bg, accent, dark ? 0.06 : 0.05);
+    // تب فعال نوار شناور روی زمینهٔ تیره؛ رنگ اصلی خیلی تیره آنجا گم می‌شود
+    const tabBg = dark ? '#1B2230' : '#0E1525';
+    const onAccent = contrast(accent, '#FFFFFF') >= contrast(accent, '#0E1525') ? '#FFFFFF' : '#0E1525';
+    const tabLost = contrast(accent, tabBg) < 2;
     const radius = theme.radius === 'custom'
       ? Math.max(0, Math.min(32, Number(theme.radius_px) || 0))
       : (RADIUS[theme.radius] || RADIUS.soft);
@@ -94,7 +98,7 @@
       bg,
       vars: {
         '--pg-accent': accent,
-        '--pg-on-accent': contrast(accent, '#FFFFFF') >= contrast(accent, '#0E1525') ? '#FFFFFF' : '#0E1525',
+        '--pg-on-accent': onAccent,
         '--pg-accent-ink': dark ? hslToHex(h, Math.min(100, s), 76) : hslToHex(h, Math.min(100, s + 6), Math.max(26, l - 12)),
         '--pg-soft': alpha(accent, dark ? 0.16 : 0.10),
         '--pg-bg': bg,
@@ -104,7 +108,9 @@
         '--pg-ink-3': base.ink3,
         '--pg-line': base.line,
         '--pg-radius': radius + 'px',
-        '--pg-tab-bg': dark ? '#1B2230' : '#0E1525',
+        '--pg-tab-bg': tabBg,
+        '--pg-tab-on': tabLost ? '#FFFFFF' : accent,
+        '--pg-tab-on-ink': tabLost ? accent : onAccent,
       },
     };
   }
@@ -258,7 +264,7 @@
     } else {
       wrap.classList.add('pg-empty');
       wrap.appendChild(icon('image'));
-      if (ctx.editing) wrap.appendChild(h('span', 'pg-img-hint', 'آدرس تصویر رو اضافه کن'));
+      if (ctx.editing) wrap.appendChild(h('span', 'pg-img-hint', 'یک تصویر آپلود کن'));
     }
     return wrap;
   }

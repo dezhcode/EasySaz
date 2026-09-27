@@ -355,3 +355,9 @@ input,textarea{font:inherit; color:inherit}
 .blocked p{margin:0 0 8px; color:var(--ink-2); max-width:30ch}
 
 @media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
+
+/* ---------- ConfirmDialog (بیرون از تلگرام) ---------- */
+.confirm{position:fixed; inset:0; z-index:60; display:grid; place-items:center; padding:24px; background:var(--scrim)}
+.confirm-box{width:min(340px, 100%); padding:20px; border-radius:var(--radius-xl); background:var(--surface); box-shadow:var(--shadow-sheet); animation:rise .25s var(--ease)}
+.confirm-box .body{margin:0; color:var(--ink)}
+.confirm-row{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px}

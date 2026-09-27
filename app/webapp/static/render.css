@@ -212,7 +212,7 @@
 .pg-tabbar--floating{height:62px; margin:0 14px calc(var(--pg-bottom) + 14px); padding:0 6px; border-radius:22px; background:var(--pg-tab-bg)}
 .pg-tabbar--floating .pg-tab{height:44px; color:rgba(255,255,255,.62); border-radius:16px}
 .pg-tabbar--floating .pg-tab-label{display:none}
-.pg-tabbar--floating .pg-tab--on{flex:0 0 auto; padding:0 14px; background:var(--pg-accent); color:var(--pg-on-accent)}
+.pg-tabbar--floating .pg-tab--on{flex:0 0 auto; padding:0 14px; background:var(--pg-tab-on, var(--pg-accent)); color:var(--pg-tab-on-ink, var(--pg-on-accent))}
 .pg-tabbar--floating .pg-tab--on .pg-tab-label{display:inline}
 /* چسبیده: تمام‌عرض با خط مو، آیکن و برچسب */
 .pg-tabbar--docked{padding:6px 6px calc(var(--pg-bottom) + 6px); background:var(--pg-surface); border-top:1px solid var(--pg-line)}

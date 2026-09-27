@@ -125,7 +125,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "desc": "یک تصویر با زیرنویس",
         "premium": False,
         "fields": [
-            {"key": "src", "label": "آدرس تصویر (https)", "type": "image", "default": ""},
+            {"key": "src", "label": "تصویر", "type": "image", "default": ""},
             {"key": "caption", "label": "زیرنویس", "type": "text", "max": 120, "default": ""},
             {"key": "ratio", "label": "نسبت", "type": "select", "default": "16:9",
              "options": [["16:9", "افقی"], ["1:1", "مربع"], ["4:5", "عمودی"], ["auto", "اصلی"]]},
@@ -209,7 +209,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
                  {"key": "title", "label": "نام", "type": "text", "max": 50, "default": "محصول"},
                  {"key": "price", "label": "قیمت", "type": "text", "max": 30, "default": ""},
                  {"key": "desc", "label": "توضیح", "type": "textarea", "max": 200, "default": ""},
-                 {"key": "image", "label": "آدرس تصویر", "type": "image", "default": ""},
+                 {"key": "image", "label": "تصویر", "type": "image", "default": ""},
                  {"key": "url", "label": "لینک دکمه", "type": "url", "default": ""},
                  {"key": "cta", "label": "متن دکمه", "type": "text", "max": 24, "default": "سفارش"},
              ],
@@ -252,7 +252,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "fields": [
             {"key": "items", "label": "تصاویر", "type": "list", "max_items": 12, "item_label": "تصویر",
              "fields": [
-                 {"key": "src", "label": "آدرس تصویر (https)", "type": "image", "default": ""},
+                 {"key": "src", "label": "تصویر", "type": "image", "default": ""},
                  {"key": "caption", "label": "زیرنویس", "type": "text", "max": 80, "default": ""},
              ],
              "default": [{"src": "", "caption": ""}, {"src": "", "caption": ""}]},

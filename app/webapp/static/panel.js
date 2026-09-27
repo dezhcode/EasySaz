@@ -120,9 +120,28 @@
     tg.openTelegramLink(botLink(start));
   }
 
+  /* تأیید: داخل تلگرام showConfirm بومی؛ بیرون از آن (نسخهٔ نمایشی، مرورگر)
+     پنجرهٔ خود صفحه، چون confirm مرورگر در همه‌جا کار نمی‌کند */
   function confirmBox(message, cb) {
-    if (tg && tg.showConfirm && tg.initData) tg.showConfirm(message, ok => ok && cb());
-    else if (window.confirm(message)) cb();
+    if (tg && tg.showConfirm && tg.initData) { tg.showConfirm(message, ok => ok && cb()); return; }
+    const wrap = h('div', 'confirm');
+    wrap.setAttribute('role', 'alertdialog');
+    wrap.setAttribute('aria-modal', 'true');
+    const box = h('div', 'confirm-box');
+    const row = h('div', 'confirm-row');
+    const no = h('button', 'btn secondary', 'انصراف');
+    const yes = h('button', 'btn primary', 'تأیید');
+    const close = () => { wrap.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = e => { if (e.key === 'Escape') close(); };
+    no.addEventListener('click', close);
+    yes.addEventListener('click', () => { close(); cb(); });
+    wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
+    document.addEventListener('keydown', onKey);
+    row.append(no, yes);
+    box.append(h('p', 'body', message), row);
+    wrap.appendChild(box);
+    document.body.appendChild(wrap);
+    yes.focus();
   }
 
   /* ---------- API ---------- */

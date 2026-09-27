@@ -7,7 +7,7 @@
 (function () {
   'use strict';
 
-  const KEY = 'es-demo-v2';
+  const KEY = 'es-demo-v3';
   const PLANS = {
     free: { key: 'free', title: 'رایگان', max_apps: 1, max_blocks: 8, max_pages: 2, premium_blocks: false, branding: true },
     pro: { key: 'pro', title: 'حرفه‌ای', max_apps: 3, max_blocks: 40, max_pages: 6, premium_blocks: true, branding: false },

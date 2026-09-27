@@ -752,11 +752,50 @@
     const inner = h('div', 'pg-header-in');
     if (safeUrl(hd.logo, true)) inner.appendChild(imageEl(hd.logo, 'pg-header-logo', ctx));
     const txt = h('div', 'pg-header-txt');
-    txt.appendChild(h('b', '', hd.title || fallbackTitle || ''));
-    if (hd.subtitle) txt.appendChild(h('small', '', hd.subtitle));
+    const tb = h('b', '', hd.title || fallbackTitle || '');
+    if (ctx.editing) tb.dataset.edit = 'title';
+    txt.appendChild(tb);
+    if (hd.subtitle) { const sb = h('small', '', hd.subtitle); if (ctx.editing) sb.dataset.edit = 'subtitle'; txt.appendChild(sb); }
     inner.appendChild(txt);
     e.appendChild(inner);
     return e;
+  }
+
+  /* ---------- ویرایش روی صفحه: مسیر فیلدِ هر متن ----------
+     در ادیتور، متن‌های قابل‌تایپ data-edit می‌گیرند (مثلاً items.2.label) تا
+     پنل همان‌جا contenteditable کند. [انتخاب‌گر، مسیر] یا برای فهرست‌ها
+     {each: انتخاب‌گر هر آیتم، list: کلید فهرست، fields: [[انتخاب‌گر، کلید]]}. */
+  const EDIT_MAP = {
+    hero: [['.pg-hero-title', 'title'], ['.pg-hero-sub', 'subtitle']],
+    text: [['.pg-h2', 'title'], ['.pg-body', 'body']],
+    button: [['.pg-btn > span', 'label']],
+    notice: [['.pg-notice > p', 'text']],
+    image: [['figcaption', 'caption']],
+    faq: [['.pg-faq > .pg-h2', 'title'], { each: '.pg-qa', list: 'items', fields: [['summary > span', 'q'], ['.pg-qa-a', 'a']] }],
+    links: [{ each: '.pg-link', list: 'items', fields: [['.pg-link-txt b', 'label'], ['.pg-link-txt small', 'note']] }],
+    cards: [['.pg-h2', 'title'], { each: '.pg-pcard', list: 'items', fields: [['h3', 'title'], ['.pg-pcard-b > p', 'desc'], ['.pg-price', 'price']] }],
+    pricing: [['.pg-h2', 'title'], { each: '.pg-plan', list: 'items', fields: [['.pg-plan-name', 'name'], ['.pg-plan-price b', 'price'], ['.pg-plan-price span', 'period']] }],
+    features: [['.pg-h2', 'title'], { each: '.pg-feat', list: 'items', fields: [['.pg-feat-txt b', 'title'], ['.pg-feat-txt small', 'desc']] }],
+    passcard: [['.pg-pass-name', 'title'], ['.pg-pass-num', 'value'], ['.pg-pass-unit', 'unit'], ['.pg-pass-meta', 'meta'], ['.pg-pass-btn > span', 'cta']],
+    calc: [['.pg-calc-t', 'title']],
+    steps: [['.pg-steps > .pg-h2', 'title']],
+    apps: [['.pg-h2', 'title']],
+    stats: [{ each: '.pg-stat', list: 'items', fields: [['.pg-stat-v', 'value'], ['.pg-stat-l', 'label']] }],
+  };
+  function markEdits(node, type) {
+    (EDIT_MAP[type] || []).forEach(rule => {
+      if (Array.isArray(rule)) {
+        const el = node.matches && node.matches(rule[0]) ? node : node.querySelector(rule[0]);
+        if (el) el.dataset.edit = rule[1];
+        return;
+      }
+      node.querySelectorAll(rule.each).forEach((item, i) => {
+        rule.fields.forEach(([sel, key]) => {
+          const el = item.querySelector(sel);
+          if (el) el.dataset.edit = `${rule.list}.${i}.${key}`;
+        });
+      });
+    });
   }
 
   /* ---------- نوار پایین (تب‌ها = صفحه‌ها) ---------- */
@@ -835,6 +874,7 @@
       applyBlockStyle(wrap, b.style, pal.dark);
       wrap.appendChild(node);
       if (ctx.editing) {
+        markEdits(node, b.type);
         wrap.classList.add('pg-editable');
         if (opts.selected === b.id) {
           wrap.classList.add('pg-selected');

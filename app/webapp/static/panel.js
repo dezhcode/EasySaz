@@ -45,6 +45,11 @@
     header: 'M4 4h16v6H4zM4 14h16M4 18h10',
     tabbar: 'M4 14h16v6H4zM4 4h16M4 8h10',
     brush: 'M14 4l6 6-9 9H5v-6zM12 6l6 6',
+    cup: 'M5 8h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5zM16 10h1.5a2.5 2.5 0 0 1 0 5H16M8 3v2M11 3v2',
+    bolt: 'M13 3L4 14h7l-1 7 9-11h-7z',
+    book: 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7',
+    undo: 'M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3',
+    redo: 'M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3',
     chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.3A8 8 0 1 1 21 12z',
     pencil: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
     chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
@@ -221,6 +226,7 @@
     if (splash && !splash.classList.contains('off')) { splash.classList.add('off'); setTimeout(() => splash.remove(), 450); }
     S.screen = id;
     S.asTab = !!asTab;
+    if (id !== 'editor') { S.selected = null; placeBlockbar(); }
     const withNav = asTab && TABS.indexOf(id) >= 0;
     $('nav').hidden = !withNav;
     document.body.classList.toggle('has-nav', withNav);
@@ -257,49 +263,217 @@
   }
 
   /* ===== شروع: اسم ===== */
+  /* ===== ساخت مینی‌اپ تازه: جادوی سه‌قدمی =====
+     ۱. برای چیه؟ (کاشی نوع ← قالب مناسب)  ۲. اسم و لوگو، روی کارت عبور زنده
+     ۳. حال‌وهوا: همین مینی‌اپ در چند رنگ. آخرش مینی‌اپ کامل در ادیتور. */
+  const KINDS = [
+    { key: 'cafe', tpl: 'cafe', cat: 'shop', icon: 'cup', title: 'کافه و رستوران', sub: 'منو، ساعت کاری، سفارش', names: ['کافه نارنج', 'رستوران باغ', 'شیرینی‌سرا'] },
+    { key: 'shop', tpl: 'shop', cat: 'write', icon: 'shop', title: 'فروشگاه', sub: 'محصول، قیمت و سفارش', names: ['فروشگاه من', 'گالری لباس', 'دست‌سازه'] },
+    { key: 'vpn', tpl: 'vpn', cat: 'navy', icon: 'bolt', title: 'فروش سرویس', sub: 'پلن‌ها و راهنمای اتصال، مثل عبور', names: ['عبور', 'تونل', 'مسیر آزاد'] },
+    { key: 'personal', tpl: 'portfolio', cat: 'act', icon: 'user', title: 'شخصی و نمونه‌کار', sub: 'معرفی، نمونه‌کار، همکاری', names: ['استودیو من', 'نمونه‌کارهای سارا', 'طراح آزاد'] },
+    { key: 'edu', tpl: 'academy', cat: 'media', icon: 'book', title: 'آموزش', sub: 'دوره‌ها، ثبت‌نام، سوالات', names: ['آموزشگاه', 'کلاس زبان', 'آکادمی کد'] },
+    { key: 'other', tpl: 'linkbio', cat: '', icon: 'sparkle', title: 'چیز دیگه', sub: 'یک صفحهٔ ساده با لینک‌ها', names: ['صفحهٔ من', 'لینک‌های من'] },
+  ];
+  const MOODS = [
+    ['آبی عبور', '#1D55F0'], ['سرمه‌ای', '#0A2572'], ['مرجانی', '#E0573E'], ['سبز', '#12A071'], ['بنفش', '#6A55E0'], ['فیروزه‌ای', '#0E8FAE'],
+  ];
+  const W = { step: 1, kind: null, name: '', logo: '', accent: '' };
+
   function onboard() {
+    Object.assign(W, { step: 1, kind: null, name: '', logo: '', accent: '' });
     show('onboard');
-    const back = $('ob-back');
-    back.hidden = !(S.me && S.me.apps.length);
-    back.onclick = () => tab('home');
-    const input = $('ob-name'), go = $('ob-go'), chips = $('ob-chips');
-    const passName = $('ob-pass-name'), passInitial = $('ob-pass-initial');
+    const input = $('ob-name');
+    input.value = '';
+    input.oninput = () => { W.name = input.value.trim(); drawPass(); wizardFoot(); };
+    input.onkeydown = e => { if (e.key === 'Enter' && W.name.length >= 2) $('wz-next').click(); };
+    $('wz-back').onclick = () => {
+      haptic();
+      if (W.step > 1) wizardStep(W.step - 1);
+      else if (S.me && S.me.apps.length) tab('home');
+    };
+    $('wz-next').onclick = () => {
+      haptic();
+      if (W.step < 3) wizardStep(W.step + 1); else wizardFinish();
+    };
+    $('wz-logo').onclick = async () => {
+      const t = $('wz-logo-t');
+      try {
+        t.textContent = 'در حال آپلود…';
+        const url = await uploadImage();
+        if (url) { W.logo = url; drawPass(); notify('success'); }
+      } catch (err) { failed(err); }
+      t.textContent = W.logo ? 'لوگو گذاشته شد · عوض کردن' : 'لوگو (اختیاری)';
+    };
+    drawKinds();
+    wizardStep(1);
+  }
+
+  function wizardStep(n) {
+    W.step = n;
+    [1, 2, 3].forEach(i => { $('wz-' + i).hidden = i !== n; });
+    document.querySelectorAll('.wz-dots i').forEach((d, i) => d.classList.toggle('on', i < n));
+    const titles = {
+      1: ['مینی‌اپت برای چیه؟', 'قدم ۱ از ۳ · یکی رو انتخاب کن، بقیه‌ش با ما'],
+      2: ['اسم و لوگو', 'قدم ۲ از ۳ · روی کارت، سربرگ و ربات دیده می‌شه'],
+      3: ['کدوم حال‌وهوا؟', 'قدم ۳ از ۳ · این مینی‌اپ خودته، فقط رنگش رو انتخاب کن'],
+    };
+    $('wz-title').textContent = titles[n][0];
+    $('wz-sub').textContent = titles[n][1];
+    $('wz-back').style.visibility = n === 1 && !(S.me && S.me.apps.length) ? 'hidden' : '';
+    if (n === 2) {
+      drawChips();
+      drawPass();
+      setTimeout(() => $('ob-name').focus(), 300);
+    }
+    if (n === 3) drawMoods();
+    wizardFoot();
+    window.scrollTo(0, 0);
+  }
+
+  function wizardFoot() {
+    const next = $('wz-next');
+    next.textContent = W.step === 3 ? 'بساز!' : 'ادامه';
+    next.disabled = (W.step === 1 && !W.kind) || (W.step === 2 && W.name.length < 2) || (W.step === 3 && !W.accent);
+  }
+
+  function kindTemplate() {
+    const k = KINDS.find(x => x.key === W.kind);
+    return k && S.templates.templates.find(t => t.id === k.tpl);
+  }
+
+  function drawKinds() {
+    const box = $('wz-kinds');
+    box.textContent = '';
+    KINDS.forEach(k => {
+      const t = S.templates.templates.find(x => x.id === k.tpl);
+      const b = h('button', 'kind' + (W.kind === k.key ? ' on' : ''));
+      b.type = 'button';
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', W.kind === k.key ? 'true' : 'false');
+      const ic = h('span', 'ic ' + k.cat);
+      ic.appendChild(ico(k.icon));
+      const tx = h('span');
+      tx.append(h('span', 'kind-t', k.title), h('span', 'kind-s', k.sub));
+      const ok = h('span', 'kind-ok');
+      ok.appendChild(ico('check'));
+      b.append(ic, tx, ok);
+      if (t && t.premium && !S.me.plan.premium_blocks) b.appendChild(h('span', 'kind-pro', 'نسخهٔ کاملش PRO'));
+      b.addEventListener('click', () => {
+        W.kind = k.key;
+        W.accent = '';
+        select();
+        drawKinds();
+        wizardFoot();
+        // انتخاب = رفتن به قدم بعد، مثل انتخاب در عبور
+        setTimeout(() => wizardStep(2), 220);
+      });
+      box.appendChild(b);
+    });
+  }
+
+  function drawChips() {
+    const k = KINDS.find(x => x.key === W.kind) || KINDS[0];
+    const chips = $('ob-chips');
     chips.textContent = '';
-    ['فروشگاه من', 'کافه', 'استودیو', 'آموزشگاه', 'پورتفولیو'].forEach(name => {
-      const c = h('button', 'chip', name);
+    k.names.forEach(name => {
+      const c = h('button', 'chip' + (W.name === name ? ' on' : ''), name);
       c.type = 'button';
-      c.addEventListener('click', () => { input.value = name; input.oninput(); select(); });
+      c.addEventListener('click', () => { $('ob-name').value = name; $('ob-name').oninput(); select(); drawChips(); });
       chips.appendChild(c);
     });
-    input.value = '';
-    go.disabled = true;
-    passName.textContent = 'اسم مینی‌اپت';
-    passInitial.textContent = '؟';
-    input.oninput = () => {
-      const v = input.value.trim();
-      go.disabled = v.length < 2;
-      // پیش‌نمایش زنده: کارت عبورِ مینی‌اپ با همین اسم
-      passName.textContent = v || 'اسم مینی‌اپت';
-      passInitial.textContent = v ? v.charAt(0) : '؟';
-    };
-    input.onkeydown = e => { if (e.key === 'Enter' && !go.disabled) go.click(); };
-    go.onclick = async () => {
-      go.disabled = true;
-      go.textContent = 'در حال ساخت…';
-      try {
-        const res = await api('app/create', { name: input.value.trim() });
-        notify('success');
-        S.me.apps.push(res.app);
-        await openApp(res.app.id, true);
-        templatesScreen(true);
-      } catch (err) {
-        failed(err);
-      } finally {
-        go.textContent = 'ادامه';
-        input.oninput();
-      }
-    };
-    setTimeout(() => input.focus(), 350);
+  }
+
+  function drawPass() {
+    $('ob-pass-name').textContent = W.name || 'اسم مینی‌اپت';
+    const ini = $('ob-pass-initial');
+    ini.textContent = '';
+    if (W.logo) {
+      const img = h('img');
+      img.src = W.logo;
+      img.alt = '';
+      ini.appendChild(img);
+    } else ini.textContent = W.name ? W.name.charAt(0) : '؟';
+    const k = KINDS.find(x => x.key === W.kind);
+    $('ob-pass-kind').textContent = k ? k.title : 'ساخته شده با ایزی‌ساز';
+  }
+
+  /* سند قالب با اسم، لوگو و رنگ کاربر؛ و اگر پلن اجازه نمی‌دهد، نسخهٔ جمع‌وجورش */
+  function wizardDoc(accent) {
+    const t = kindTemplate();
+    const name = W.name.replace(/["\\]/g, '');
+    const doc = JSON.parse(JSON.stringify(t.doc).split('{name}').join(name));
+    doc.theme = Object.assign({}, doc.theme, { accent: accent || doc.theme.accent, mode: 'light' });
+    if (W.logo) {
+      if (doc.header) doc.header.logo = W.logo;
+      doc.pages.forEach(p => p.blocks.forEach(b => { if (b.type === 'hero' && 'image' in (b.props || {})) b.props.image = W.logo; }));
+    }
+    return doc;
+  }
+  function fitToPlan(doc, plan) {
+    let budget = plan.max_blocks, cut = false;
+    const pages = doc.pages.slice(0, plan.max_pages);
+    if (pages.length < doc.pages.length) cut = true;
+    doc.pages = pages.map(pg => {
+      const keep = pg.blocks.filter(b => plan.premium_blocks || !(S.schema.blocks[b.type] || {}).premium);
+      const blocks = keep.slice(0, Math.max(0, budget));
+      if (blocks.length < pg.blocks.length) cut = true;
+      budget -= blocks.length;
+      return Object.assign({}, pg, { blocks });
+    });
+    return cut;
+  }
+
+  function drawMoods() {
+    const t = kindTemplate();
+    const box = $('wz-moods');
+    box.textContent = '';
+    const list = [['رنگ قالب', t.accent]].concat(MOODS)
+      .filter((m, i, a) => a.findIndex(x => x[1].toLowerCase() === m[1].toLowerCase()) === i).slice(0, 4);
+    if (!W.accent) W.accent = list[0][1];
+    list.forEach(([label, accent]) => {
+      const b = h('button', 'mood' + (W.accent === accent ? ' on' : ''));
+      b.type = 'button';
+      b.setAttribute('role', 'radio');
+      const frame = h('div', 'mood-frame');
+      const mini = h('div');
+      frame.appendChild(mini);
+      const doc = wizardDoc(accent);
+      fitToPlan(doc, S.me.plan);
+      ES.render(mini, doc, { page: doc.pages[0].id, appName: W.name });
+      const name = h('span', 'mood-name');
+      const sw = h('i');
+      sw.style.background = accent;
+      name.append(sw, document.createTextNode(label), ico('check', 'mood-check'));
+      b.append(frame, name);
+      b.addEventListener('click', () => { W.accent = accent; select(); drawMoods(); wizardFoot(); });
+      box.appendChild(b);
+    });
+  }
+
+  async function wizardFinish() {
+    const next = $('wz-next');
+    next.disabled = true;
+    next.textContent = 'در حال ساخت…';
+    try {
+      const res = await api('app/create', { name: W.name });
+      S.me.apps.push(res.app);
+      await openApp(res.app.id, true);
+      const doc = wizardDoc(W.accent);
+      const cut = fitToPlan(doc, S.plan);
+      const saved = await api('app/save', { id: S.app.id, doc });
+      S.doc = ES.normalize(saved.doc);
+      S.app = saved.app;
+      S.pageId = S.doc.pages[0].id;
+      resetHistory();
+      notify('success');
+      openEditor();
+      showCoach();
+      if (cut) setTimeout(() => toast('نسخهٔ رایگانِ قالب ساخته شد؛ با پلن حرفه‌ای کامل می‌شه'), 2600);
+    } catch (err) {
+      failed(err);
+      next.disabled = false;
+      wizardFoot();
+    }
   }
 
   /* ===== قالب‌ها (TemplatePicker) ===== */
@@ -362,7 +536,8 @@
       const doc = fillName(t.doc);
       try {
         const res = await api('app/save', { id: S.app.id, doc });
-        S.doc = res.doc;
+        S.doc = ES.normalize(res.doc);
+        recordChange(true);
         S.app = res.app;
         S.pageId = S.doc.pages[0].id;
         S.selected = null;
@@ -381,6 +556,7 @@
     const res = await api('app?id=' + encodeURIComponent(id));
     S.app = res.app;
     S.doc = ES.normalize(res.doc);
+    resetHistory();
     S.stats = res.stats;
     S.plan = res.plan;
     S.pageId = S.doc.pages[0].id;
@@ -409,9 +585,11 @@
     $('bar-name').textContent = S.app.name;
     const live = !!S.app.published_at;
     const st = $('bar-status');
-    const pub = !live ? 'پیش‌نویس' : (S.app.dirty ? 'تغییرات منتشر نشده' : 'منتشر شده');
-    const save = { busy: 'در حال ذخیره…', err: 'ذخیره نشد', '': 'ذخیره شد' }[S.saveState];
-    st.querySelector('span').textContent = pub + ' · ' + save;
+    // یک خط کوتاه: وضعیت ذخیره وقتی در جریان است، وگرنه وضعیت انتشار
+    const pub = !live ? 'پیش‌نویس' : (S.app.dirty ? 'منتشر نشده' : 'منتشر شده');
+    const save = { busy: 'ذخیره…', err: 'ذخیره نشد', '': '' }[S.saveState];
+    st.querySelector('span').textContent = save || pub;
+    st.title = pub + (save ? ' · ' + save : ' · ذخیره شد');
     st.className = 'caption status ' + (S.saveState || (live && !S.app.dirty ? 'live' : ''));
     $('bar-publish').classList.toggle('dirty', !!S.app.dirty || !live);
   }
@@ -460,16 +638,65 @@
         appName: S.app.name,
         editing: !S.previewing,
         selected: S.previewing ? null : S.selected,
-        onPick: id => { if (!S.previewing) { haptic(); editBlock(id); } },
-        onPickHeader: () => { if (!S.previewing) { haptic(); headerSheet(); } },
+        onPick: id => { if (!S.previewing) { haptic(); pickBlock(id); } },
+        onPickHeader: () => { if (!S.previewing) { haptic(); pickBlock('header'); } },
         onNavigate: id => goPage(id),
         branding: S.plan && S.plan.branding ? { bot: S.me.bot } : null,
       });
       $('empty').hidden = page().blocks.length > 0 || S.previewing;
+      placeBlockbar();
     });
   }
 
+  /* ---------- برگرد و دوباره (Undo/Redo) ----------
+     H.base حالت فعلی ذخیره‌شده در تاریخچه است؛ هر تغییر حالت قبلی را در past
+     می‌گذارد. تغییرهای پشت‌سرهم (تایپ) زیر ۷۰۰ میلی‌ثانیه یک قدم حساب می‌شوند. */
+  const H = { past: [], future: [], base: null, t: 0 };
+  function resetHistory() {
+    H.past = []; H.future = []; H.base = JSON.stringify(S.doc); H.t = 0;
+    renderUndo();
+  }
+  function recordChange(force) {
+    const cur = JSON.stringify(S.doc);
+    if (H.base == null) { H.base = cur; return; }
+    if (cur === H.base) return;
+    const now = Date.now();
+    if (force || now - H.t > 700 || !H.past.length) {
+      H.past.push(H.base);
+      if (H.past.length > 60) H.past.shift();
+    }
+    H.t = now;
+    H.base = cur;
+    H.future = [];
+    renderUndo();
+  }
+  function renderUndo() {
+    const u = $('bar-undo'), r = $('bar-redo');
+    if (u) u.disabled = !H.past.length;
+    if (r) r.disabled = !H.future.length;
+  }
+  function travel(from, to, label) {
+    if (!from.length) return;
+    if ($('sheet').classList.contains('on')) closeSheet();
+    to.push(JSON.stringify(S.doc));
+    const snap = from.pop();
+    S.doc = ES.normalize(JSON.parse(snap));
+    H.base = snap;
+    H.t = 0;
+    if (!S.doc.pages.find(p => p.id === S.pageId)) S.pageId = S.doc.pages[0].id;
+    if (S.selected && S.selected !== 'header' && !findBlock(S.selected)) S.selected = null;
+    S.app.dirty = true;
+    renderAll();
+    renderUndo();
+    scheduleSave();
+    select();
+    toast(label);
+  }
+  const undo = () => travel(H.past, H.future, 'برگشت');
+  const redo = () => travel(H.future, H.past, 'دوباره انجام شد');
+
   function changed() {
+    recordChange();
     S.app.dirty = true;
     renderBar();
     renderCanvas();
@@ -534,6 +761,7 @@
     $('scrim').classList.add('on');
     sheetClose = onClose || null;
     if (live && live.focus) focusLive(live.focus);
+    placeBlockbar();
     setDock(tool);
     if (tg && tg.BackButton) tg.BackButton.show();
   }
@@ -547,6 +775,7 @@
     const cb = sheetClose;
     sheetClose = null;
     if (cb) cb();
+    requestAnimationFrame(placeBlockbar);
   }
   /* داک ابزار ادیتور: ابزاری که شیتش باز است قرص روشن می‌گیرد */
   function setDock(tool) {
@@ -942,6 +1171,156 @@
     return null;
   }
 
+  /* ===================== ویرایش روی خود صفحه =====================
+     لمس اول = انتخاب (نوار شناور + «+» بالا و پایین). لمس دوباره روی متن =
+     تایپ همان‌جا. لمس دوباره روی جای دیگر کامپوننت = شیت کامل ویرایش. */
+  function pickBlock(id) {
+    if ($('sheet').classList.contains('on')) {
+      if (id === 'header') headerSheet(); else editBlock(id);
+      return;
+    }
+    if (S.selected === id) {
+      if (id === 'header') headerSheet(); else editBlock(id);
+      return;
+    }
+    S.selected = id;
+    renderCanvas();
+  }
+  function selectedEl() {
+    if (!S.selected) return null;
+    return S.selected === 'header' ? $('canvas').querySelector('.pg-header') : blockEl(S.selected);
+  }
+  function placeBlockbar() {
+    const bar = $('blockbar'), up = $('ins-above'), dn = $('ins-below');
+    const el = !S.previewing && !S.inline && !$('editor').hidden && !$('sheet').classList.contains('on') ? selectedEl() : null;
+    if (!el) { bar.hidden = true; up.hidden = true; dn.hidden = true; return; }
+    const c = $('canvas').getBoundingClientRect(), r = el.getBoundingClientRect();
+    const isHeader = S.selected === 'header';
+    bar.hidden = false;
+    bar.classList.toggle('only-main', isHeader);
+    const bh = bar.offsetHeight || 46;
+    let top = r.top - bh - 22;
+    if (top < c.top + 6) top = r.bottom + 22;
+    top = Math.max(c.top + 6, Math.min(top, c.bottom - bh - 8));
+    bar.style.top = top + 'px';
+    if (isHeader) { up.hidden = true; dn.hidden = true; return; }
+    const f = findBlock(S.selected);
+    const cx = r.left + r.width / 2 - 15;
+    const vis = y => y > c.top + 8 && y < c.bottom - 8;
+    up.hidden = !vis(r.top);
+    up.style.top = (r.top - 15) + 'px';
+    up.style.left = cx + 'px';
+    dn.hidden = !vis(r.bottom);
+    dn.style.top = (r.bottom - 15) + 'px';
+    dn.style.left = cx + 'px';
+    const bb = k => bar.querySelector(`[data-bb="${k}"]`);
+    if (f) { bb('up').disabled = f.index <= 0; bb('down').disabled = f.index >= f.page.blocks.length - 1; }
+  }
+  function blockAction(act) {
+    const id = S.selected;
+    if (!id) return;
+    if (act === 'edit') { if (id === 'header') headerSheet(); else editBlock(id); return; }
+    const f = findBlock(id);
+    if (!f) return;
+    const list = f.page.blocks;
+    if (act === 'up' || act === 'down') {
+      const j = f.index + (act === 'up' ? -1 : 1);
+      if (j < 0 || j >= list.length) return;
+      list.splice(j, 0, list.splice(f.index, 1)[0]);
+      select();
+      changed();
+      scrollToBlock(id);
+    } else if (act === 'copy') {
+      if (totalBlocks() >= S.plan.max_blocks) { upsellSheet(`پلن ${S.plan.title} حداکثر ${S.plan.max_blocks} کامپوننت دارد.`); return; }
+      const copy = JSON.parse(JSON.stringify(f.block));
+      copy.id = newId();
+      list.splice(f.index + 1, 0, copy);
+      S.selected = copy.id;
+      haptic('medium');
+      changed();
+      scrollToBlock(copy.id);
+      toast('تکثیر شد');
+    } else if (act === 'del') {
+      confirmBox('این کامپوننت حذف بشه؟ با «برگرد» برمی‌گرده.', () => {
+        const cur = findBlock(id);
+        if (!cur) return;
+        cur.page.blocks.splice(cur.index, 1);
+        S.selected = null;
+        notify('warning');
+        changed();
+        toast('حذف شد');
+      });
+    }
+  }
+
+  /* تایپ روی خود صفحه: عنصرهای data-edit (render.js) مسیر فیلدشان را دارند */
+  function fieldFor(id, path) {
+    const keys = path.split('.');
+    let fields = id === 'header' ? S.schema.header : (S.schema.blocks[(findBlock(id) || { block: {} }).block.type] || {}).fields;
+    let f = null;
+    for (const k of keys) {
+      if (/^\d+$/.test(k)) continue;
+      f = (fields || []).find(x => x.key === k);
+      if (!f) return null;
+      fields = f.fields;
+    }
+    return f;
+  }
+  function setPath(obj, path, v) {
+    const keys = path.split('.');
+    let o = obj;
+    for (let i = 0; i < keys.length - 1; i++) { o = o[/^\d+$/.test(keys[i]) ? Number(keys[i]) : keys[i]]; if (!o) return; }
+    o[keys[keys.length - 1]] = v;
+  }
+  function startInline(el, id, path) {
+    const holder = id === 'header' ? S.doc.header : ((findBlock(id) || {}).block || {}).props;
+    const field = fieldFor(id, path);
+    if (!holder || !field) return;
+    const multi = field.type === 'textarea';
+    const max = field.max || 200;
+    S.inline = { el, id, path };
+    placeBlockbar();
+    el.setAttribute('contenteditable', 'plaintext-only');
+    if (el.contentEditable !== 'plaintext-only') el.setAttribute('contenteditable', 'true');
+    el.classList.add('pg-inline');
+    el.focus();
+    try {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      r.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+    } catch (e) {}
+    el.oninput = () => {
+      let v = el.innerText.replace(/ /g, ' ');
+      if (!multi) v = v.replace(/\n+/g, ' ');
+      if (v.length > max) v = v.slice(0, max);
+      setPath(holder, path, v);
+      S.app.dirty = true;
+      recordChange();
+      renderBar();
+      scheduleSave();
+    };
+    el.onkeydown = e => {
+      if ((e.key === 'Enter' && !multi) || e.key === 'Escape') { e.preventDefault(); el.blur(); }
+    };
+    el.onblur = () => {
+      el.onblur = null; el.oninput = null; el.onkeydown = null;
+      el.removeAttribute('contenteditable');
+      S.inline = null;
+      renderCanvas();
+    };
+  }
+
+  /* راهنمای یک‌باره بعد از ساخت */
+  function showCoach() {
+    try { if (localStorage.getItem('es-coach')) return; } catch (e) {}
+    const c = $('coach');
+    c.hidden = false;
+    $('coach-ok').onclick = () => { c.hidden = true; try { localStorage.setItem('es-coach', '1'); } catch (e) {} };
+  }
+
   function editBlock(id) {
     const found = findBlock(id);
     if (!found) return;
@@ -1078,7 +1457,7 @@
         sheet.appendChild(more);
       }
     }, () => {
-      S.selected = null;
+      // انتخاب می‌ماند تا نوار شناور کامپوننت دوباره دیده شود
       renderCanvas();
       saveNow();
     }, null, { focus: () => blockEl(id) });
@@ -1191,7 +1570,7 @@
   }
 
   /* ---------- افزودن کامپوننت (ComponentTile، گروه‌بندی بر اساس دسته) ---------- */
-  function addSheet() {
+  function addSheet(atIndex) {
     openSheet(sheet => {
       sheetHead(sheet, 'brand', 'plus', 'افزودن کامپوننت',
         `به «${page().title}» · ${totalBlocks()} از ${S.plan.max_blocks} کامپوننت · پلن ${S.plan.title}`);
@@ -1226,7 +1605,8 @@
             const block = { id: newId(), type, props };
             const list = page().blocks;
             const f = S.selected ? findBlock(S.selected) : null;
-            const at = f && f.page === page() ? f.index + 1 : list.length;
+            const at = typeof atIndex === 'number' ? Math.max(0, Math.min(list.length, atIndex))
+              : (f && f.page === page() ? f.index + 1 : list.length);
             list.splice(at, 0, block);
             notify('success');
             changed();
@@ -1349,7 +1729,7 @@
       sheetHead(sheet, 'frame', 'header', 'سربرگ', 'بالای همهٔ صفحه‌ها؛ اسم و لوگوی مینی‌اپ.');
       groupFields(sheet, S.schema.header, S.doc.header);
       sheet.appendChild(h('p', 'caption sw-note', 'اگر عنوان خالی بماند، اسم مینی‌اپ نشان داده می‌شود.'));
-    }, () => { S.selected = null; renderCanvas(); saveNow(); }, null, { focus: () => document.querySelector('#canvas') });
+    }, () => { renderCanvas(); saveNow(); }, null, { focus: () => document.querySelector('#canvas') });
   }
 
   function tabbarSheet() {
@@ -1520,6 +1900,7 @@
       const res = await api('app/publish', { id: S.app.id, doc: S.doc });
       S.app = res.app;
       S.doc = ES.normalize(res.doc);
+      H.base = JSON.stringify(S.doc);
       if (!S.doc.pages.find(p => p.id === S.pageId)) S.pageId = S.doc.pages[0].id;
       setSave('');
       renderAll();
@@ -2011,6 +2392,45 @@
     window.addEventListener('resize', () => { placeNav(); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeNav);
     $('ed-back').addEventListener('click', () => { haptic(); leaveEditor(); });
+    $('bar-undo').addEventListener('click', () => { haptic(); undo(); });
+    $('bar-redo').addEventListener('click', () => { haptic(); redo(); });
+    document.querySelectorAll('#blockbar [data-bb]').forEach(b => b.addEventListener('click', () => { haptic(); blockAction(b.dataset.bb); }));
+    const insert = d => {
+      const f = findBlock(S.selected);
+      if (!f) return;
+      haptic();
+      addSheet(f.index + d);
+    };
+    $('ins-above').addEventListener('click', () => insert(0));
+    $('ins-below').addEventListener('click', () => insert(1));
+    const canvas = $('canvas');
+    // لمس متنِ کامپوننتِ انتخاب‌شده = تایپ همان‌جا (قبل از کلیک خود کامپوننت)
+    canvas.addEventListener('click', ev => {
+      if (S.previewing || S.inline) return;
+      const t = ev.target.closest('[data-edit]');
+      if (!t) return;
+      const wrap = t.closest('.pg-block, .pg-header');
+      if (!wrap) return;
+      const id = wrap.classList.contains('pg-header') ? 'header' : wrap.dataset.id;
+      if (S.selected !== id || $('sheet').classList.contains('on')) return;
+      ev.stopPropagation();
+      ev.preventDefault();
+      startInline(t, id, t.dataset.edit);
+    }, true);
+    // لمس جای خالی بوم = لغو انتخاب
+    canvas.addEventListener('click', ev => {
+      if (S.previewing || S.inline || !S.selected || $('sheet').classList.contains('on')) return;
+      if (ev.target.closest('.pg-block, .pg-header, .pg-tabbar')) return;
+      S.selected = null;
+      renderCanvas();
+    });
+    let placeQ = false;
+    canvas.addEventListener('scroll', () => {
+      if (placeQ) return;
+      placeQ = true;
+      requestAnimationFrame(() => { placeQ = false; placeBlockbar(); });
+    }, { passive: true });
+    window.addEventListener('resize', () => placeBlockbar());
     // ارتفاع واقعی نوار بالای ادیتور → --etop-h (بوم زیر آن شروع می‌شود)
     const etop = document.querySelector('#editor .etop');
     const setEtop = () => { if (etop.offsetHeight) document.documentElement.style.setProperty('--etop-h', etop.offsetHeight + 'px'); };

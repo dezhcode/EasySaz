@@ -260,43 +260,74 @@ button.grow-row:active,div.grow-row:active{background:var(--ground)}
 .tpl-meta{margin-top:4px}
 .pro{position:absolute; top:10px; left:10px; z-index:1; height:20px; padding:0 8px; border-radius:10px; background:var(--navy); color:var(--tunnel); font-size:10px; font-weight:800; line-height:20px}
 
-/* ═══ ادیتور (زیرصفحه) ═══ */
-.editor{position:relative; height:100vh; height:var(--tg-viewport-stable-height,100vh); overflow:hidden}
-.etop{position:fixed; top:0; left:0; right:0; z-index:20; background:var(--ground); padding:calc(var(--safe-t) + 10px) 0 10px; border-bottom:1px solid var(--line)}
-.etop-row{display:flex; align-items:center; gap:8px; padding:0 var(--pad) 10px}
-.etop-app{flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; text-align:right; line-height:1.4}
-.etop-app b{font-size:17px; font-weight:800; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.status{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-3); white-space:nowrap}
+/* ═══ ادیتور (طرح د: بخش‌ها) ═══
+   فهرست بخش‌ها با نوار نام همیشگی؛ بین بخش‌ها «+ افزودن این‌جا»؛ داک ابزار
+   پایین. ویرایش و بقیه زیرصفحه‌اند (.sub). */
+:root{--dock-space:calc(62px + 18px + 12px + var(--safe-b))}
+.editor{padding-bottom:calc(var(--dock-space) + 16px)}
+.etop{position:sticky; top:0; z-index:20; background:var(--ground); padding-top:calc(var(--safe-t) + 8px); border-bottom:1px solid var(--line)}
+.etop-row{display:flex; align-items:center; gap:4px; padding:0 12px 6px}
+.etop-app{flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; text-align:right; line-height:1.4; padding:0 4px}
+.etop-app b{font-size:16px; font-weight:800; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.status{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-3); white-space:nowrap}
 .status .dot{background:var(--warning)}
 .status.live .dot{background:var(--success)}
 .status.busy .dot{background:var(--warning); animation:pulse 1s infinite}
 .status.err .dot{background:var(--danger)}
-.btn.publish{padding:0 14px}
+.btn.publish{padding:0 14px; margin-inline-start:2px}
 .btn.publish .dot{display:none; background:var(--on-brand); width:6px; height:6px}
 .btn.publish.dirty .dot{display:inline-block}
-.pagestrip{margin-top:0}
-/* بوم = قاب گوشی: خودش اسکرول می‌خورد، پس سربرگ مینی‌اپ بالای آن و نوار
-   پایینش پایین آن ثابت می‌مانند، درست مثل صفحهٔ منتشرشده. داک ابزار زیر قاب
-   است، نه روی آن. --etop-h را panel.js از ارتفاع واقعی نوار بالا می‌گیرد. */
-:root{--dock-space:calc(62px + 18px + 12px + var(--safe-b))}
-#canvas{position:fixed; left:0; right:0; top:var(--etop-h, 118px); bottom:var(--dock-space); overflow-y:auto; overscroll-behavior:contain;
-  display:flex; flex-direction:column; min-height:0; -webkit-overflow-scrolling:touch}
-#canvas > .pg-blocks{flex:1 0 auto; width:100%}
-#canvas.pg-page{padding-bottom:28px}
-#canvas.pg-has-tabs{padding-bottom:0}
-#canvas .pg-header{position:sticky; top:0}
-#canvas .pg-header.pg-editable{border-radius:0; outline-offset:-2px}
-#canvas .pg-tabbar{position:sticky; bottom:0; flex:none}
-#canvas .pg-tabbar--floating,#canvas .pg-tabbar--minimal{bottom:14px; margin-bottom:14px}
-.editor.previewing .etop{display:none}
-.editor.previewing #canvas{top:0; bottom:0}
-.editor.previewing .pg-editable{outline:0 !important; cursor:auto}
-.editor.previewing .pg-selected-tag{display:none}
-.empty{display:flex; flex-direction:column; align-items:center; gap:10px; padding:34px 22px; text-align:center;
-  position:fixed; z-index:5; left:var(--pad); right:var(--pad); top:calc(var(--etop-h, 118px) + 96px); border:2px dashed var(--line); border-radius:var(--radius-xl); background:var(--ground)}
-.empty-t{font-size:15px; font-weight:800}
-.empty-s{font-size:13px; color:var(--ink-3); max-width:260px}
-.empty-actions{display:flex; gap:8px; margin-top:6px}
+.icon-btn.flat{background:none; border-color:transparent}
+.icon-btn.flat:active{background:var(--surface-sunk)}
+.utabs{display:flex; gap:20px; padding:0 20px; overflow-x:auto; scrollbar-width:none}
+.utabs::-webkit-scrollbar{display:none}
+.ut{flex:none; height:42px; display:flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:var(--ink-3); border-bottom:2.5px solid transparent; margin-bottom:-1px; white-space:nowrap}
+.ut .ico{width:16px; height:16px}
+.ut.on{color:var(--ink); font-weight:800; border-bottom-color:var(--ink)}
+.ut.add{color:var(--brand); font-weight:800}
+
+.secs{display:flex; flex-direction:column; padding:14px 16px 0}
+.dsec{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden; transition:border-color .3s, box-shadow .3s; animation:rise .3s var(--ease) both}
+.dsec.flash{border-color:var(--brand); box-shadow:0 0 0 3px var(--brand-tint)}
+.dsec-h{display:flex; align-items:center; gap:8px; min-height:48px; padding:0 8px 0 6px; border-bottom:1px solid var(--line)}
+.dsec-h .cat-tile{width:28px; height:28px; border-radius:9px}
+.dsec-h .cat-tile .ico{width:15px; height:15px}
+.dsec-t{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.35}
+.dsec-t b{font-size:13.5px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.dsec-t small{font-size:11px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.dsec-grip,.dsec-more{width:30px; height:40px; border-radius:10px; display:grid; place-items:center; color:var(--ink-3); flex:none; margin:0 -2px}
+.dsec-grip .ico,.dsec-more .ico{width:18px; height:18px}
+.dsec-more .ico,.ico-more{stroke-width:3.2}
+[aria-label="کارهای بیشتر"] .ico{stroke-width:3.2}
+.dsec-grip:active,.dsec-more:active{background:var(--surface-sunk)}
+.pe{height:32px; padding:0 11px; border-radius:10px; background:var(--ground); color:var(--ink); font-size:12.5px; font-weight:800; display:inline-flex; align-items:center; gap:5px; flex:none; white-space:nowrap}
+.pe .ico{width:15px; height:15px}
+.pe:active{transform:scale(.96)}
+.dsec-b{display:block; width:100%; text-align:inherit}
+.dsec-b:active .dsec-pv{opacity:.8}
+.dsec-pv,.ccard-mini,.pv-box{pointer-events:none}
+.dsec-pv.pg-page{min-height:0; padding:12px !important; max-height:440px; overflow:hidden}
+.dsec-pv.hd.pg-page{padding:0 !important}
+.dsec-pv .pg-header{position:static; margin:0}
+.dsec-pv .pg-block,.ccard-mini .pg-block,.pv-box .pg-block{animation:none}
+.dsec-pv .pg-brand,.ccard-mini .pg-brand,.pv-box .pg-brand{display:none}
+.dsec-off{display:flex; align-items:center; gap:10px; width:100%; padding:10px 12px; border:1.5px dashed var(--line); border-radius:var(--radius-lg); text-align:right}
+.dsec-off .grow{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.4}
+.dsec-off b{font-size:13.5px; font-weight:700; color:var(--ink-2)}
+.dsec-off small{font-size:11px; color:var(--ink-3)}
+.dsec-off-go{font-size:12.5px; font-weight:800; color:var(--brand)}
+.addhere{display:flex; align-items:center; gap:8px; height:42px}
+.addhere > i{flex:1; border-top:1.5px dashed var(--line)}
+.addhere-b{height:28px; padding:0 12px; border-radius:14px; background:var(--surface); border:1px solid var(--line); color:var(--brand); font-size:12px; font-weight:800; display:inline-flex; align-items:center; gap:4px; white-space:nowrap}
+.addhere-b .ico{width:14px; height:14px; stroke-width:2.4}
+.addhere-b:active{transform:scale(.95)}
+.addhere.last{height:auto; margin-top:10px}
+.addhere.last > i{display:none}
+.addhere.last .addhere-b{flex:1; height:54px; border-radius:var(--radius-lg); border:2px dashed var(--line); background:none; font-size:14px; justify-content:center}
+.dempty{display:flex; flex-direction:column; gap:12px; margin-top:14px; padding:18px 14px 14px; border:1.5px dashed var(--line); border-radius:var(--radius-xl); text-align:center}
+.dempty-t{font-size:16px; font-weight:800}
+.dempty-s{font-size:12.5px; color:var(--ink-3); margin-top:-8px}
+.dempty .ccard{text-align:right}
 
 /* داک ابزار: ناوبری تیرهٔ شناور، دکمهٔ افزودن وسط */
 .dock{position:fixed; z-index:30; left:var(--pad); right:var(--pad); bottom:calc(18px + var(--safe-b)); height:62px;
@@ -306,15 +337,158 @@ button.grow-row:active,div.grow-row:active{background:var(--ground)}
 .dock button .ico{width:21px; height:21px}
 .dock button:active .ico{transform:scale(.88)}
 .dock-l{font-size:10px; font-weight:700; line-height:1}
-.dock button.on{color:var(--ink-on-nav, #0A1633)}
-.dock-ind{position:absolute; z-index:0; top:6px; height:50px; width:0; border-radius:16px; background:var(--nav-on); opacity:0; transition:left .36s var(--spring), width .36s var(--spring), opacity .2s}
-.dock-ind.show{opacity:1}
-.dock-add-t{width:46px; height:46px; border-radius:15px; background:var(--brand); color:var(--on-brand); display:grid; place-items:center; box-shadow:0 8px 18px -8px rgba(29,85,240,.8)}
+.dock-add-t{width:46px; height:46px; border-radius:15px; background:var(--nav-on); color:#0A1633; display:grid; place-items:center}
 .dock-add-t .ico{width:22px; height:22px; stroke-width:2.2}
-.editor.previewing .dock{transform:translateY(160%)}
-.exit-preview{position:fixed; z-index:31; left:14px; top:calc(var(--safe-t) + 12px); height:40px; padding:0 14px;
-  border-radius:23px; background:var(--nav-bg); color:var(--nav-on); font-weight:800; font-size:14px; display:flex; align-items:center; gap:8px; box-shadow:var(--shadow-pass); animation:rise .3s var(--ease)}
-.exit-preview .ico{width:18px; height:18px}
+body.has-sub .dock{transform:translateY(160%)}
+
+/* ═══ زیرصفحه‌ها ═══ */
+body.has-sub{overflow:hidden}
+.sub{position:fixed; inset:0; z-index:45; overflow-y:auto; overscroll-behavior:contain; background:var(--ground); padding-bottom:calc(96px + var(--safe-b)); animation:subIn .3s var(--ease)}
+.sub.out{animation:subOut .24s var(--ease) forwards; pointer-events:none}
+@keyframes subIn{from{transform:translateX(-28%); opacity:0}}
+@keyframes subOut{to{transform:translateX(-18%); opacity:0}}
+.stop{position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:6px; padding:calc(var(--safe-t) + 8px) 12px 8px; background:var(--surface); border-bottom:1px solid var(--line)}
+.stop-t{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.35; padding:0 4px}
+.stop-c{font-size:11.5px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.stop-t b{font-size:16px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.stop-n{font-size:12.5px; color:var(--ink-3); font-weight:700; padding:0 6px; white-space:nowrap}
+.saved{display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; color:var(--success); white-space:nowrap; padding:0 4px}
+.saved .ico{width:14px; height:14px; stroke-width:2.2}
+.saved.busy{color:var(--ink-3)}
+.saved.err{color:var(--danger)}
+.pv{background:var(--pg-bg, var(--surface-sunk)); border-bottom:1px solid var(--line); padding:10px 16px 14px; display:flex; flex-direction:column; gap:8px}
+.pv-tag{align-self:flex-start; display:inline-flex; align-items:center; gap:6px; height:22px; padding:0 9px; border-radius:11px; background:var(--surface); border:1px solid var(--line); font-size:11px; font-weight:700; color:var(--ink-2)}
+.pv-tag .dot{width:6px; height:6px; background:var(--success)}
+.pv-box{border-radius:var(--radius-lg); overflow:hidden; max-height:38vh}
+.pv-box > .pg-page{min-height:0; padding:6px 0 !important; background:transparent}
+.pv-box .pv-page{height:100%; display:flex; flex-direction:column; border-radius:var(--radius-lg); border:1px solid var(--line); overflow:hidden; padding:0 0 10px !important; background:var(--pg-bg)}
+.pv-box .pv-page > .pg-blocks{flex:1 1 auto; min-height:0; overflow:hidden; width:100%; padding:12px 12px 0}
+.pv-box .pv-page .pg-header{position:static; margin:0}
+.pv-box .pv-page .pg-tabbar{position:static; flex:none; margin:8px 12px 0}
+.pv-box .pg-editable{cursor:default}
+.sbody{padding:4px 16px 8px}
+.sfoot{position:fixed; left:0; right:0; bottom:0; z-index:6; display:flex; gap:8px; align-items:center; padding:10px 14px calc(var(--safe-b) + 14px); background:var(--surface); border-top:1px solid var(--line)}
+.sfoot .btn{height:48px; flex:1; padding:0 10px; font-size:14px}
+.sfoot .btn.sq{flex:none; width:52px}
+.sfoot .btn.sq span{display:none}
+.sfoot .btn.grow{flex:2}
+.sfoot .btn:disabled{opacity:.4}
+.slabel{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin:22px 4px 8px}
+.slabel b{font-size:13.5px; font-weight:800; color:var(--ink-2)}
+.slabel span{font-size:11.5px; color:var(--ink-3)}
+.shint{margin:12px 20px 4px; font-size:12.5px; line-height:1.8; color:var(--ink-3)}
+.layer-txt .warn-t{color:var(--warning)}
+.empty-items{padding:14px; text-align:center; margin:0}
+.go-row{margin-top:14px}
+.go-row .chev{width:16px; height:16px}
+
+/* ترتیب */
+.olist{margin:12px 16px 0}
+.onum{width:18px; text-align:center; font-size:12.5px; font-weight:800; color:var(--ink-3); font-variant-numeric:tabular-nums; flex:none}
+.ob{width:34px; height:36px; border-radius:10px; display:grid; place-items:center; color:var(--ink-2); flex:none}
+.ob .ico{width:17px; height:17px}
+.ob:disabled{opacity:.3}
+.ob:active{background:var(--surface-sunk)}
+.sfoot.usage{flex-direction:column; align-items:stretch; gap:8px}
+.usage-row{display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-2)}
+.usage-row b{font-size:12.5px; font-weight:800; color:var(--ink)}
+.usage-bar{height:6px; border-radius:3px; background:var(--surface-sunk); overflow:hidden}
+.usage-bar i{display:block; height:100%; border-radius:3px; background:var(--ink)}
+
+/* صفحه‌ها */
+.plist{display:flex; flex-direction:column; gap:10px; padding:12px 16px 0}
+.plist .dsec{animation:none}
+.plist .dsec.open{border:2px solid var(--brand)}
+.prow{display:flex; align-items:center; gap:2px; padding:8px 8px 8px 6px}
+.prow-m{flex:1; min-width:0; display:flex; align-items:center; gap:10px; text-align:right; padding:2px 4px}
+.prow-m .grow{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.45}
+.prow-m .chev{transition:transform .25s var(--ease)}
+.prow-m .chev.up{transform:rotate(180deg)}
+.ped{padding:0 14px 14px; border-top:1px solid var(--line)}
+.ped-tools{display:flex; gap:8px; margin-top:14px}
+.ped-tools .btn{flex:1; height:44px; font-size:13.5px}
+
+/* تنظیمات */
+.appcard{display:flex; align-items:center; gap:12px; margin-top:12px; padding:14px; border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--surface)}
+.appcard .grow{flex:1; min-width:0; display:flex; flex-direction:column}
+.appcard .caption{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:right}
+.appcard .appbar-tile{width:52px; height:52px; border-radius:16px; font-size:22px; overflow:hidden}
+.appcard .appbar-tile img{width:100%; height:100%; object-fit:cover}
+.sbody > .stats{margin-top:12px}
+
+/* شیت افزودن: بخش آماده / کامپوننت تکی */
+.add-seg{margin-top:16px}
+.add-body{display:flex; flex-direction:column; gap:12px; margin-top:12px}
+.add-body .shint{margin:0 4px}
+.fchips{display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin:0 calc(-1 * var(--pad)); padding:0 var(--pad) 2px}
+.fchip{flex:none; height:34px; padding:0 13px; border-radius:17px; border:1px solid var(--line); background:var(--surface); font-size:13px; font-weight:600; color:var(--ink-2); display:inline-flex; align-items:center; gap:6px; white-space:nowrap}
+.fchip .dot{width:7px; height:7px}
+.fchip.on{background:var(--ink); border-color:var(--ink); color:var(--on-ink)}
+.clabel{display:flex; align-items:center; gap:6px; margin:8px 4px -2px; font-size:12.5px; font-weight:800; color:var(--ink-2)}
+.clabel .dot{width:7px; height:7px}
+.ccard{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden}
+.ccard-pv{display:block; width:100%; position:relative; border-bottom:1px solid var(--line); text-align:inherit}
+.ccard-pv:active{opacity:.85}
+.ccard-mini.pg-page{min-height:0; padding:12px !important; max-height:230px; overflow:hidden}
+.ccard.preset .ccard-pv{height:186px; overflow:hidden; background:var(--pg-bg)}
+.ccard.preset .ccard-mini.pg-page{position:absolute; top:0; right:0; width:166.67%; max-height:none; padding:16px !important; transform:scale(.6); transform-origin:top right}
+.ccard.preset.compact .ccard-pv{height:132px}
+.ccard.preset.compact .ccard-mini.pg-page{width:200%; transform:scale(.5)}
+.ccard-f{display:flex; align-items:center; gap:10px; padding:10px 12px}
+.ccard-f .cat-tile{width:34px; height:34px; border-radius:11px}
+.ccard-f .cat-tile .ico{width:17px; height:17px}
+.ccard-f .row-t{font-size:14.5px; font-weight:800; display:flex; align-items:center; gap:6px}
+.ccard-f .row-s{white-space:normal; line-height:1.55}
+.ccard-f .btn{flex:none; height:36px; padding:0 12px}
+.ccard-f .btn .ico{width:16px; height:16px}
+.ccard.locked .ccard-pv{opacity:.55}
+.pro-i{height:18px; padding:0 7px; border-radius:9px; background:var(--navy); color:var(--tunnel); font-size:9.5px; font-weight:800; line-height:18px; flex:none}
+
+/* شیت «بیشتر» */
+.acts{display:flex; flex-direction:column; margin:14px calc(-1 * var(--pad)) 0}
+.act{display:flex; align-items:center; gap:14px; min-height:54px; padding:0 var(--pad); font-size:15px; font-weight:600; text-align:right; border-top:1px solid var(--line)}
+.act .ico{width:20px; height:20px; color:var(--ink-2)}
+.act .grow{flex:1}
+.act small{font-size:12px; color:var(--ink-3); font-weight:400; max-width:45%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.act:active{background:var(--ground)}
+.act:disabled{opacity:.35}
+.act.danger,.act.danger .ico{color:var(--danger)}
+
+/* آمادهٔ انتشار */
+.checks{display:flex; flex-direction:column; margin-top:16px; border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden}
+.check{display:flex; align-items:center; gap:12px; padding:12px 14px}
+.check + .check{border-top:1px solid var(--line)}
+.check.warn{background:var(--media-tint)}
+.check .btn{flex:none; height:34px; padding:0 12px; font-size:12.5px}
+.chk{width:26px; height:26px; border-radius:13px; display:grid; place-items:center; flex:none}
+.chk .ico{width:15px; height:15px; stroke-width:2.4}
+.chk.ok{background:var(--success); color:#FFFFFF}
+.chk.warn{background:var(--media); color:#FFFFFF}
+.chk.no{background:var(--surface-sunk); color:var(--ink-3)}
+.pub-go{margin-top:16px}
+.pub-later{margin-top:6px; color:var(--ink-2); font-weight:700}
+
+/* پیش‌نمایش تمام‌صفحه */
+.sub-preview{overflow:hidden; padding:0}
+.pvbar{position:absolute; top:0; left:0; right:0; z-index:5; display:flex; align-items:center; gap:8px; padding:calc(var(--safe-t) + 8px) 12px 8px; background:var(--surface); border-bottom:1px solid var(--line)}
+.pvbar-t{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.35}
+.pvbar-t b{font-size:14px; font-weight:800}
+.pvbar-t span{font-size:11px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.pvbar-seg{flex:none; width:96px}
+.pvbar-seg button{height:30px; display:grid; place-items:center}
+.pvbar-seg .ico{width:17px; height:17px}
+.pvw{position:absolute; left:0; right:0; bottom:0; top:calc(var(--safe-t) + 62px); min-height:0; overflow-y:auto; overscroll-behavior:contain; display:flex; flex-direction:column}
+.pvw > .pg-blocks{flex:1 0 auto; width:100%}
+.pvw .pg-header{position:sticky; top:0}
+.pvw .pg-tabbar{position:sticky; bottom:0; flex:none}
+.pvw .pg-tabbar--floating,.pvw .pg-tabbar--minimal{bottom:14px; margin-bottom:14px}
+.pvw.pg-has-tabs{padding-bottom:0}
+
+/* راهنمای یک‌باره (بالای بخش‌ها) */
+.coach{display:flex; flex-direction:column; gap:4px; margin-bottom:14px; padding:16px; border-radius:var(--radius-lg); background:var(--navy); color:var(--on-pass); box-shadow:var(--shadow-pass); animation:rise .35s var(--ease)}
+.coach b{font-size:15px}
+.coach span{font-size:13px; line-height:1.8; color:var(--on-pass-2)}
+.coach .btn{align-self:flex-start; margin-top:6px; background:var(--on-pass); color:var(--navy)}
 
 /* ناوبری اصلی شناور: قرص روشن لغزان (مثل عبور) */
 .nav{position:fixed; z-index:40; left:var(--pad); right:var(--pad); bottom:calc(18px + var(--safe-b)); height:62px;
@@ -515,20 +689,6 @@ button.grow-row:active,div.grow-row:active{background:var(--ground)}
 .confirm-box .body{margin:0; color:var(--ink); font-weight:600}
 .confirm-row{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px}
 
-/* ═══ ویرایش زنده ═══ شیت نیمه‌قد و بدون پرده؛ بوم بالای آن دیده و لمس می‌شود */
-.scrim.live{background:transparent; pointer-events:none}
-.sheet.live{max-height:min(54vh, 540px); transition:transform .38s var(--ease), max-height .3s var(--ease), visibility 0s .38s; box-shadow:0 -1px 0 var(--line), var(--shadow-sheet)}
-.sheet.live.on{transition:transform .38s var(--ease), max-height .3s var(--ease)}
-.sheet.live.full{max-height:88vh}
-.sheet.live .grip{display:block; position:sticky; top:-10px; z-index:2; width:calc(100% + 2 * var(--pad)); height:26px; margin:-10px calc(-1 * var(--pad)) 2px;
-  border-radius:0; background:var(--surface); cursor:pointer}
-.sheet.live .grip::before{content:''; position:absolute; left:50%; top:10px; width:38px; height:4px; margin-left:-19px; border-radius:2px; background:var(--line)}
-.sheet.live .grip:active::before{background:var(--ink-3)}
-.editor.live-editing #canvas{bottom:0; padding-bottom:calc(var(--live-h, 54vh) + 40px)}
-.editor.live-editing #canvas .pg-tabbar{display:none}
-.editor.live-editing.live-tabbar #canvas .pg-tabbar{display:flex; bottom:calc(var(--live-h, 54vh) + 10px)}
-.editor.live-editing.live-tabbar #canvas{padding-bottom:0}
-.editor.live-editing .dock{transform:translateY(160%)}
 
 /* ═══ سبک‌های آماده (VariantStrip) ═══ */
 .var-sec{margin-top:var(--space-4)}
@@ -599,33 +759,7 @@ button.grow-row:active,div.grow-row:active{background:var(--ground)}
 .mood.on .mood-name{color:var(--brand); font-weight:800}
 .mood.on .mood-check{display:block}
 
-/* ═══ ویرایش روی صفحه ═══ */
+/* ═══ دکمهٔ آیکن کوچک ═══ */
 .icon-btn.sm{width:36px; height:36px; border-radius:12px}
 .icon-btn.sm .ico{width:18px; height:18px}
 .icon-btn:disabled{opacity:.35}
-#canvas .pg-selected-tag{display:none}
-#canvas .pg-selected [data-edit]{cursor:text; border-radius:6px; transition:background .2s}
-#canvas .pg-selected [data-edit]:hover{background:rgba(29,85,240,.08)}
-#canvas .pg-inline{outline:2px dashed var(--brand) !important; outline-offset:3px; background:rgba(29,85,240,.08); border-radius:6px; cursor:text; -webkit-user-select:text; user-select:text; caret-color:var(--brand)}
-/* نوار شناور کامپوننت انتخاب‌شده (قرص تیرهٔ عبور) */
-.blockbar{position:fixed; z-index:25; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:2px; height:46px; padding:0 5px;
-  border-radius:16px; background:var(--nav-bg); box-shadow:var(--shadow-pass); animation:bbIn .22s var(--spring)}
-@keyframes bbIn{from{opacity:0; transform:translateX(-50%) scale(.9)}}
-.blockbar button{height:36px; min-width:36px; padding:0 8px; white-space:nowrap; border-radius:11px; display:flex; align-items:center; justify-content:center; gap:6px; color:var(--nav-icon); font-size:12.5px; font-weight:800}
-.blockbar button .ico{width:18px; height:18px}
-.blockbar button:active{background:rgba(255,255,255,.1)}
-.blockbar button:disabled{opacity:.3}
-.blockbar .bb-main{background:var(--nav-on); color:#0A1633; padding:0 12px}
-.blockbar .bb-del{color:#FF8A73}
-.blockbar.only-main button:not(.bb-main){display:none}
-.ins{position:fixed; z-index:24; width:30px; height:30px; border-radius:15px; background:var(--brand); color:var(--on-brand); display:grid; place-items:center;
-  box-shadow:0 0 0 3px var(--ground), 0 6px 14px -6px rgba(29,85,240,.8); animation:bbIn2 .22s var(--spring)}
-@keyframes bbIn2{from{opacity:0; transform:scale(.6)}}
-.ins .ico{width:16px; height:16px; stroke-width:2.4}
-/* راهنمای یک‌باره */
-.coach{position:fixed; z-index:32; left:var(--pad); right:var(--pad); bottom:calc(var(--dock-space) + 8px); display:flex; flex-direction:column; gap:4px;
-  padding:16px; border-radius:var(--radius-lg); background:var(--navy); color:var(--on-pass); box-shadow:var(--shadow-pass); animation:rise .35s var(--ease)}
-.coach b{font-size:15px}
-.coach span{font-size:13px; line-height:1.8; color:var(--on-pass-2)}
-.coach .btn{align-self:flex-start; margin-top:6px; background:var(--on-pass); color:var(--navy)}
-.editor.previewing ~ .coach,.editor.previewing .coach{display:none}

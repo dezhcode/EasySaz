@@ -7,9 +7,9 @@
 <link rel="preload" href="__BASE__static/fonts/peyda-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="__BASE__static/fonts/peyda-800.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="__BASE__static/peyda.css">
-<link rel="stylesheet" href="__BASE__static/tokens.css?v=10">
-<link rel="stylesheet" href="__BASE__static/render.css?v=10">
-<link rel="stylesheet" href="__BASE__static/panel.css?v=10">
+<link rel="stylesheet" href="__BASE__static/tokens.css?v=11">
+<link rel="stylesheet" href="__BASE__static/render.css?v=11">
+<link rel="stylesheet" href="__BASE__static/panel.css?v=11">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -100,53 +100,36 @@
   <div class="foot" id="tpl-foot"><button class="btn btn-s btn-block" id="tpl-blank">شروع با صفحهٔ خالی</button></div>
 </section>
 
-<!-- ═══ ادیتور (زیرصفحه، بدون ناوبری اصلی) ═══ -->
+<!-- ═══ ادیتور (طرح د: بخش‌ها) ═══
+     هر کامپوننت یک «بخش» با نوار نام همیشگی است (دستگیره، ویرایش، بیشتر).
+     بین بخش‌ها «+ افزودن این‌جا». ویرایش، ظاهر، صفحه‌ها و تنظیمات زیرصفحه‌اند
+     (#subs) با مسیر بالا و پیش‌نمایش زنده. -->
 <section id="editor" class="screen editor" hidden>
   <header class="etop">
     <div class="etop-row">
-      <button class="back" id="ed-back" aria-label="برگشت به خانه"><span data-icon="back"></span></button>
+      <button class="icon-btn sm" id="ed-back" aria-label="برگشت به خانه"><span data-icon="back"></span></button>
       <button class="etop-app" id="bar-app" aria-label="تنظیمات مینی‌اپ">
         <b id="bar-name"></b>
         <span class="status" id="bar-status"><i class="dot"></i><span></span></span>
       </button>
-      <button class="icon-btn sm" id="bar-undo" aria-label="برگرد" disabled><span data-icon="undo"></span></button>
-      <button class="icon-btn sm" id="bar-redo" aria-label="دوباره" disabled><span data-icon="redo"></span></button>
-      <button class="icon-btn sm" id="bar-preview" aria-label="پیش‌نمایش"><span data-icon="eye"></span></button>
+      <button class="icon-btn sm flat" id="bar-undo" aria-label="برگرد" disabled><span data-icon="undo"></span></button>
+      <button class="icon-btn sm flat" id="bar-redo" aria-label="دوباره" disabled><span data-icon="redo"></span></button>
+      <button class="icon-btn sm flat" id="bar-preview" aria-label="پیش‌نمایش"><span data-icon="eye"></span></button>
       <button class="btn btn-p btn-sm publish" id="bar-publish"><i class="dot"></i>انتشار</button>
     </div>
-    <div class="tabs scroll pagestrip" id="pagestrip" role="tablist" aria-label="صفحه‌های مینی‌اپ"></div>
+    <div class="utabs" id="pagestrip" role="tablist" aria-label="صفحه‌های مینی‌اپ"></div>
   </header>
-  <div id="canvas"></div>
-  <div id="empty" class="empty" hidden>
-    <span class="ic write lg" data-icon="plus"></span>
-    <b class="empty-t">این صفحه خالیه</b>
-    <span class="empty-s">یک کامپوننت اضافه کن یا یک قالب آماده بردار.</span>
-    <div class="empty-actions">
-      <button class="btn btn-p btn-sm" id="empty-add">افزودن کامپوننت</button>
-      <button class="btn btn-s btn-sm" id="empty-tpl">قالب‌ها</button>
-    </div>
-  </div>
-  <!-- نوار شناور کامپوننت انتخاب‌شده و «+» بالا و پایینش -->
-  <div class="blockbar" id="blockbar" role="toolbar" aria-label="کامپوننت انتخاب‌شده" hidden>
-    <button data-bb="edit" class="bb-main"><span data-icon="brush"></span><span>ویرایش</span></button>
-    <button data-bb="up" aria-label="بالا"><span data-icon="up"></span></button>
-    <button data-bb="down" aria-label="پایین"><span data-icon="down"></span></button>
-    <button data-bb="copy" aria-label="تکثیر"><span data-icon="copy"></span></button>
-    <button data-bb="del" aria-label="حذف" class="bb-del"><span data-icon="trash"></span></button>
-  </div>
-  <button class="ins" id="ins-above" aria-label="افزودن کامپوننت بالای این" hidden><span data-icon="plus"></span></button>
-  <button class="ins" id="ins-below" aria-label="افزودن کامپوننت زیر این" hidden><span data-icon="plus"></span></button>
-  <div class="coach" id="coach" hidden><b>مینی‌اپت آماده است!</b><span>روی هر کامپوننت بزن تا انتخاب بشه؛ دوباره روی متنش بزن تا همون‌جا تایپ کنی.</span><button id="coach-ok" class="btn btn-sm btn-d">فهمیدم</button></div>
+  <main class="secs" id="secs"></main>
   <nav class="dock" id="toolbar" aria-label="ابزارها">
-    <span class="dock-ind" aria-hidden="true"></span>
-    <button data-act="layers"><span data-icon="layers"></span><span class="dock-l">لایه‌ها</span></button>
     <button data-act="theme"><span data-icon="palette"></span><span class="dock-l">ظاهر</span></button>
-    <button data-act="add" class="dock-add" aria-label="افزودن کامپوننت"><span class="dock-add-t" data-icon="plus"></span></button>
     <button data-act="templates"><span data-icon="template"></span><span class="dock-l">قالب‌ها</span></button>
+    <button data-act="add" class="dock-add" aria-label="افزودن بخش"><span class="dock-add-t" data-icon="plus"></span></button>
+    <button data-act="order"><span data-icon="order"></span><span class="dock-l">ترتیب</span></button>
     <button data-act="settings"><span data-icon="settings"></span><span class="dock-l">تنظیمات</span></button>
   </nav>
-  <button class="exit-preview" id="exit-preview" hidden><span data-icon="x"></span>بستن پیش‌نمایش</button>
 </section>
+<!-- زیرصفحه‌های ادیتور (پشته؛ برگشت تلگرام یکی را می‌بندد) -->
+<div id="subs"></div>
 
 <section id="blocked" class="screen blocked" hidden>
   <span class="mark mark-lg"></span>
@@ -168,8 +151,8 @@
 <div class="toast" id="toast" role="status"><span class="toast-ico"></span><span class="toast-txt"></span></div>
 <input type="file" id="file" accept="image/png,image/jpeg,image/webp" hidden>
 
-<script src="__BASE__static/render.js?v=10"></script>
-<script src="__BASE__static/demo.js?v=10"></script>
-<script src="__BASE__static/panel.js?v=10"></script>
+<script src="__BASE__static/render.js?v=11"></script>
+<script src="__BASE__static/demo.js?v=11"></script>
+<script src="__BASE__static/panel.js?v=11"></script>
 </body>
 </html>

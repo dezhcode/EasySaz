@@ -66,6 +66,12 @@
     gallery: 'M3 7h13v11H3zM6 4h15v11',
     features: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
     pricing: 'M4 5h16v14H4zM8 9h8M8 13h5M15 16h2',
+    more: 'M5 12h.01M12 12h.01M19 12h.01',
+    order: 'M7 20V4M3 8l4-4 4 4M17 4v16M13 16l4 4 4-4',
+    send: 'M21 3L3 11l7 3 3 7 8-18zM10 14l4-4',
+    sun: 'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+    moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+    minus: 'M6 12h12',
   });
   function ico(name, cls) {
     const s = document.createElementNS(SVG_NS, 'svg');
@@ -226,15 +232,12 @@
     if (splash && !splash.classList.contains('off')) { splash.classList.add('off'); setTimeout(() => splash.remove(), 450); }
     S.screen = id;
     S.asTab = !!asTab;
-    if (id !== 'editor') { S.selected = null; placeBlockbar(); }
+    if (id !== 'editor') popAll();
     const withNav = asTab && TABS.indexOf(id) >= 0;
     $('nav').hidden = !withNav;
     document.body.classList.toggle('has-nav', withNav);
     if (withNav) { S.tab = id; renderNav(); }
-    if (tg && tg.BackButton) {
-      const back = id === 'editor' || (!withNav && (id === 'onboard' || id === 'templates') && S.app);
-      if (back) tg.BackButton.show(); else tg.BackButton.hide();
-    }
+    syncBack();
     window.scrollTo(0, 0);
   }
 
@@ -564,13 +567,20 @@
     try { localStorage.setItem('es-last-app', String(id)); } catch (e) {}
     if (!quiet) openEditor();
   }
+  /* ===================== ادیتور (طرح د: بخش‌ها) =====================
+     صفحهٔ اصلی ادیتور فهرست «بخش»هاست: هر کامپوننت یک کارت با نوار نام
+     همیشگی (دستگیره، ویرایش، بیشتر) و پیش‌نمایش واقعی خودش. بین بخش‌ها
+     «+ افزودن این‌جا». ویرایش، ترتیب، ظاهر، صفحه‌ها، تنظیمات و پیش‌نمایش
+     زیرصفحه‌اند (پشتهٔ S.stack) با مسیر بالا و پیش‌نمایش زنده؛ کارهای
+     کوتاه (بیشتر، افزودن، انتشار) شیت‌اند. */
   function openEditor() {
+    popAll();
     show('editor');
     renderAll();
   }
   async function leaveEditor() {
     if ($('sheet').classList.contains('on')) closeSheet();
-    if (S.previewing) preview(false);
+    popAll();
     await saveNow();
     tab('home');
   }
@@ -578,7 +588,7 @@
   function renderAll() {
     renderBar();
     renderPages();
-    renderCanvas();
+    renderSecs();
   }
 
   function renderBar() {
@@ -592,60 +602,198 @@
     st.title = pub + (save ? ' · ' + save : ' · ذخیره شد');
     st.className = 'caption status ' + (S.saveState || (live && !S.app.dirty ? 'live' : ''));
     $('bar-publish').classList.toggle('dirty', !!S.app.dirty || !live);
+    document.querySelectorAll('.saved').forEach(drawSaved);
+  }
+  /* «ذخیره شد» کنار نوار بالای زیرصفحه‌ها */
+  function drawSaved(el) {
+    el.textContent = '';
+    const st = S.saveState;
+    el.className = 'saved ' + (st || 'ok');
+    if (st !== 'busy') el.appendChild(ico(st === 'err' ? 'warn' : 'check'));
+    el.appendChild(document.createTextNode(st === 'busy' ? 'ذخیره…' : st === 'err' ? 'ذخیره نشد' : 'ذخیره شد'));
+  }
+  function savedMark() {
+    const el = h('span', 'saved');
+    drawSaved(el);
+    return el;
   }
 
-  /* نوار صفحه‌ها: زدن = رفتن به صفحه؛ زدن دوباره روی صفحهٔ فعلی = تنظیمات صفحه */
+  /* ریل صفحه‌ها (زیرخط): زدن = رفتن؛ زدن دوباره روی صفحهٔ فعلی = صفحه‌ها */
   function renderPages() {
     const strip = $('pagestrip');
     strip.textContent = '';
     S.doc.pages.forEach(p => {
       const on = p.id === page().id;
-      const b = h('button', 'tab pchip' + (on ? ' on' : ''));
+      const b = h('button', 'ut' + (on ? ' on' : ''));
       b.type = 'button';
       b.setAttribute('role', 'tab');
       b.setAttribute('aria-selected', on ? 'true' : 'false');
       b.append(ico(p.icon), h('span', '', p.title));
-      if (on) { const e = h('span', 'pchip-edit'); e.appendChild(ico('brush')); b.appendChild(e); }
-      b.addEventListener('click', () => { if (on) pageSheet(p.id); else goPage(p.id); });
+      b.addEventListener('click', () => { haptic(); if (on) pagesPage(p.id); else goPage(p.id); });
       strip.appendChild(b);
     });
-    const add = h('button', 'tab pchip add');
+    const add = h('button', 'ut add');
     add.type = 'button';
     add.append(ico('plus'), h('span', '', 'صفحه'));
-    add.addEventListener('click', addPage);
+    add.addEventListener('click', () => { haptic(); addPage(); });
     strip.appendChild(add);
+    requestAnimationFrame(() => { const on = strip.querySelector('.ut.on'); if (on) on.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
   }
 
   function goPage(id) {
     if ($('sheet').classList.contains('on')) closeSheet();
     S.pageId = id;
-    S.selected = null;
     select();
     renderPages();
-    renderCanvas();
+    renderSecs();
     window.scrollTo(0, 0);
-    $('canvas').scrollTop = 0;
   }
 
-  let renderQueued = false;
-  function renderCanvas() {
-    if (renderQueued) return;
-    renderQueued = true;
-    requestAnimationFrame(() => {
-      renderQueued = false;
-      ES.render($('canvas'), S.doc, {
-        page: page().id,
-        appName: S.app.name,
-        editing: !S.previewing,
-        selected: S.previewing ? null : S.selected,
-        onPick: id => { if (!S.previewing) { haptic(); pickBlock(id); } },
-        onPickHeader: () => { if (!S.previewing) { haptic(); pickBlock('header'); } },
-        onNavigate: id => goPage(id),
-        branding: S.plan && S.plan.branding ? { bot: S.me.bot } : null,
-      });
-      $('empty').hidden = page().blocks.length > 0 || S.previewing;
-      placeBlockbar();
+  /* ---------- رندر کوچک: یک یا چند کامپوننت با ظاهر خود مینی‌اپ ---------- */
+  const specOf = b => S.schema.blocks[b.type] || { title: b.type, cat: 'frame', icon: 'sparkle', fields: [], desc: '' };
+  function mini(el, blocks, extra) {
+    ES.render(el, Object.assign({
+      v: 2, theme: S.doc.theme, header: { enabled: false }, tabbar: { enabled: false },
+      pages: [{ id: 'p', title: '', icon: 'home', blocks }],
+    }, extra || {}), { page: 'p', appName: S.app.name, editing: true });
+    return el;
+  }
+  function defaultBlock(type, over) {
+    const spec = S.schema.blocks[type];
+    const props = {};
+    spec.fields.forEach(f => { props[f.key] = JSON.parse(JSON.stringify(f.default === undefined ? '' : f.default)); });
+    if (over) Object.assign(props, JSON.parse(JSON.stringify(over)));
+    return { id: newId(), type, props };
+  }
+  function iconBtn(name, label, fn, cls) {
+    const b = h('button', cls || 'ib');
+    b.type = 'button';
+    b.setAttribute('aria-label', label);
+    b.title = label;
+    b.appendChild(ico(name));
+    b.addEventListener('click', e => { e.stopPropagation(); haptic(); fn(); });
+    return b;
+  }
+
+  /* ---------- صفحهٔ اصلی: بخش‌ها ---------- */
+  let secsQueued = false;
+  function renderSecs() {
+    if (secsQueued) return;
+    secsQueued = true;
+    requestAnimationFrame(() => { secsQueued = false; if (S.doc) drawSecs(); });
+  }
+  function drawSecs() {
+    const box = $('secs');
+    box.textContent = '';
+    const pg = page();
+    if (coachOn()) box.appendChild(coachCard());
+    box.appendChild(headerCard());
+    if (!pg.blocks.length) { box.appendChild(emptyState()); return; }
+    pg.blocks.forEach((b, i) => {
+      box.appendChild(addHere(i));
+      box.appendChild(secCard(b));
     });
+    box.appendChild(addHere(pg.blocks.length, true));
+  }
+
+  function secHead(cat, icon, title, sub, onEdit, extraStart, extraEnd) {
+    const head = h('div', 'dsec-h');
+    if (extraStart) head.appendChild(extraStart);
+    const t = h('div', 'dsec-t');
+    t.appendChild(h('b', '', title));
+    if (sub) t.appendChild(h('small', '', sub));
+    const edit = h('button', 'pe');
+    edit.type = 'button';
+    edit.append(ico('pencil'), document.createTextNode('ویرایش'));
+    edit.addEventListener('click', () => { haptic(); onEdit(); });
+    head.append(catTile(cat, icon), t, edit);
+    if (extraEnd) head.appendChild(extraEnd);
+    return head;
+  }
+  function secCard(b) {
+    const spec = specOf(b);
+    const card = h('div', 'dsec');
+    card.dataset.id = b.id;
+    const grip = iconBtn('grip', 'ترتیب بخش‌ها', orderPage, 'dsec-grip');
+    const more = iconBtn('more', 'کارهای بیشتر', () => moreSheet(b.id), 'dsec-more');
+    card.appendChild(secHead(spec.cat, spec.icon, spec.title, summary(b), () => editPage(b.id), grip, more));
+    const body = h('button', 'dsec-b');
+    body.type = 'button';
+    body.setAttribute('aria-label', 'ویرایش ' + spec.title);
+    body.appendChild(mini(h('div', 'dsec-pv'), [b]));
+    body.addEventListener('click', () => { haptic(); editPage(b.id); });
+    card.appendChild(body);
+    return card;
+  }
+  /* سربرگ مشترک همهٔ صفحه‌ها: کارت خودش، یا یک خط «روشن کن» */
+  function headerCard() {
+    const hd = S.doc.header;
+    if (!hd.enabled) {
+      const off = h('button', 'dsec-off');
+      off.type = 'button';
+      const t = h('span', 'grow');
+      t.append(h('b', '', 'نوار بالا خاموش است'), h('small', '', 'اسم و لوگو بالای همهٔ صفحه‌ها'));
+      off.append(catTile('frame', 'header'), t, h('span', 'dsec-off-go', 'روشن کن'));
+      off.addEventListener('click', () => { haptic(); framePage(); });
+      return off;
+    }
+    const card = h('div', 'dsec dsec-header');
+    card.appendChild(secHead('frame', 'header', 'نوار بالا', 'اسم و لوگو، بالای همهٔ صفحه‌ها', framePage));
+    const body = h('button', 'dsec-b');
+    body.type = 'button';
+    body.setAttribute('aria-label', 'ویرایش نوار بالا');
+    body.appendChild(mini(h('div', 'dsec-pv hd'), [], { header: hd }));
+    body.addEventListener('click', () => { haptic(); framePage(); });
+    card.appendChild(body);
+    return card;
+  }
+  function addHere(i, last) {
+    const row = h('div', 'addhere' + (last ? ' last' : ''));
+    const b = h('button', 'addhere-b');
+    b.type = 'button';
+    b.append(ico('plus'), document.createTextNode(last ? 'افزودن بخش' : 'افزودن این‌جا'));
+    b.addEventListener('click', () => { haptic(); addSheet(i); });
+    row.append(h('i'), b, h('i'));
+    return row;
+  }
+  function emptyState() {
+    const box = h('div', 'dempty');
+    box.append(h('b', 'dempty-t', 'این صفحه هنوز خالیه'),
+      h('span', 'dempty-s', 'با یکی از این بخش‌های آماده شروع کن؛ بعداً همه‌چیزش عوض می‌شود.'));
+    const free = SECTIONS.filter(s => !presetLocked(s));
+    free.concat(SECTIONS.filter(s => presetLocked(s))).slice(0, 3).forEach(sec => box.appendChild(presetCard(sec, 0, true)));
+    const all = h('button', 'btn btn-s btn-block');
+    all.type = 'button';
+    all.append(ico('template'), document.createTextNode('همهٔ بخش‌ها و کامپوننت‌ها'));
+    all.addEventListener('click', () => { haptic(); addSheet(0); });
+    box.appendChild(all);
+    return box;
+  }
+
+  /* راهنمای یک‌باره (بالای بخش‌ها تا «فهمیدم») */
+  function coachOn() { try { return !localStorage.getItem('es-coach-d'); } catch (e) { return false; } }
+  function coachCard() {
+    const c = h('div', 'coach');
+    c.append(h('b', '', 'مینی‌اپت آماده است!'),
+      h('span', '', 'هر بخش را با «ویرایش» تغییر بده. با «+ افزودن این‌جا» بخش تازه بگذار و با دستگیره ترتیب را عوض کن.'));
+    const ok = h('button', 'btn btn-sm', 'فهمیدم');
+    ok.type = 'button';
+    ok.addEventListener('click', () => { try { localStorage.setItem('es-coach-d', '1'); } catch (e) {} haptic(); c.remove(); });
+    c.appendChild(ok);
+    return c;
+  }
+  function showCoach() {}
+
+  /* کارت بخش را در دید بیاور و لحظه‌ای روشنش کن */
+  function flash(id) {
+    if (S.stack.length) return;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const c = document.querySelector(`#secs .dsec[data-id="${CSS.escape(id)}"]`);
+      if (!c) return;
+      c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      c.classList.add('flash');
+      setTimeout(() => c.classList.remove('flash'), 1300);
+    }));
   }
 
   /* ---------- برگرد و دوباره (Undo/Redo) ----------
@@ -678,13 +826,13 @@
   function travel(from, to, label) {
     if (!from.length) return;
     if ($('sheet').classList.contains('on')) closeSheet();
+    popAll();
     to.push(JSON.stringify(S.doc));
     const snap = from.pop();
     S.doc = ES.normalize(JSON.parse(snap));
     H.base = snap;
     H.t = 0;
     if (!S.doc.pages.find(p => p.id === S.pageId)) S.pageId = S.doc.pages[0].id;
-    if (S.selected && S.selected !== 'header' && !findBlock(S.selected)) S.selected = null;
     S.app.dirty = true;
     renderAll();
     renderUndo();
@@ -695,12 +843,21 @@
   const undo = () => travel(H.past, H.future, 'برگشت');
   const redo = () => travel(H.future, H.past, 'دوباره انجام شد');
 
-  function changed() {
+  /* هر تغییر: تاریخچه، ذخیرهٔ خودکار و به‌روز کردن چیزی که دیده می‌شود
+     (زیرصفحهٔ بالایی، یا فهرست بخش‌ها) */
+  function changed(quiet) {
     recordChange();
     S.app.dirty = true;
     renderBar();
-    renderCanvas();
     scheduleSave();
+    if (quiet) return;
+    const top = S.stack[S.stack.length - 1];
+    if (top) queueRefresh(top); else renderSecs();
+  }
+  function queueRefresh(pg) {
+    if (pg.queued) return;
+    pg.queued = true;
+    requestAnimationFrame(() => { pg.queued = false; if (pg.refresh) pg.refresh(); });
   }
 
   /* ---------- ذخیره ---------- */
@@ -731,96 +888,113 @@
     }
   }
 
+  /* ---------- زیرصفحه‌ها (پشته) ----------
+     هر زیرصفحه تمام‌صفحه است و خودش اسکرول می‌خورد. pg.refresh بعد از هر
+     تغییر (و وقتی زیرصفحهٔ رویی بسته شد) صدا زده می‌شود. */
+  S.stack = [];
+  function push(build) {
+    const el = h('section', 'sub');
+    const pg = { el, refresh: null, onPop: null, redrawers: [] };
+    build(el, pg);
+    $('subs').appendChild(el);
+    S.stack.push(pg);
+    document.body.classList.add('has-sub');
+    syncBack();
+    return pg;
+  }
+  function pop() {
+    const pg = S.stack.pop();
+    if (!pg) return;
+    if (pg.onPop) pg.onPop();
+    pg.el.classList.add('out');
+    setTimeout(() => pg.el.remove(), 240);
+    afterStack();
+  }
+  function popAll() {
+    if (!S.stack || !S.stack.length) return;
+    while (S.stack.length) {
+      const pg = S.stack.pop();
+      if (pg.onPop) pg.onPop();
+      pg.el.remove();
+    }
+    afterStack();
+  }
+  function afterStack() {
+    const top = S.stack[S.stack.length - 1];
+    if (top) { queueRefresh(top); syncBack(); return; }
+    document.body.classList.remove('has-sub');
+    syncBack();
+    if (S.screen === 'editor' && S.doc) renderAll();
+  }
+  /* نوار بالای زیرصفحه: برگشت، مسیر، عنوان، و انتهای نوار */
+  function subTop(el, crumb, title, end) {
+    const top = h('header', 'stop');
+    const back = iconBtn('back', 'برگشت', pop, 'icon-btn sm');
+    const t = h('div', 'stop-t');
+    if (crumb) t.appendChild(h('span', 'stop-c', crumb + ' ‹'));
+    t.appendChild(h('b', '', title));
+    top.append(back, t);
+    (end || []).forEach(x => top.appendChild(x));
+    el.appendChild(top);
+    return top;
+  }
+  /* پیش‌نمایش زندهٔ بالای زیرصفحه */
+  function livePv(el, draw, label) {
+    const pv = h('div', 'pv');
+    const tag = h('span', 'pv-tag');
+    tag.append(h('i', 'dot'), document.createTextNode(label || 'پیش‌نمایش زنده'));
+    const box = h('div', 'pv-box');
+    pv.append(tag, box);
+    el.appendChild(pv);
+    const redraw = () => draw(box);
+    redraw();
+    return redraw;
+  }
+  /* صفحهٔ فعلی مینی‌اپ با سربرگ و نوار پایین، در قاب کوتاه */
+  function pagePreview(box, height) {
+    box.style.height = height + 'px';
+    box.textContent = '';
+    const inner = h('div', 'pv-page');
+    box.appendChild(inner);
+    ES.render(inner, S.doc, { page: page().id, appName: S.app.name, editing: true });
+  }
+  function secLabel(parent, title, sub) {
+    const s = h('div', 'slabel');
+    s.appendChild(h('b', '', title));
+    if (sub) s.appendChild(h('span', '', sub));
+    parent.appendChild(s);
+    return s;
+  }
+
   /* ---------- Sheet ---------- */
   let sheetClose = null;
-  /* live: ویرایش زنده. شیت نیمه‌قد و بدون پرده است، بوم بالای آن دیده
-     و لمس می‌شود و چیزی که ویرایش می‌شود زیر نوار بالا می‌نشیند.
-     live.focus عنصری را برمی‌گرداند که باید دیده شود. */
-  function openSheet(build, onClose, tool, live) {
+  function openSheet(build, onClose) {
     const sheet = $('sheet');
     if (sheet.classList.contains('on') && sheetClose) { const cb = sheetClose; sheetClose = null; cb(); }
     sheet.textContent = '';
-    if (live) {
-      const grip = h('button', 'grip');
-      grip.type = 'button';
-      grip.setAttribute('aria-label', 'بزرگ یا کوچک کردن پنل');
-      grip.addEventListener('click', () => { sheet.classList.toggle('full'); haptic(); });
-      sheet.appendChild(grip);
-    } else {
-      sheet.appendChild(h('div', 'grip'));
-    }
+    sheet.appendChild(h('div', 'grip'));
     build(sheet);
     sheet.scrollTop = 0;
-    sheet.classList.remove('full');
-    sheet.classList.toggle('live', !!live);
-    $('scrim').classList.toggle('live', !!live);
-    $('editor').classList.toggle('live-editing', !!live);
-    $('editor').classList.toggle('live-tabbar', !!(live && live.tabbar));
-    watchLive(!!live);
     sheet.classList.add('on');
     $('scrim').classList.add('on');
     sheetClose = onClose || null;
-    if (live && live.focus) focusLive(live.focus);
-    placeBlockbar();
-    setDock(tool);
-    if (tg && tg.BackButton) tg.BackButton.show();
+    syncBack();
   }
   function closeSheet() {
-    $('sheet').classList.remove('on', 'full');
-    $('scrim').classList.remove('on', 'live');
-    $('editor').classList.remove('live-editing', 'live-tabbar');
-    watchLive(false);
-    setDock(null);
-    if (tg && tg.BackButton) tg.BackButton.hide();
+    $('sheet').classList.remove('on');
+    $('scrim').classList.remove('on');
     const cb = sheetClose;
     sheetClose = null;
     if (cb) cb();
-    requestAnimationFrame(placeBlockbar);
+    syncBack();
   }
-  /* داک ابزار ادیتور: ابزاری که شیتش باز است قرص روشن می‌گیرد */
-  function setDock(tool) {
-    const dock = $('toolbar'), ind = dock.querySelector('.dock-ind');
-    let on = null;
-    dock.querySelectorAll('button[data-act]').forEach(b => {
-      const is = !!tool && b.dataset.act === tool && b.dataset.act !== 'add';
-      b.classList.toggle('on', is);
-      if (is) on = b;
-    });
-    if (!on) { ind.classList.remove('show'); return; }
-    const n = dock.getBoundingClientRect(), r = on.getBoundingClientRect();
-    ind.style.left = (r.left - n.left + 4) + 'px';
-    ind.style.width = (r.width - 8) + 'px';
-    ind.classList.add('show');
+  /* دکمهٔ برگشت بومی تلگرام: شیت، زیرصفحه، ادیتور یا زیرصفحه‌های بیرون از تب */
+  function syncBack() {
+    if (!tg || !tg.BackButton) return;
+    const need = $('sheet').classList.contains('on') || (S.stack && S.stack.length) || S.screen === 'editor'
+      || (!S.asTab && (S.screen === 'onboard' || S.screen === 'templates') && S.app);
+    if (need) tg.BackButton.show(); else tg.BackButton.hide();
   }
-
-  /* ارتفاع واقعی شیت زنده → --live-h، تا بوم به همان اندازه جا بگذارد
-     و نوار پایین مینی‌اپ درست بالای شیت بماند */
-  let liveObs = null;
-  function watchLive(on) {
-    const root = document.documentElement, sheet = $('sheet');
-    if (on && !liveObs && window.ResizeObserver) {
-      liveObs = new ResizeObserver(() => root.style.setProperty('--live-h', sheet.offsetHeight + 'px'));
-      liveObs.observe(sheet);
-    } else if (!on && liveObs) {
-      liveObs.disconnect();
-      liveObs = null;
-      root.style.removeProperty('--live-h');
-    }
-  }
-  function focusLive(getEl) {
-    // دو فریم: بوم با requestAnimationFrame دوباره ساخته می‌شود
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const el = getEl();
-      if (!el) return;
-      // بوم خودش اسکرول می‌خورد؛ سربرگ چسبان مینی‌اپ را هم حساب کن
-      const c = $('canvas');
-      const hd = c.querySelector('.pg-header');
-      const off = hd && hd !== el ? hd.offsetHeight : 0;
-      const top = el.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop - off - 26;
-      c.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-    }));
-  }
-  const blockEl = id => document.querySelector(`#canvas .pg-block[data-id="${CSS.escape(id)}"]`);
 
   function sheetHead(parent, cat, iconName, title, sub) {
     const head = h('div', 'sh-head');
@@ -834,7 +1008,6 @@
     head.append(catTile(cat, iconName), t, x);
     parent.appendChild(head);
   }
-
   /* ---------- فرم‌ساز از روی اسکیما ---------- */
   let fieldSeq = 0;
 
@@ -1101,66 +1274,7 @@
     return wrap;
   }
 
-  function listControl(field, items, onChange) {
-    const wrap = h('div', 'field');
-    wrap.appendChild(h('span', 'label', field.label));
-    const box = h('div', 'items');
-    wrap.appendChild(box);
-    const addBtn = h('button', 'add-item', '+ افزودن ' + (field.item_label || 'مورد'));
-    addBtn.type = 'button';
-    wrap.appendChild(addBtn);
-    const titleOf = it => {
-      const f = field.fields.find(x => x.type === 'text' || x.type === 'textarea' || x.type === 'select');
-      if (!f) return field.item_label || 'مورد';
-      if (f.type === 'select') {
-        const opt = (f.options || []).find(o => (Array.isArray(o) ? o[0] : o) === it[f.key]);
-        return opt ? (Array.isArray(opt) ? opt[1] : opt) : field.item_label;
-      }
-      return it[f.key] || field.item_label || 'مورد';
-    };
-    function draw(openIndex) {
-      box.textContent = '';
-      items.forEach((it, i) => {
-        const card = h('div', 'item' + (i === openIndex ? ' open' : ''));
-        const head = h('div', 'item-h');
-        head.appendChild(h('span', 'item-n', String(i + 1)));
-        const title = h('b', 'body-strong', titleOf(it));
-        head.appendChild(title);
-        const mk = (name, fn, label) => {
-          const b = h('button');
-          b.type = 'button';
-          b.setAttribute('aria-label', label);
-          b.appendChild(ico(name));
-          b.addEventListener('click', e => { e.stopPropagation(); fn(); });
-          return b;
-        };
-        if (i > 0) head.appendChild(mk('up', () => { items.splice(i - 1, 0, items.splice(i, 1)[0]); onChange(items); draw(i - 1); haptic(); }, 'بالا'));
-        head.appendChild(mk('trash', () => { items.splice(i, 1); onChange(items); draw(-1); haptic('medium'); }, 'حذف'));
-        const chev = ico('chev');
-        chev.classList.add('chev');
-        head.appendChild(chev);
-        head.addEventListener('click', () => { card.classList.toggle('open'); haptic(); });
-        card.appendChild(head);
-        const body = h('div', 'item-b');
-        field.fields.forEach(sub => {
-          body.appendChild(control(sub, it[sub.key], v => { it[sub.key] = v; title.textContent = titleOf(it); onChange(items); }));
-        });
-        card.appendChild(body);
-        box.appendChild(card);
-      });
-      addBtn.hidden = items.length >= (field.max_items || 10);
-    }
-    addBtn.addEventListener('click', () => {
-      const blank = {};
-      field.fields.forEach(sub => { blank[sub.key] = sub.type === 'select' ? sub.default : (sub.type === 'url' ? '' : (sub.default || '')); });
-      items.push(blank);
-      onChange(items);
-      draw(items.length - 1);
-      haptic();
-    });
-    draw(-1);
-    return wrap;
-  }
+
 
   /* ---------- ویرایش کامپوننت ---------- */
   function findBlock(id) {
@@ -1169,298 +1283,6 @@
       if (i >= 0) return { page: p, index: i, block: p.blocks[i] };
     }
     return null;
-  }
-
-  /* ===================== ویرایش روی خود صفحه =====================
-     لمس اول = انتخاب (نوار شناور + «+» بالا و پایین). لمس دوباره روی متن =
-     تایپ همان‌جا. لمس دوباره روی جای دیگر کامپوننت = شیت کامل ویرایش. */
-  function pickBlock(id) {
-    if ($('sheet').classList.contains('on')) {
-      if (id === 'header') headerSheet(); else editBlock(id);
-      return;
-    }
-    if (S.selected === id) {
-      if (id === 'header') headerSheet(); else editBlock(id);
-      return;
-    }
-    S.selected = id;
-    renderCanvas();
-  }
-  function selectedEl() {
-    if (!S.selected) return null;
-    return S.selected === 'header' ? $('canvas').querySelector('.pg-header') : blockEl(S.selected);
-  }
-  function placeBlockbar() {
-    const bar = $('blockbar'), up = $('ins-above'), dn = $('ins-below');
-    const el = !S.previewing && !S.inline && !$('editor').hidden && !$('sheet').classList.contains('on') ? selectedEl() : null;
-    if (!el) { bar.hidden = true; up.hidden = true; dn.hidden = true; return; }
-    const c = $('canvas').getBoundingClientRect(), r = el.getBoundingClientRect();
-    const isHeader = S.selected === 'header';
-    bar.hidden = false;
-    bar.classList.toggle('only-main', isHeader);
-    const bh = bar.offsetHeight || 46;
-    let top = r.top - bh - 22;
-    if (top < c.top + 6) top = r.bottom + 22;
-    top = Math.max(c.top + 6, Math.min(top, c.bottom - bh - 8));
-    bar.style.top = top + 'px';
-    if (isHeader) { up.hidden = true; dn.hidden = true; return; }
-    const f = findBlock(S.selected);
-    const cx = r.left + r.width / 2 - 15;
-    const vis = y => y > c.top + 8 && y < c.bottom - 8;
-    up.hidden = !vis(r.top);
-    up.style.top = (r.top - 15) + 'px';
-    up.style.left = cx + 'px';
-    dn.hidden = !vis(r.bottom);
-    dn.style.top = (r.bottom - 15) + 'px';
-    dn.style.left = cx + 'px';
-    const bb = k => bar.querySelector(`[data-bb="${k}"]`);
-    if (f) { bb('up').disabled = f.index <= 0; bb('down').disabled = f.index >= f.page.blocks.length - 1; }
-  }
-  function blockAction(act) {
-    const id = S.selected;
-    if (!id) return;
-    if (act === 'edit') { if (id === 'header') headerSheet(); else editBlock(id); return; }
-    const f = findBlock(id);
-    if (!f) return;
-    const list = f.page.blocks;
-    if (act === 'up' || act === 'down') {
-      const j = f.index + (act === 'up' ? -1 : 1);
-      if (j < 0 || j >= list.length) return;
-      list.splice(j, 0, list.splice(f.index, 1)[0]);
-      select();
-      changed();
-      scrollToBlock(id);
-    } else if (act === 'copy') {
-      if (totalBlocks() >= S.plan.max_blocks) { upsellSheet(`پلن ${S.plan.title} حداکثر ${S.plan.max_blocks} کامپوننت دارد.`); return; }
-      const copy = JSON.parse(JSON.stringify(f.block));
-      copy.id = newId();
-      list.splice(f.index + 1, 0, copy);
-      S.selected = copy.id;
-      haptic('medium');
-      changed();
-      scrollToBlock(copy.id);
-      toast('تکثیر شد');
-    } else if (act === 'del') {
-      confirmBox('این کامپوننت حذف بشه؟ با «برگرد» برمی‌گرده.', () => {
-        const cur = findBlock(id);
-        if (!cur) return;
-        cur.page.blocks.splice(cur.index, 1);
-        S.selected = null;
-        notify('warning');
-        changed();
-        toast('حذف شد');
-      });
-    }
-  }
-
-  /* تایپ روی خود صفحه: عنصرهای data-edit (render.js) مسیر فیلدشان را دارند */
-  function fieldFor(id, path) {
-    const keys = path.split('.');
-    let fields = id === 'header' ? S.schema.header : (S.schema.blocks[(findBlock(id) || { block: {} }).block.type] || {}).fields;
-    let f = null;
-    for (const k of keys) {
-      if (/^\d+$/.test(k)) continue;
-      f = (fields || []).find(x => x.key === k);
-      if (!f) return null;
-      fields = f.fields;
-    }
-    return f;
-  }
-  function setPath(obj, path, v) {
-    const keys = path.split('.');
-    let o = obj;
-    for (let i = 0; i < keys.length - 1; i++) { o = o[/^\d+$/.test(keys[i]) ? Number(keys[i]) : keys[i]]; if (!o) return; }
-    o[keys[keys.length - 1]] = v;
-  }
-  function startInline(el, id, path) {
-    const holder = id === 'header' ? S.doc.header : ((findBlock(id) || {}).block || {}).props;
-    const field = fieldFor(id, path);
-    if (!holder || !field) return;
-    const multi = field.type === 'textarea';
-    const max = field.max || 200;
-    S.inline = { el, id, path };
-    placeBlockbar();
-    el.setAttribute('contenteditable', 'plaintext-only');
-    if (el.contentEditable !== 'plaintext-only') el.setAttribute('contenteditable', 'true');
-    el.classList.add('pg-inline');
-    el.focus();
-    try {
-      const r = document.createRange();
-      r.selectNodeContents(el);
-      r.collapse(false);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(r);
-    } catch (e) {}
-    el.oninput = () => {
-      let v = el.innerText.replace(/ /g, ' ');
-      if (!multi) v = v.replace(/\n+/g, ' ');
-      if (v.length > max) v = v.slice(0, max);
-      setPath(holder, path, v);
-      S.app.dirty = true;
-      recordChange();
-      renderBar();
-      scheduleSave();
-    };
-    el.onkeydown = e => {
-      if ((e.key === 'Enter' && !multi) || e.key === 'Escape') { e.preventDefault(); el.blur(); }
-    };
-    el.onblur = () => {
-      el.onblur = null; el.oninput = null; el.onkeydown = null;
-      el.removeAttribute('contenteditable');
-      S.inline = null;
-      renderCanvas();
-    };
-  }
-
-  /* راهنمای یک‌باره بعد از ساخت */
-  function showCoach() {
-    try { if (localStorage.getItem('es-coach')) return; } catch (e) {}
-    const c = $('coach');
-    c.hidden = false;
-    $('coach-ok').onclick = () => { c.hidden = true; try { localStorage.setItem('es-coach', '1'); } catch (e) {} };
-  }
-
-  function editBlock(id) {
-    const found = findBlock(id);
-    if (!found) return;
-    const block = found.block;
-    const spec = S.schema.blocks[block.type];
-    S.selected = id;
-    renderCanvas();
-
-    openSheet(sheet => {
-      sheetHead(sheet, spec.cat, spec.icon, spec.title, spec.desc);
-      const tools = h('div', 'tools');
-      const tool = (name, label, fn, cls) => {
-        const b = h('button', cls || '');
-        b.type = 'button';
-        b.setAttribute('aria-label', label);
-        b.title = label;
-        b.appendChild(ico(name));
-        b.addEventListener('click', fn);
-        tools.appendChild(b);
-        return b;
-      };
-      const where = () => findBlock(id);
-      const move = d => {
-        const f = where(), list = f.page.blocks, j = f.index + d;
-        if (j < 0 || j >= list.length) return;
-        list.splice(j, 0, list.splice(f.index, 1)[0]);
-        haptic();
-        changed();
-        refreshMoves();
-        scrollToBlock(id);
-      };
-      const upBtn = tool('up', 'بالا', () => move(-1));
-      const downBtn = tool('down', 'پایین', () => move(1));
-      const refreshMoves = () => {
-        const f = where();
-        upBtn.disabled = f.index <= 0;
-        downBtn.disabled = f.index >= f.page.blocks.length - 1;
-      };
-      refreshMoves();
-      tool('copy', 'تکثیر', () => {
-        if (totalBlocks() >= S.plan.max_blocks) { upsellSheet(`پلن ${S.plan.title} حداکثر ${S.plan.max_blocks} کامپوننت دارد.`); return; }
-        const f = where();
-        const copy = JSON.parse(JSON.stringify(f.block));
-        copy.id = newId();
-        f.page.blocks.splice(f.index + 1, 0, copy);
-        haptic('medium');
-        changed();
-        toast('کامپوننت تکثیر شد');
-        setTimeout(() => editBlock(copy.id), 280);
-      });
-      if (S.doc.pages.length > 1) tool('move', 'انتقال به صفحهٔ دیگر', () => moveToPageSheet(id));
-      tool('trash', 'حذف', () => {
-        confirmBox('این کامپوننت حذف بشه؟', () => {
-          const f = where();
-          f.page.blocks.splice(f.index, 1);
-          S.selected = null;
-          notify('warning');
-          changed();
-          closeSheet();
-          toast('کامپوننت حذف شد');
-        });
-      }, 'del');
-      sheet.appendChild(tools);
-
-      // ۱. سبک‌های آماده، با پیش‌نمایش زندهٔ همین کامپوننت
-      const variants = (S.schema.variants || {})[block.type] || [];
-      let strip = null;
-      if (variants.length) {
-        strip = variantStrip(block, variants, () => { changed(); drawMore(); syncWhen(); });
-        sheet.appendChild(strip);
-      }
-      const redraw = debounce(() => strip && strip.redraw(), 260);
-      const edited = () => { changed(); redraw(); syncWhen(); };
-
-      // ۲. محتوا
-      const content = h('div', 'content-sec');
-      const whenRows = [];
-      spec.fields.filter(f => !f.look).forEach(f => {
-        let el;
-        if (f.type === 'list') {
-          if (!Array.isArray(block.props[f.key])) block.props[f.key] = [];
-          el = listControl(f, block.props[f.key], v => { block.props[f.key] = v; edited(); });
-        } else {
-          el = control(f, block.props[f.key], v => { block.props[f.key] = v; edited(); });
-        }
-        if (f.when) whenRows.push([el, f.when]);
-        content.appendChild(el);
-      });
-      sheet.appendChild(content);
-      const syncWhen = () => whenRows.forEach(([el, when]) => {
-        el.hidden = !Object.keys(when).every(k => when[k].indexOf(block.props[k]) >= 0);
-      });
-      syncWhen();
-
-      // ۳. «بیشتر»: تنظیم‌های ریز ظاهر برای کسی که دقیق‌تر می‌خواهد
-      const looks = spec.fields.filter(f => f.look);
-      const allowed = spec.style || [];
-      const more = h('details', 'more-sec');
-      more.open = !!S.moreOpen;
-      more.addEventListener('toggle', () => { S.moreOpen = more.open; });
-      const sum = h('summary');
-      sum.append(ico('brush'), h('span', 'grow', 'تنظیمات بیشتر ظاهر'), ico('chev', 'more-chev'));
-      more.appendChild(sum);
-      const moreBody = h('div', 'more-body');
-      more.appendChild(moreBody);
-      const drawMore = () => {
-        moreBody.textContent = '';
-        looks.forEach(f => {
-          moreBody.appendChild(control(f, block.props[f.key], v => { block.props[f.key] = v; changed(); strip && strip.redraw(); syncWhen(); }));
-        });
-        block.style = block.style || {};
-        S.schema.style.filter(f => allowed.indexOf(f.key) >= 0).forEach(f => {
-          const cur = block.style[f.key] != null ? block.style[f.key] : f.default;
-          moreBody.appendChild(control(f, cur, v => {
-            if (v === null || v === '' || v === f.default) delete block.style[f.key]; else block.style[f.key] = v;
-            changed();
-            strip && strip.redraw();
-          }));
-        });
-        const reset = h('button', 'add-item', 'برگشت به ظاهر پیش‌فرض');
-        reset.type = 'button';
-        reset.addEventListener('click', () => {
-          looks.forEach(f => { block.props[f.key] = f.default; });
-          block.style = {};
-          changed();
-          drawMore();
-          syncWhen();
-          strip && strip.redraw();
-        });
-        moreBody.appendChild(reset);
-      };
-      if (looks.length || allowed.length) {
-        drawMore();
-        sheet.appendChild(more);
-      }
-    }, () => {
-      // انتخاب می‌ماند تا نوار شناور کامپوننت دوباره دیده شود
-      renderCanvas();
-      saveNow();
-    }, null, { focus: () => blockEl(id) });
   }
 
   /* ---------- سبک‌های آماده (VariantStrip) ----------
@@ -1531,97 +1353,6 @@
     return () => { clearTimeout(t); t = setTimeout(fn, ms); };
   }
 
-  function moveToPageSheet(id) {
-    openSheet(sheet => {
-      sheetHead(sheet, 'brand', 'move', 'انتقال به صفحهٔ دیگر', 'کامپوننت آخر صفحهٔ مقصد قرار می‌گیرد.');
-      const st = h('div', 'stack sh-sec');
-      S.doc.pages.forEach(p => {
-        const f = findBlock(id);
-        if (p.id === f.page.id) return;
-        const r = h('button', 'row');
-        const g = h('span', 'grow');
-        g.append(h('b', 'body-strong', p.title), h('span', 'caption', p.blocks.length + ' کامپوننت'));
-        r.append(catTile('frame', p.icon), g);
-        r.addEventListener('click', () => {
-          const cur = findBlock(id);
-          cur.page.blocks.splice(cur.index, 1);
-          p.blocks.push(cur.block);
-          S.selected = null;
-          changed();
-          closeSheet();
-          goPage(p.id);
-          toast(`به «${p.title}» منتقل شد`);
-        });
-        st.appendChild(r);
-      });
-      sheet.appendChild(st);
-    });
-  }
-
-  function scrollToBlock(id) {
-    if ($('editor').classList.contains('live-editing')) { focusLive(() => blockEl(id)); return; }
-    requestAnimationFrame(() => {
-      const el = blockEl(id);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-  }
-  function newId() {
-    return 'b' + Math.random().toString(16).slice(2, 10).padEnd(8, '0');
-  }
-
-  /* ---------- افزودن کامپوننت (ComponentTile، گروه‌بندی بر اساس دسته) ---------- */
-  function addSheet(atIndex) {
-    openSheet(sheet => {
-      sheetHead(sheet, 'brand', 'plus', 'افزودن کامپوننت',
-        `به «${page().title}» · ${totalBlocks()} از ${S.plan.max_blocks} کامپوننت · پلن ${S.plan.title}`);
-      const order = S.schema.order || Object.keys(S.schema.blocks);
-      const cats = S.schema.categories || {};
-      Object.keys(cats).forEach(cat => {
-        const types = order.filter(t => S.schema.blocks[t] && S.schema.blocks[t].cat === cat);
-        if (!types.length) return;
-        const group = h('div', 'cat-group');
-        const lbl = h('div', 'label');
-        const dot = h('i', 'dot');
-        dot.style.background = CAT_DOT[cat];
-        lbl.append(dot, document.createTextNode(cats[cat]));
-        group.appendChild(lbl);
-        const grid = h('div', 'cat-grid');
-        types.forEach(type => {
-          const spec = S.schema.blocks[type];
-          const locked = spec.premium && !S.plan.premium_blocks;
-          const b = h('button', 'ctile' + (locked ? ' locked' : ''));
-          b.type = 'button';
-          b.appendChild(catTile(spec.cat, spec.icon));
-          b.appendChild(h('span', 'body-strong', spec.title));
-          const cap = h('span', 'caption');
-          if (locked) { cap.appendChild(ico('lock')); cap.appendChild(document.createTextNode('پلن حرفه‌ای')); } else cap.textContent = spec.desc;
-          b.appendChild(cap);
-          if (spec.premium) b.appendChild(h('span', 'pro', 'PRO'));
-          b.addEventListener('click', () => {
-            if (locked) { upsellSheet(`«${spec.title}» مخصوص پلن‌های حرفه‌ای است.`); return; }
-            if (totalBlocks() >= S.plan.max_blocks) { upsellSheet(`پلن ${S.plan.title} حداکثر ${S.plan.max_blocks} کامپوننت دارد.`); return; }
-            const props = {};
-            spec.fields.forEach(f => { props[f.key] = JSON.parse(JSON.stringify(f.default === undefined ? '' : f.default)); });
-            const block = { id: newId(), type, props };
-            const list = page().blocks;
-            const f = S.selected ? findBlock(S.selected) : null;
-            const at = typeof atIndex === 'number' ? Math.max(0, Math.min(list.length, atIndex))
-              : (f && f.page === page() ? f.index + 1 : list.length);
-            list.splice(at, 0, block);
-            notify('success');
-            changed();
-            closeSheet();
-            setTimeout(() => editBlock(block.id), 300);
-          });
-          grid.appendChild(b);
-        });
-        group.appendChild(grid);
-        sheet.appendChild(group);
-      });
-    }, null, 'add');
-  }
-
-  /* ---------- لایه‌ها (LayerList: کشیدن برای جابه‌جایی) ---------- */
   function sortable(list, onDone) {
     let drag = null;
     list.addEventListener('pointerdown', e => {
@@ -1652,18 +1383,6 @@
     list.addEventListener('pointercancel', end);
   }
 
-  function layerRow(cat, iconName, title, sub, onTap, extra) {
-    const row = h('div', 'layer');
-    const txt = h('button', 'layer-txt');
-    txt.type = 'button';
-    txt.style.textAlign = 'right';
-    txt.append(h('b', 'body-strong', title), h('span', 'caption', sub || ''));
-    txt.addEventListener('click', onTap);
-    row.append(catTile(cat, iconName), txt);
-    if (extra) row.appendChild(extra);
-    return row;
-  }
-
   function summary(block) {
     const p = block.props || {};
     const first = p.title || p.label || p.text || p.caption || p.name;
@@ -1672,166 +1391,666 @@
     return '';
   }
 
-  function layersSheet() {
-    openSheet(sheet => {
-      sheetHead(sheet, 'brand', 'layers', 'لایه‌های «' + page().title + '»', 'برای جابه‌جایی، دستگیره را بکش. برای ویرایش، روی هر لایه بزن.');
-      // سربرگ
-      const top = h('div', 'layers');
-      const hd = S.doc.header;
-      top.appendChild(layerRow('frame', 'header', 'سربرگ', hd.enabled ? (hd.title || S.app.name) : 'خاموش', headerSheet));
-      sheet.appendChild(top);
-      // کامپوننت‌ها
-      const group = h('div', 'layers-group');
-      group.appendChild(h('span', 'label', 'کامپوننت‌ها'));
-      const list = h('div', 'layers');
-      page().blocks.forEach(b => {
-        const spec = S.schema.blocks[b.type];
+  function newId() {
+    return 'b' + Math.random().toString(16).slice(2, 10).padEnd(8, '0');
+  }
+
+  /* ---------- کارهای یک بخش (مشترک فهرست، «بیشتر»، پای صفحهٔ ویرایش و ترتیب) ---------- */
+  function moveBlock(id, d) {
+    const f = findBlock(id);
+    if (!f) return false;
+    const list = f.page.blocks, j = f.index + d;
+    if (j < 0 || j >= list.length) return false;
+    list.splice(j, 0, list.splice(f.index, 1)[0]);
+    select();
+    changed();
+    return true;
+  }
+  function copyBlock(id) {
+    const f = findBlock(id);
+    if (!f) return null;
+    if (totalBlocks() >= S.plan.max_blocks) { upsellSheet(`پلن ${S.plan.title} حداکثر ${S.plan.max_blocks} کامپوننت دارد.`); return null; }
+    const copy = JSON.parse(JSON.stringify(f.block));
+    copy.id = newId();
+    f.page.blocks.splice(f.index + 1, 0, copy);
+    haptic('medium');
+    changed();
+    return copy.id;
+  }
+  function removeBlock(id, after) {
+    confirmBox('این بخش حذف بشه؟ با «برگرد» بالای ادیتور برمی‌گرده.', () => {
+      const f = findBlock(id);
+      if (!f) return;
+      f.page.blocks.splice(f.index, 1);
+      notify('warning');
+      changed();
+      toast('بخش حذف شد');
+      if (after) after();
+    });
+  }
+
+  /* ---------- ویرایش یک بخش (زیرصفحه) ----------
+     بالا: مسیر و پیش‌نمایش زندهٔ خود بخش. بعد سبک‌های آماده، محتوا (فهرست‌ها
+     ردیف‌اند و هر آیتم زیرصفحهٔ خودش را دارد) و «تنظیمات بیشتر ظاهر».
+     پا: بالا، پایین، تکثیر، حذف. */
+  function editPage(id) {
+    const found = findBlock(id);
+    if (!found) return;
+    const block = found.block;
+    const spec = specOf(block);
+    push((el, pg) => {
+      subTop(el, found.page.title, spec.title, [savedMark(), iconBtn('more', 'کارهای بیشتر', () => moreSheet(id), 'icon-btn sm flat')]);
+      const redrawPv = livePv(el, box => { const cur = findBlock(id); if (cur) mini(box, [cur.block]); });
+      const body = h('div', 'sbody');
+      el.appendChild(body);
+
+      // ۱. سبک‌های آماده، با پیش‌نمایش زندهٔ همین کامپوننت
+      const variants = (S.schema.variants || {})[block.type] || [];
+      let strip = null;
+      if (variants.length) {
+        strip = variantStrip(block, variants, () => { changed(); drawMore(); });
+        body.appendChild(strip);
+      }
+      const redrawStrip = debounce(() => strip && strip.redraw(), 260);
+
+      // ۲. محتوا
+      const content = h('div', 'content-sec');
+      const whenRows = [];
+      spec.fields.filter(f => !f.look).forEach(f => {
+        let node;
+        if (f.type === 'list') {
+          if (!Array.isArray(block.props[f.key])) block.props[f.key] = [];
+          node = itemRows(id, f, pg);
+        } else {
+          node = control(f, block.props[f.key], v => { block.props[f.key] = v; changed(); });
+        }
+        if (f.when) whenRows.push([node, f.when]);
+        content.appendChild(node);
+      });
+      body.appendChild(content);
+      const syncWhen = () => whenRows.forEach(([node, when]) => {
+        node.hidden = !Object.keys(when).every(k => when[k].indexOf(block.props[k]) >= 0);
+      });
+      syncWhen();
+
+      // ۳. «بیشتر»: تنظیم‌های ریز ظاهر برای کسی که دقیق‌تر می‌خواهد
+      const looks = spec.fields.filter(f => f.look);
+      const allowed = spec.style || [];
+      const more = h('details', 'more-sec');
+      more.open = !!S.moreOpen;
+      more.addEventListener('toggle', () => { S.moreOpen = more.open; });
+      const sum = h('summary');
+      sum.append(ico('brush'), h('span', 'grow', 'تنظیمات بیشتر ظاهر'), ico('chev', 'more-chev'));
+      more.appendChild(sum);
+      const moreBody = h('div', 'more-body');
+      more.appendChild(moreBody);
+      function drawMore() {
+        moreBody.textContent = '';
+        looks.forEach(f => {
+          moreBody.appendChild(control(f, block.props[f.key], v => { block.props[f.key] = v; changed(); }));
+        });
+        block.style = block.style || {};
+        S.schema.style.filter(f => allowed.indexOf(f.key) >= 0).forEach(f => {
+          const cur = block.style[f.key] != null ? block.style[f.key] : f.default;
+          moreBody.appendChild(control(f, cur, v => {
+            if (v === null || v === '' || v === f.default) delete block.style[f.key]; else block.style[f.key] = v;
+            changed();
+          }));
+        });
+        const reset = h('button', 'add-item', 'برگشت به ظاهر پیش‌فرض');
+        reset.type = 'button';
+        reset.addEventListener('click', () => {
+          looks.forEach(f => { block.props[f.key] = f.default; });
+          block.style = {};
+          changed();
+          drawMore();
+        });
+        moreBody.appendChild(reset);
+      }
+      if (looks.length || allowed.length) {
+        drawMore();
+        body.appendChild(more);
+      }
+
+      const foot = blockFoot(id);
+      el.appendChild(foot);
+      pg.refresh = () => {
+        if (!findBlock(id)) return;
+        redrawPv();
+        redrawStrip();
+        syncWhen();
+        foot.sync();
+        pg.redrawers.forEach(fn => fn());
+      };
+    });
+  }
+
+  function blockFoot(id) {
+    const foot = h('div', 'sfoot');
+    const mk = (icon, label, fn, cls) => {
+      const b = h('button', 'btn btn-s ' + (cls || ''));
+      b.type = 'button';
+      b.append(ico(icon), h('span', '', label));
+      b.addEventListener('click', () => { haptic(); fn(); });
+      foot.appendChild(b);
+      return b;
+    };
+    const up = mk('up', 'بالا', () => { if (moveBlock(id, -1)) toast('یکی بالاتر رفت'); });
+    const dn = mk('down', 'پایین', () => { if (moveBlock(id, 1)) toast('یکی پایین‌تر رفت'); });
+    mk('copy', 'تکثیر', () => { if (copyBlock(id)) toast('تکثیر شد؛ نسخهٔ تازه زیر همین بخش است'); });
+    const del = mk('trash', 'حذف', () => removeBlock(id, () => { if (S.stack.length) pop(); }), 'danger sq');
+    del.setAttribute('aria-label', 'حذف بخش');
+    foot.sync = () => {
+      const f = findBlock(id);
+      if (!f) return;
+      up.disabled = f.index <= 0;
+      dn.disabled = f.index >= f.page.blocks.length - 1;
+    };
+    foot.sync();
+    return foot;
+  }
+
+  /* ---------- فهرست داخل یک بخش (لینک‌ها، سوال‌ها، پلن‌ها…) ----------
+     هر آیتم یک ردیف: زدن = زیرصفحهٔ همان آیتم، دستگیره = جابه‌جایی */
+  function itemTitle(fd, it, i) {
+    const f = fd.fields.find(x => x.type === 'text' || x.type === 'textarea' || x.type === 'select');
+    let t = '';
+    if (f && f.type === 'select') {
+      const o = (f.options || []).find(o => (Array.isArray(o) ? o[0] : o) === it[f.key]);
+      t = o ? (Array.isArray(o) ? o[1] : o) : '';
+    } else if (f) t = String(it[f.key] || '').split('\n')[0];
+    return t || (fd.item_label || 'مورد') + ' ' + (i + 1);
+  }
+  const emptyUrl = v => !v || /^https?:\/\/(t\.me\/?)?$/i.test(String(v).trim());
+  function itemSub(fd, it) {
+    const url = fd.fields.find(x => x.type === 'url');
+    if (url) return emptyUrl(it[url.key]) ? { warn: true, t: 'لینک هنوز خالی است' } : { t: String(it[url.key]).replace(/^https?:\/\//, '') };
+    const txt = fd.fields.filter(x => x.type === 'text' || x.type === 'textarea');
+    const second = txt[txt[0] && fd.fields[0].type !== 'select' ? 1 : 0];
+    return { t: second ? String(it[second.key] || '').split('\n')[0] : '' };
+  }
+  function blankItem(fd) {
+    const it = {};
+    fd.fields.forEach(sub => { it[sub.key] = sub.type === 'select' ? sub.default : (sub.type === 'bool' ? !!sub.default : (sub.default != null ? sub.default : '')); });
+    return it;
+  }
+  function itemRows(id, fd, pg) {
+    const wrap = h('div', 'field');
+    wrap.appendChild(h('span', 'label', fd.label));
+    const list = h('div', 'layers');
+    const add = h('button', 'add-item', '+ افزودن ' + (fd.item_label || 'مورد'));
+    add.type = 'button';
+    wrap.append(list, add);
+    const items = () => { const f = findBlock(id); return f ? f.block.props[fd.key] : []; };
+    const draw = () => {
+      list.textContent = '';
+      const arr = items();
+      arr.forEach((it, i) => {
+        const row = h('div', 'layer');
+        row.dataset.id = String(i);
+        const txt = h('button', 'layer-txt');
+        txt.type = 'button';
+        const sub = itemSub(fd, it);
+        txt.append(h('b', 'body-strong', itemTitle(fd, it, i)), h('span', 'caption' + (sub.warn ? ' warn-t' : ''), sub.t));
+        txt.addEventListener('click', () => { haptic(); itemPage(id, fd.key, i); });
+        const go = ico('arrow', 'chev');
         const handle = h('span', 'layer-handle');
-        handle.setAttribute('aria-label', 'جابه‌جایی ' + spec.title);
+        handle.setAttribute('aria-label', 'جابه‌جایی');
         handle.appendChild(ico('grip'));
-        const row = layerRow(spec.cat, spec.icon, spec.title, summary(b), () => editBlock(b.id), handle);
-        row.dataset.id = b.id;
+        row.append(txt, go, handle);
         list.appendChild(row);
       });
-      if (!page().blocks.length) list.appendChild(h('p', 'caption', 'این صفحه هنوز کامپوننتی ندارد.'));
+      if (!arr.length) list.appendChild(h('p', 'caption empty-items', 'هنوز چیزی اضافه نشده.'));
+      add.hidden = arr.length >= (fd.max_items || 10);
+    };
+    sortable(list, order => {
+      const arr = items();
+      const next = order.map(k => arr[Number(k)]);
+      arr.splice(0, arr.length, ...next);
+      changed();
+    });
+    add.addEventListener('click', () => {
+      const arr = items();
+      arr.push(blankItem(fd));
+      haptic();
+      changed();
+      itemPage(id, fd.key, arr.length - 1);
+    });
+    draw();
+    pg.redrawers.push(draw);
+    return wrap;
+  }
+  function itemPage(id, key, index) {
+    const f = findBlock(id);
+    if (!f) return;
+    const spec = specOf(f.block);
+    const fd = spec.fields.find(x => x.key === key);
+    const it = (f.block.props[key] || [])[index];
+    if (!fd || !it) return;
+    push((el, pg) => {
+      const top = subTop(el, f.page.title + ' ‹ ' + spec.title, itemTitle(fd, it, index), [savedMark()]);
+      const titleEl = top.querySelector('.stop-t b');
+      const redrawPv = livePv(el, box => { const cur = findBlock(id); if (cur) mini(box, [cur.block]); });
+      const body = h('div', 'sbody');
+      el.appendChild(body);
+      fd.fields.forEach(sub => body.appendChild(control(sub, it[sub.key], v => {
+        it[sub.key] = v;
+        titleEl.textContent = itemTitle(fd, it, index);
+        changed();
+      })));
+      const foot = h('div', 'sfoot');
+      const del = h('button', 'btn danger');
+      del.type = 'button';
+      del.append(ico('trash'), h('span', '', 'حذف'));
+      del.addEventListener('click', () => confirmBox(`این ${fd.item_label || 'مورد'} حذف بشه؟`, () => {
+        const cur = findBlock(id);
+        if (cur) cur.block.props[key].splice(cur.block.props[key].indexOf(it), 1);
+        changed();
+        pop();
+        toast('حذف شد');
+      }));
+      const done = h('button', 'btn btn-d grow', 'تمام');
+      done.type = 'button';
+      done.addEventListener('click', () => { haptic(); pop(); });
+      foot.append(del, done);
+      el.appendChild(foot);
+      pg.refresh = redrawPv;
+    });
+  }
+
+  /* ---------- «بیشتر» یک بخش (شیت کارها) ---------- */
+  function moreSheet(id) {
+    const f = findBlock(id);
+    if (!f) return;
+    const spec = specOf(f.block);
+    const inEdit = S.stack.length > 0;
+    openSheet(sheet => {
+      sheetHead(sheet, spec.cat, spec.icon, spec.title, `بخش ${f.index + 1} از ${f.page.blocks.length} در صفحهٔ «${f.page.title}»`);
+      const list = h('div', 'acts');
+      const act = (icon, label, fn, opt) => {
+        opt = opt || {};
+        const b = h('button', 'act' + (opt.danger ? ' danger' : ''));
+        b.type = 'button';
+        b.append(ico(icon), h('span', 'grow', label));
+        if (opt.note) b.appendChild(h('small', '', opt.note));
+        b.disabled = !!opt.disabled;
+        b.addEventListener('click', () => { haptic(); closeSheet(); fn(); });
+        list.appendChild(b);
+      };
+      if (!inEdit) act('pencil', 'ویرایش', () => editPage(id));
+      act('up', 'یکی بالاتر', () => { moveBlock(id, -1); flash(id); }, { disabled: f.index <= 0 });
+      act('down', 'یکی پایین‌تر', () => { moveBlock(id, 1); flash(id); }, { disabled: f.index >= f.page.blocks.length - 1 });
+      act('copy', 'تکثیر', () => { const c = copyBlock(id); if (c) { toast('تکثیر شد'); flash(c); } });
+      if (S.doc.pages.length > 1) {
+        act('move', 'انتقال به صفحهٔ دیگر', () => moveToPageSheet(id), { note: S.doc.pages.filter(p => p !== f.page).map(p => p.title).join('، ') });
+      }
+      if (!inEdit) act('order', 'ترتیب همهٔ بخش‌ها', orderPage);
+      act('trash', 'حذف بخش', () => removeBlock(id, () => { if (S.stack.length) pop(); }), { danger: true });
+      sheet.appendChild(list);
+    });
+  }
+
+  function moveToPageSheet(id) {
+    openSheet(sheet => {
+      sheetHead(sheet, 'brand', 'move', 'انتقال به صفحهٔ دیگر', 'بخش آخر صفحهٔ مقصد قرار می‌گیرد.');
+      const st = h('div', 'acts');
+      const f = findBlock(id);
+      S.doc.pages.forEach(p => {
+        if (!f || p.id === f.page.id) return;
+        const r = h('button', 'act');
+        r.type = 'button';
+        r.append(ico(p.icon), h('span', 'grow', p.title), h('small', '', p.blocks.length + ' بخش'));
+        r.addEventListener('click', () => {
+          const cur = findBlock(id);
+          cur.page.blocks.splice(cur.index, 1);
+          p.blocks.push(cur.block);
+          closeSheet();
+          popAll();
+          changed();
+          goPage(p.id);
+          flash(id);
+          toast(`به «${p.title}» منتقل شد`);
+        });
+        st.appendChild(r);
+      });
+      sheet.appendChild(st);
+    });
+  }
+
+  /* ---------- ترتیب بخش‌ها (زیرصفحه) ---------- */
+  function usageFoot() {
+    const foot = h('div', 'sfoot usage');
+    const row = h('div', 'usage-row');
+    row.append(h('span', '', 'کامپوننت‌های کل مینی‌اپ'), h('b', '', `${totalBlocks()} از ${S.plan.max_blocks} · پلن ${S.plan.title}`));
+    const bar = h('div', 'usage-bar');
+    const fill = h('i');
+    fill.style.width = Math.min(100, Math.round(totalBlocks() / S.plan.max_blocks * 100)) + '%';
+    bar.appendChild(fill);
+    foot.append(row, bar);
+    return foot;
+  }
+  function orderPage() {
+    push((el, pg) => {
+      const done = h('button', 'btn btn-d btn-sm', 'تمام');
+      done.type = 'button';
+      done.addEventListener('click', () => { haptic(); pop(); });
+      subTop(el, page().title, 'ترتیب بخش‌ها', [done]);
+      el.appendChild(h('p', 'shint', 'دستگیره را نگه دار و بکش، یا با فلش‌ها جابه‌جا کن. تغییرها همان لحظه ذخیره می‌شوند.'));
+      const list = h('div', 'layers olist');
+      el.appendChild(list);
+      const foot = usageFoot();
+      el.appendChild(foot);
+      const draw = () => {
+        list.textContent = '';
+        const blocks = page().blocks;
+        blocks.forEach((b, i) => {
+          const spec = specOf(b);
+          const row = h('div', 'layer');
+          row.dataset.id = b.id;
+          const t = h('div', 'layer-txt');
+          t.append(h('b', 'body-strong', spec.title), h('span', 'caption', summary(b)));
+          const up = iconBtn('up', 'بالا', () => moveBlock(b.id, -1), 'ob');
+          const dn = iconBtn('down', 'پایین', () => moveBlock(b.id, 1), 'ob');
+          up.disabled = i === 0;
+          dn.disabled = i === blocks.length - 1;
+          const handle = h('span', 'layer-handle');
+          handle.setAttribute('aria-label', 'جابه‌جایی ' + spec.title);
+          handle.appendChild(ico('grip'));
+          row.append(h('span', 'onum', String(i + 1)), catTile(spec.cat, spec.icon), t, up, dn, handle);
+          list.appendChild(row);
+        });
+        if (!blocks.length) list.appendChild(h('p', 'caption empty-items', 'این صفحه هنوز بخشی ندارد.'));
+      };
       sortable(list, ids => {
         const byId = {};
         page().blocks.forEach(b => { byId[b.id] = b; });
         page().blocks = ids.map(i => byId[i]);
         changed();
       });
-      group.appendChild(list);
-      const add = h('button', 'add-item', '+ افزودن کامپوننت');
-      add.type = 'button';
-      add.addEventListener('click', addSheet);
-      group.appendChild(add);
-      sheet.appendChild(group);
-      // نوار پایین
-      const bottom = h('div', 'layers layers-group');
-      const tb = S.doc.tabbar;
-      const tbSub = S.doc.pages.length < 2 ? 'با دو صفحه یا بیشتر نمایش داده می‌شود' : (tb.enabled ? 'روشن · ' + S.doc.pages.length + ' تب' : 'خاموش');
-      bottom.appendChild(layerRow('frame', 'tabbar', 'نوار پایین', tbSub, tabbarSheet));
-      sheet.appendChild(bottom);
-    }, () => { renderCanvas(); saveNow(); }, 'layers');
-  }
-
-  /* ---------- سربرگ و نوار پایین ---------- */
-  function groupFields(parent, fields, target) {
-    fields.forEach(f => {
-      parent.appendChild(control(f, target[f.key], v => { target[f.key] = v; changed(); }));
+      draw();
+      pg.refresh = draw;
     });
   }
 
-  function headerSheet() {
-    S.selected = 'header';
-    renderCanvas();
-    openSheet(sheet => {
-      sheetHead(sheet, 'frame', 'header', 'سربرگ', 'بالای همهٔ صفحه‌ها؛ اسم و لوگوی مینی‌اپ.');
-      groupFields(sheet, S.schema.header, S.doc.header);
-      sheet.appendChild(h('p', 'caption sw-note', 'اگر عنوان خالی بماند، اسم مینی‌اپ نشان داده می‌شود.'));
-    }, () => { renderCanvas(); saveNow(); }, null, { focus: () => document.querySelector('#canvas') });
+  /* ---------- بخش‌های آماده ----------
+     چند کامپوننت که با هم یک بخش کامل می‌سازند. محتوا نمونه است و همه‌چیزش
+     بعداً عوض می‌شود؛ کلیدها همان فیلدهای app/blocks.py هستند. */
+  const SECTIONS = [
+    { key: 'intro', title: 'معرفی کسب‌وکار', sub: 'کارت سربرگ + دکمهٔ اصلی', blocks: () => [
+      ['hero', { style: 'pass', title: S.app.name, subtitle: 'یک جملهٔ کوتاه که بگوید چه کار می‌کنید و چرا شما.', chip: 'باز است' }],
+      ['button', { label: 'شروع کن' }]] },
+    { key: 'about', title: 'درباره ما و ساعت کاری', sub: 'دو متن کوتاه کنار هم', blocks: () => [
+      ['text', { title: 'درباره ما', body: 'چند خط درباره کسب‌وکارت بنویس: از کی شروع کردی و چه چیزی تو را خاص می‌کند.' }],
+      ['text', { title: 'ساعت کاری', body: 'شنبه تا پنج‌شنبه: ۹ صبح تا ۹ شب\nجمعه‌ها: ۱۰ صبح تا ۶ عصر' }]] },
+    { key: 'contact', title: 'راه‌های ارتباط', sub: 'اطلاعیه + شبکه‌های اجتماعی', blocks: () => [
+      ['notice', { text: 'سوالی داری؟ همین حالا پیام بده، زود جواب می‌دیم.' }],
+      ['social', { items: [{ kind: 'telegram', value: '' }, { kind: 'instagram', value: '' }, { kind: 'phone', value: '' }] }]] },
+    { key: 'faq', title: 'سوالات پرتکرار', sub: 'سه سوال آماده برای شروع', blocks: () => [
+      ['faq', { title: 'سوالات پرتکرار', items: [
+        { q: 'ساعت کاری‌تون چیه؟', a: 'هر روز از ۹ صبح تا ۹ شب.' },
+        { q: 'ارسال دارید؟', a: 'بله، به همهٔ شهرها.' },
+        { q: 'چطور پرداخت کنم؟', a: 'کارت‌به‌کارت یا درگاه آنلاین.' }] }]] },
+    { key: 'links', title: 'لینک‌های مهم', sub: 'مثل لینک بیو', blocks: () => [
+      ['links', { items: [
+        { label: 'کانال تلگرام', note: 'آخرین خبرها', url: 'https://t.me/' },
+        { label: 'اینستاگرام', note: 'عکس‌ها و ویدیوها', url: '' },
+        { label: 'سایت ما', note: '', url: '' }] }]] },
+    { key: 'download', title: 'دانلود و راهنما', sub: 'دکمهٔ دانلود + آموزش قدم‌به‌قدم', blocks: () => [
+      ['apps', {}], ['steps', {}]] },
+    { key: 'trust', title: 'اعتماد با عدد', sub: 'آمار + ویژگی‌ها', blocks: () => [['stats', {}], ['features', {}]] },
+    { key: 'shop', title: 'ویترین محصولات', sub: 'کارت محصول + دکمهٔ همه', blocks: () => [['cards', {}], ['button', { label: 'دیدن همه' }]] },
+    { key: 'plans', title: 'پلن‌ها و قیمت', sub: 'بلیت پلن + اطلاعیهٔ تخفیف', blocks: () => [
+      ['notice', { text: 'تا آخر هفته ۲۰٪ تخفیف روی همهٔ پلن‌ها' }], ['pricing', {}]] },
+    { key: 'service', title: 'اشتراک و قیمت دلخواه', sub: 'کارت عبور + ماشین‌حساب قیمت', blocks: () => [['passcard', {}], ['calc', {}]] },
+  ];
+  const presetBlocks = sec => sec.blocks().map(([type, props]) => defaultBlock(type, props));
+  const presetLocked = sec => !S.plan.premium_blocks && sec.blocks().some(([type]) => S.schema.blocks[type] && S.schema.blocks[type].premium);
+
+  function presetCard(sec, at, compact) {
+    const blocks = presetBlocks(sec);
+    const locked = presetLocked(sec);
+    const card = h('div', 'ccard preset' + (locked ? ' locked' : '') + (compact ? ' compact' : ''));
+    const pvb = h('button', 'ccard-pv');
+    pvb.type = 'button';
+    pvb.setAttribute('aria-label', 'افزودن ' + sec.title);
+    pvb.appendChild(mini(h('div', 'ccard-mini'), blocks));
+    const foot = h('div', 'ccard-f');
+    const t = h('div', 'row-m');
+    const tb = h('span', 'row-t', sec.title);
+    if (locked) tb.appendChild(h('span', 'pro-i', 'PRO'));
+    t.append(tb, h('span', 'row-s', sec.sub + ' · ' + blocks.length + ' کامپوننت'));
+    const add = h('button', 'btn btn-s btn-sm');
+    add.type = 'button';
+    add.append(ico(locked ? 'lock' : 'plus'), document.createTextNode('افزودن'));
+    const go = () => { haptic(); insertBlocks(presetBlocks(sec), at, false); };
+    pvb.addEventListener('click', go);
+    add.addEventListener('click', go);
+    foot.append(t, add);
+    card.append(pvb, foot);
+    return card;
   }
 
-  function tabbarSheet() {
+  /* ---------- افزودن (شیت): بخش آماده یا کامپوننت تکی، هر دو با پیش‌نمایش واقعی ---------- */
+  let addTab = 'ready', addCat = 'all';
+  function addSheet(atIndex) {
+    const pg = page();
+    const at = typeof atIndex === 'number' ? Math.max(0, Math.min(pg.blocks.length, atIndex)) : pg.blocks.length;
+    const prev = at > 0 ? specOf(pg.blocks[at - 1]).title : '';
     openSheet(sheet => {
-      sheetHead(sheet, 'frame', 'tabbar', 'نوار پایین', 'هر صفحه یک تب است؛ اسم و آیکن تب از تنظیمات همان صفحه می‌آید.');
-      if (S.doc.pages.length < 2) {
-        const note = h('div', 'warn-box sh-sec');
-        note.append(ico('warn'), h('span', 'caption', 'نوار پایین وقتی دیده می‌شود که مینی‌اپ حداقل دو صفحه داشته باشد.'));
-        sheet.appendChild(note);
-        const add = h('button', 'btn secondary block', 'افزودن صفحهٔ دوم');
-        add.style.marginTop = '10px';
-        add.addEventListener('click', addPage);
-        sheet.appendChild(add);
+      sheetHead(sheet, 'brand', 'plus', `افزودن به «${pg.title}»`,
+        (prev ? `بعد از «${prev}»` : 'اول صفحه') + ` · ${totalBlocks()} از ${S.plan.max_blocks} کامپوننت`);
+      const seg = h('div', 'seg add-seg');
+      seg.setAttribute('role', 'tablist');
+      const body = h('div', 'add-body');
+      const tabs = [['ready', 'بخش‌های آماده'], ['single', 'کامپوننت تکی']];
+      const draw = () => {
+        seg.textContent = '';
+        tabs.forEach(([k, label]) => {
+          const b = h('button', k === addTab ? 'on' : '', label);
+          b.type = 'button';
+          b.setAttribute('role', 'tab');
+          b.setAttribute('aria-selected', k === addTab ? 'true' : 'false');
+          b.addEventListener('click', () => { if (addTab === k) return; addTab = k; select(); draw(); sheet.scrollTop = 0; });
+          seg.appendChild(b);
+        });
+        body.textContent = '';
+        if (addTab === 'ready') drawReady(body, at); else drawSingle(body, at, () => { draw(); });
+      };
+      sheet.append(seg, body);
+      draw();
+    });
+  }
+  function drawReady(body, at) {
+    body.appendChild(h('p', 'shint', 'چند کامپوننت که با هم یک بخش کامل می‌سازند. محتوا نمونه است و همه‌چیزش عوض می‌شود.'));
+    SECTIONS.forEach(sec => body.appendChild(presetCard(sec, at)));
+  }
+  function drawSingle(body, at, redraw) {
+    const cats = S.schema.categories || {};
+    const chips = h('div', 'fchips');
+    [['all', 'همه']].concat(Object.keys(cats).map(k => [k, cats[k]])).forEach(([k, label]) => {
+      const c = h('button', 'fchip' + (k === addCat ? ' on' : ''));
+      c.type = 'button';
+      if (k !== 'all') { const d = h('i', 'dot'); d.style.background = CAT_DOT[k]; c.appendChild(d); }
+      c.appendChild(document.createTextNode(label));
+      c.addEventListener('click', () => { addCat = k; select(); redraw(); });
+      chips.appendChild(c);
+    });
+    body.appendChild(chips);
+    const order = S.schema.order || Object.keys(S.schema.blocks);
+    let last = null;
+    order.forEach(type => {
+      const spec = S.schema.blocks[type];
+      if (!spec || (addCat !== 'all' && spec.cat !== addCat)) return;
+      if (addCat === 'all' && spec.cat !== last) {
+        last = spec.cat;
+        const lbl = h('div', 'clabel');
+        const d = h('i', 'dot');
+        d.style.background = CAT_DOT[spec.cat];
+        lbl.append(d, document.createTextNode(cats[spec.cat] || ''));
+        body.appendChild(lbl);
       }
-      groupFields(sheet, S.schema.tabbar, S.doc.tabbar);
-      const st = h('div', 'stack sh-sec');
-      st.appendChild(h('span', 'label', 'تب‌ها'));
-      S.doc.pages.forEach(p => {
-        const r = h('button', 'row');
-        const g = h('span', 'grow');
-        g.append(h('b', 'body-strong', p.title), h('span', 'caption', 'زدن برای تغییر اسم و آیکن'));
-        r.append(catTile('frame', p.icon), g);
-        r.addEventListener('click', () => pageSheet(p.id));
-        st.appendChild(r);
-      });
-      sheet.appendChild(st);
-    }, saveNow, null, { tabbar: true });
+      body.appendChild(compCard(type, at));
+    });
+  }
+  function compCard(type, at) {
+    const spec = S.schema.blocks[type];
+    const locked = spec.premium && !S.plan.premium_blocks;
+    const card = h('div', 'ccard' + (locked ? ' locked' : ''));
+    const pvb = h('button', 'ccard-pv');
+    pvb.type = 'button';
+    pvb.setAttribute('aria-label', 'افزودن ' + spec.title);
+    pvb.appendChild(mini(h('div', 'ccard-mini'), [defaultBlock(type)]));
+    const foot = h('div', 'ccard-f');
+    const t = h('div', 'row-m');
+    const tb = h('span', 'row-t', spec.title);
+    if (spec.premium) tb.appendChild(h('span', 'pro-i', 'PRO'));
+    t.append(tb, h('span', 'row-s', locked ? 'مخصوص پلن حرفه‌ای' : spec.desc));
+    const add = h('button', 'btn btn-s btn-sm');
+    add.type = 'button';
+    add.append(ico(locked ? 'lock' : 'plus'), document.createTextNode('افزودن'));
+    const go = () => { haptic(); insertBlocks([defaultBlock(type)], at, true); };
+    pvb.addEventListener('click', go);
+    add.addEventListener('click', go);
+    foot.append(catTile(spec.cat, spec.icon), t, add);
+    card.append(pvb, foot);
+    return card;
+  }
+  function insertBlocks(blocks, at, openEdit) {
+    const locked = blocks.find(b => specOf(b).premium && !S.plan.premium_blocks);
+    if (locked) { upsellSheet(`«${specOf(locked).title}» مخصوص پلن‌های حرفه‌ای است.`); return; }
+    if (totalBlocks() + blocks.length > S.plan.max_blocks) { upsellSheet(`پلن ${S.plan.title} حداکثر ${S.plan.max_blocks} کامپوننت دارد.`); return; }
+    const list = page().blocks;
+    list.splice(Math.min(at, list.length), 0, ...blocks);
+    notify('success');
+    closeSheet();
+    changed();
+    if (openEdit && blocks.length === 1) setTimeout(() => editPage(blocks[0].id), 200);
+    else { toast(blocks.length > 1 ? `بخش با ${blocks.length} کامپوننت اضافه شد` : 'اضافه شد'); flash(blocks[0].id); }
   }
 
-  /* ---------- صفحه‌ها ---------- */
+  /* ---------- صفحه‌ها (زیرصفحه) ---------- */
   function addPage() {
-    if (S.doc.pages.length >= S.plan.max_pages) { upsellSheet(`پلن ${S.plan.title} حداکثر ${S.plan.max_pages} صفحه دارد.`); return; }
+    if (S.doc.pages.length >= S.plan.max_pages) { upsellSheet(`پلن ${S.plan.title} حداکثر ${S.plan.max_pages} صفحه دارد.`); return null; }
     const used = S.doc.pages.map(p => p.icon);
     const icon = (S.schema.page_icons.find(([k]) => used.indexOf(k) < 0) || ['star'])[0];
     const id = 'p' + Math.random().toString(16).slice(2, 8);
     S.doc.pages.push({ id, title: 'صفحهٔ ' + (S.doc.pages.length + 1), icon, blocks: [] });
     if (S.doc.pages.length === 2) S.doc.tabbar.enabled = true;
-    changed();
-    goPage(id);
+    S.pageId = id;
     notify('success');
-    setTimeout(() => pageSheet(id), 250);
+    changed();
+    if (!S.stack.length) { renderPages(); window.scrollTo(0, 0); pagesPage(id); }
+    return id;
   }
-
-  function pageSheet(id) {
-    const p = S.doc.pages.find(x => x.id === id);
-    if (!p) return;
-    openSheet(sheet => {
-      sheetHead(sheet, 'frame', p.icon, 'تنظیمات صفحه', 'اسم و آیکن، روی تب نوار پایین هم دیده می‌شوند.');
-      sheet.appendChild(control({ type: 'text', label: 'اسم صفحه', max: 24 }, p.title, v => { p.title = v; renderPages(); changed(); }));
-      const iconWrap = h('div', 'field');
-      iconWrap.appendChild(h('span', 'label', 'آیکن'));
-      const grid = h('div', 'icons');
-      const draw = () => {
-        grid.textContent = '';
-        S.schema.page_icons.forEach(([key, label]) => {
-          const b = h('button', key === p.icon ? 'on' : '');
-          b.type = 'button';
-          b.append(ico(key), document.createTextNode(label));
-          b.addEventListener('click', () => { p.icon = key; select(); draw(); renderPages(); changed(); });
-          grid.appendChild(b);
+  function pagesPage(openId) {
+    let open = openId || null;
+    push((el, pg) => {
+      const count = h('span', 'stop-n');
+      subTop(el, S.app.name, 'صفحه‌ها', [count]);
+      el.appendChild(h('p', 'shint', 'ترتیب همین‌جا همان ترتیب نوار پایین مینی‌اپ است. روی هر صفحه بزن تا اسم و آیکنش را عوض کنی.'));
+      const list = h('div', 'plist');
+      el.appendChild(list);
+      const foot = h('div', 'sfoot');
+      const add = h('button', 'btn btn-d grow');
+      add.type = 'button';
+      add.append(ico('plus'), document.createTextNode('صفحهٔ تازه'));
+      add.addEventListener('click', () => { haptic(); const id = addPage(); if (id) { open = id; draw(); } });
+      foot.appendChild(add);
+      el.appendChild(foot);
+      function draw() {
+        count.textContent = `${S.doc.pages.length} از ${S.plan.max_pages}`;
+        list.textContent = '';
+        S.doc.pages.forEach((p, i) => {
+          const card = h('div', 'dsec' + (p.id === open ? ' open' : ''));
+          const row = h('div', 'prow');
+          const tap = h('button', 'prow-m');
+          tap.type = 'button';
+          const t = h('span', 'grow');
+          t.append(h('b', 'body-strong', p.title), h('span', 'caption', p.blocks.length + ' بخش' + (i === 0 ? ' · اولین صفحه' : '')));
+          tap.append(catTile(p.id === page().id ? 'brand' : 'frame', p.icon), t, ico('chev', 'chev' + (p.id === open ? ' up' : '')));
+          tap.addEventListener('click', () => { open = open === p.id ? null : p.id; select(); draw(); });
+          const up = iconBtn('up', 'جلوتر', () => { S.doc.pages.splice(i - 1, 0, S.doc.pages.splice(i, 1)[0]); changed(); }, 'ob');
+          const dn = iconBtn('down', 'عقب‌تر', () => { S.doc.pages.splice(i + 1, 0, S.doc.pages.splice(i, 1)[0]); changed(); }, 'ob');
+          up.disabled = i === 0;
+          dn.disabled = i === S.doc.pages.length - 1;
+          const go = h('button', 'pe');
+          go.type = 'button';
+          go.textContent = 'باز کردن';
+          go.addEventListener('click', () => { haptic(); S.pageId = p.id; pop(); });
+          row.append(tap, up, dn, go);
+          card.appendChild(row);
+          if (p.id === open) card.appendChild(pageEditor(p, draw));
+          list.appendChild(card);
         });
-      };
+      }
       draw();
-      iconWrap.appendChild(grid);
-      sheet.appendChild(iconWrap);
-      const tools = h('div', 'tools sh-sec');
-      const i = S.doc.pages.indexOf(p);
-      const mk = (name, label, fn, disabled, cls) => {
-        const b = h('button', cls || '');
-        b.type = 'button';
-        b.title = label;
-        b.setAttribute('aria-label', label);
-        b.appendChild(ico(name));
-        b.disabled = !!disabled;
-        b.addEventListener('click', fn);
-        tools.appendChild(b);
-      };
-      mk('back', 'جلوتر', () => { S.doc.pages.splice(i - 1, 0, S.doc.pages.splice(i, 1)[0]); changed(); renderPages(); pageSheet(id); }, i === 0);
-      mk('arrow', 'عقب‌تر', () => { S.doc.pages.splice(i + 1, 0, S.doc.pages.splice(i, 1)[0]); changed(); renderPages(); pageSheet(id); }, i === S.doc.pages.length - 1);
-      mk('trash', 'حذف صفحه', () => {
-        confirmBox(`صفحهٔ «${p.title}» با ${p.blocks.length} کامپوننتش حذف بشه؟`, () => {
-          S.doc.pages.splice(S.doc.pages.indexOf(p), 1);
-          changed();
-          closeSheet();
-          goPage(S.doc.pages[0].id);
-          toast('صفحه حذف شد');
-        });
-      }, S.doc.pages.length < 2, 'del');
-      sheet.appendChild(tools);
-    }, () => { renderPages(); saveNow(); });
+      pg.refresh = draw;
+    });
+  }
+  function pageEditor(p, redraw) {
+    const box = h('div', 'ped');
+    const name = control({ type: 'text', label: 'اسم در نوار پایین', max: 24 }, p.title, v => {
+      p.title = v;
+      const b = box.parentNode && box.parentNode.querySelector('.prow-m b');
+      if (b) b.textContent = v;
+      changed(true);
+    });
+    box.appendChild(name);
+    const iconWrap = h('div', 'field');
+    iconWrap.appendChild(h('span', 'label', 'آیکن'));
+    const grid = h('div', 'icons');
+    S.schema.page_icons.forEach(([key, label]) => {
+      const b = h('button', key === p.icon ? 'on' : '');
+      b.type = 'button';
+      b.append(ico(key), document.createTextNode(label));
+      b.addEventListener('click', () => { p.icon = key; select(); changed(); });
+      grid.appendChild(b);
+    });
+    iconWrap.appendChild(grid);
+    box.appendChild(iconWrap);
+    const tools = h('div', 'ped-tools');
+    const dup = h('button', 'btn btn-s grow');
+    dup.type = 'button';
+    dup.append(ico('copy'), document.createTextNode('تکثیر صفحه'));
+    dup.addEventListener('click', () => {
+      if (S.doc.pages.length >= S.plan.max_pages) { upsellSheet(`پلن ${S.plan.title} حداکثر ${S.plan.max_pages} صفحه دارد.`); return; }
+      if (totalBlocks() + p.blocks.length > S.plan.max_blocks) { upsellSheet(`پلن ${S.plan.title} حداکثر ${S.plan.max_blocks} کامپوننت دارد.`); return; }
+      const copy = JSON.parse(JSON.stringify(p));
+      copy.id = 'p' + Math.random().toString(16).slice(2, 8);
+      copy.title = (p.title + ' ۲').slice(0, 24);
+      copy.blocks.forEach(b => { b.id = newId(); });
+      S.doc.pages.splice(S.doc.pages.indexOf(p) + 1, 0, copy);
+      haptic('medium');
+      changed();
+      toast('صفحه تکثیر شد');
+    });
+    const del = h('button', 'btn danger grow');
+    del.type = 'button';
+    del.append(ico('trash'), document.createTextNode('حذف صفحه'));
+    del.disabled = S.doc.pages.length < 2;
+    del.addEventListener('click', () => confirmBox(`صفحهٔ «${p.title}» با ${p.blocks.length} بخشش حذف بشه؟`, () => {
+      S.doc.pages.splice(S.doc.pages.indexOf(p), 1);
+      if (!S.doc.pages.find(x => x.id === S.pageId)) S.pageId = S.doc.pages[0].id;
+      changed();
+      toast('صفحه حذف شد');
+    }));
+    tools.append(dup, del);
+    box.appendChild(tools);
+    return box;
   }
 
-  /* ---------- ظاهر (SwatchPicker + Segmented + گوشهٔ دلخواه) ---------- */
-  function themeSheet() {
+  /* ---------- ظاهر (زیرصفحه) ---------- */
+  function themePage() {
     const theme = S.doc.theme;
     const set = (k, v) => { theme[k] = v; changed(); };
-    openSheet(sheet => {
-      sheetHead(sheet, 'brand', 'palette', 'ظاهر مینی‌اپ', 'رنگ اصلی رو انتخاب کن؛ بقیه خودکار ساخته می‌شن.');
-      const sec = h('div', 'sh-sec');
-      sec.appendChild(h('span', 'label', 'رنگ اصلی'));
+    push((el, pg) => {
+      subTop(el, S.app.name, 'ظاهر', [savedMark()]);
+      const redraw = livePv(el, box => pagePreview(box, 290), 'کل مینی‌اپ، زنده');
+      const body = h('div', 'sbody');
+      el.appendChild(body);
+      secLabel(body, 'رنگ اصلی', 'بقیهٔ رنگ‌ها خودکار ساخته می‌شوند');
       const grid = h('div', 'swatches');
-      const draw = () => {
+      const drawSw = () => {
         grid.textContent = '';
         const cur = (theme.accent || '').toLowerCase();
         let preset = false;
@@ -1844,7 +2063,7 @@
           b.setAttribute('aria-label', name);
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
           b.appendChild(ico('check'));
-          b.addEventListener('click', () => { set('accent', color); select(); draw(); });
+          b.addEventListener('click', () => { set('accent', color); select(); drawSw(); });
           grid.appendChild(b);
         });
         const custom = h('label', 'sw custom' + (preset ? '' : ' on'));
@@ -1855,41 +2074,244 @@
         input.type = 'color';
         input.value = theme.accent;
         input.addEventListener('input', () => { set('accent', input.value); custom.style.background = input.value; });
-        input.addEventListener('change', draw);
+        input.addEventListener('change', drawSw);
         custom.appendChild(input);
         grid.appendChild(custom);
       };
-      draw();
-      sec.appendChild(grid);
-      sec.appendChild(h('p', 'caption sw-note', 'بقیهٔ رنگ‌ها خودکار ساخته می‌شن و همیشه خوانا می‌مونن.'));
-      sheet.appendChild(sec);
-      sheet.appendChild(selectControl({ label: 'حالت', options: [['auto', 'خودکار'], ['light', 'روشن'], ['dark', 'تیره']] }, theme.mode, v => set('mode', v)));
-      sheet.appendChild(selectControl({ label: 'پس‌زمینه', options: [['tint', 'رنگی'], ['plain', 'ساده']] }, theme.bg, v => set('bg', v)));
+      drawSw();
+      body.appendChild(grid);
+      body.appendChild(selectControl({ label: 'حالت', options: [['light', 'روشن'], ['auto', 'مثل تلگرام'], ['dark', 'تیره']] }, theme.mode, v => set('mode', v)));
+      body.appendChild(selectControl({ label: 'پس‌زمینهٔ صفحه', options: [['plain', 'ساده'], ['tint', 'با کمی رنگ']] }, theme.bg, v => set('bg', v)));
       const radiusBox = h('div');
       const drawRadius = () => {
         radiusBox.textContent = '';
-        radiusBox.appendChild(selectControl({ label: 'گوشه‌ها', options: [['soft', 'نرم'], ['round', 'گرد'], ['sharp', 'تیز'], ['custom', 'دلخواه']] }, theme.radius, v => { set('radius', v); drawRadius(); }));
-        if (theme.radius === 'custom') {
-          radiusBox.appendChild(intControl({ label: 'اندازهٔ گوشه', min: 0, max: 32, default: 18 }, theme.radius_px, v => set('radius_px', v)));
-        }
+        radiusBox.appendChild(selectControl({ label: 'گوشه‌ها', options: [['sharp', 'تیز'], ['soft', 'نرم'], ['round', 'گرد'], ['custom', 'دلخواه']] }, theme.radius, v => { set('radius', v); drawRadius(); }));
+        if (theme.radius === 'custom') radiusBox.appendChild(intControl({ label: 'اندازهٔ گوشه', min: 0, max: 32, default: 18 }, theme.radius_px, v => set('radius_px', v)));
       };
       drawRadius();
-      sheet.appendChild(radiusBox);
-    }, saveNow, 'theme', {});
+      body.appendChild(radiusBox);
+      pg.refresh = redraw;
+    });
   }
 
-  /* ---------- پیش‌نمایش ---------- */
-  function preview(on) {
-    S.previewing = on;
-    S.selected = null;
-    $('editor').classList.toggle('previewing', on);
-    $('exit-preview').hidden = !on;
-    $('bar-preview').classList.toggle('on', on);
-    if (tg && tg.BackButton) { if (on) tg.BackButton.show(); else tg.BackButton.hide(); }
-    haptic();
-    renderCanvas();
+  /* ---------- سربرگ و نوار پایین (زیرصفحه) ---------- */
+  function groupFields(parent, fields, target) {
+    fields.forEach(f => {
+      parent.appendChild(control(f, target[f.key], v => { target[f.key] = v; changed(); }));
+    });
+  }
+  function framePage() {
+    push((el, pg) => {
+      subTop(el, S.app.name, 'نوار بالا و نوار پایین', [savedMark()]);
+      const redraw = livePv(el, box => pagePreview(box, 210), 'قاب مینی‌اپ، زنده');
+      const body = h('div', 'sbody');
+      el.appendChild(body);
+      secLabel(body, 'نوار بالا', 'اسم و لوگو، بالای همهٔ صفحه‌ها');
+      groupFields(body, S.schema.header.map(f => f.key === 'enabled' ? Object.assign({}, f, { label: 'نمایش نوار بالا' }) : f), S.doc.header);
+      body.appendChild(h('p', 'caption sw-note', 'اگر عنوان خالی بماند، اسم مینی‌اپ نشان داده می‌شود.'));
+      secLabel(body, 'نوار پایین', 'برای رفتن بین صفحه‌ها');
+      if (S.doc.pages.length < 2) {
+        const note = h('div', 'warn-box');
+        note.append(ico('warn'), h('span', 'caption', 'نوار پایین وقتی دیده می‌شود که مینی‌اپ حداقل دو صفحه داشته باشد.'));
+        body.appendChild(note);
+        const add = h('button', 'btn btn-s btn-block', 'افزودن صفحهٔ دوم');
+        add.type = 'button';
+        add.style.marginTop = '10px';
+        add.addEventListener('click', () => { haptic(); if (addPage()) { pop(); pagesPage(S.pageId); } });
+        body.appendChild(add);
+      }
+      groupFields(body, S.schema.tabbar, S.doc.tabbar);
+      const pages = h('button', 'row go-row');
+      pages.type = 'button';
+      const g = h('span', 'grow');
+      g.append(h('b', 'body-strong', 'اسم و آیکن دکمه‌ها'), h('span', 'caption', 'از خود صفحه‌ها می‌آید'));
+      pages.append(catTile('frame', 'tabbar'), g, ico('arrow', 'chev'));
+      pages.addEventListener('click', () => { haptic(); pagesPage(); });
+      body.appendChild(pages);
+      pg.refresh = redraw;
+    });
   }
 
+  /* ---------- پیش‌نمایش (زیرصفحهٔ تمام‌صفحه) ---------- */
+  function previewPage() {
+    let pid = page().id, mode = null;
+    push((el, pg) => {
+      el.classList.add('sub-preview');
+      const bar = h('header', 'pvbar');
+      const close = h('button', 'btn btn-d btn-sm');
+      close.type = 'button';
+      close.append(ico('x'), document.createTextNode('بستن'));
+      close.addEventListener('click', () => { haptic(); pop(); });
+      const t = h('div', 'pvbar-t');
+      t.append(h('b', '', 'پیش‌نمایش'), h('span', '', 'دکمه‌ها کار می‌کنند؛ ویرایش خاموش است'));
+      const seg = h('div', 'seg pvbar-seg');
+      const drawSeg = () => {
+        seg.textContent = '';
+        const cur = mode || (ES.isDark(S.doc.theme.mode) ? 'dark' : 'light');
+        [['light', 'sun', 'روشن'], ['dark', 'moon', 'تیره']].forEach(([k, icon, label]) => {
+          const b = h('button', k === cur ? 'on' : '');
+          b.type = 'button';
+          b.setAttribute('aria-label', label);
+          b.appendChild(ico(icon));
+          b.addEventListener('click', () => { mode = k; select(); drawSeg(); draw(); });
+          seg.appendChild(b);
+        });
+      };
+      bar.append(close, t, seg);
+      const view = h('div', 'pvw');
+      el.append(bar, view);
+      const draw = () => {
+        const doc = mode ? Object.assign({}, S.doc, { theme: Object.assign({}, S.doc.theme, { mode }) }) : S.doc;
+        ES.render(view, doc, {
+          page: pid, appName: S.app.name,
+          onNavigate: id => { pid = id; draw(); view.scrollTop = 0; },
+          branding: S.plan && S.plan.branding ? { bot: S.me.bot } : null,
+        });
+      };
+      drawSeg();
+      draw();
+      pg.refresh = draw;
+    });
+  }
+
+  /* ---------- تنظیمات مینی‌اپ و ربات (زیرصفحه) ---------- */
+  function settingsPage() {
+    push((el, pg) => {
+      subTop(el, S.app.name, 'تنظیمات');
+      const body = h('div', 'sbody');
+      el.appendChild(body);
+      const card = h('div', 'appcard');
+      const logo = S.doc.header && ES.safeUrl(S.doc.header.logo, true);
+      const tile = h('span', 'appbar-tile');
+      if (logo) { const i = h('img'); i.alt = ''; i.src = logo; tile.appendChild(i); } else tile.textContent = (S.app.name || '?').charAt(0);
+      const g = h('span', 'grow');
+      g.append(h('b', 'title-2', S.app.name), h('span', 'caption ltr', S.app.url.replace(/^https?:\/\//, '')));
+      const cp = h('button', 'btn btn-s btn-sm');
+      cp.type = 'button';
+      cp.append(ico('copy'), document.createTextNode('کپی لینک'));
+      cp.addEventListener('click', () => copyText(S.app.url));
+      card.append(tile, g, cp);
+      body.appendChild(card);
+
+      const stats = h('div', 'stats card');
+      [['visitors', 'بازدیدکننده'], ['views_today', 'بازدید امروز'], ['views_week', 'هفت روز']].forEach(([k, label]) => {
+        const s = h('div', 'stat');
+        s.append(h('div', 'num-lg', ((S.stats && S.stats[k]) || 0).toLocaleString('en-US')), h('div', 'label', label));
+        stats.appendChild(s);
+      });
+      body.appendChild(stats);
+
+      body.appendChild(nameSection());
+      const conn = h('div', 'sh-sec stack');
+      conn.appendChild(h('span', 'label', 'ربات و لینک'));
+      conn.append(botRow(), linkRow());
+      body.appendChild(conn);
+      body.appendChild(welcomeSection());
+
+      const planSec = h('div', 'sh-sec');
+      const plan = h('div', 'plan current');
+      const head = h('div', 'plan-head');
+      head.append(h('b', 'title-2', 'پلن ' + S.plan.title), h('span', 'pill label', 'پلن فعلی تو'));
+      const ul = h('ul', 'body');
+      [`${totalBlocks()} از ${S.plan.max_blocks} کامپوننت`, `${S.doc.pages.length} از ${S.plan.max_pages} صفحه`, `${S.me.apps.length} از ${S.plan.max_apps} مینی‌اپ`].forEach(t => {
+        const li = h('li'); li.append(ico('check'), document.createTextNode(t)); ul.appendChild(li);
+      });
+      plan.append(head, ul);
+      if (!S.plan.premium_blocks) {
+        const up = h('button', 'btn primary block', 'ارتقا');
+        up.addEventListener('click', () => upsellSheet(''));
+        plan.appendChild(up);
+      }
+      planSec.appendChild(plan);
+      body.appendChild(planSec);
+
+      const appsSec = h('div', 'sh-sec stack');
+      appsSec.appendChild(h('span', 'label', 'مینی‌اپ‌های من'));
+      S.me.apps.forEach(a => {
+        const r = h('button', 'row');
+        r.type = 'button';
+        const t = h('span', 'appbar-tile', (a.name || '?').charAt(0));
+        const gg = h('span', 'grow');
+        gg.append(h('b', 'body-strong', a.name), h('span', 'caption', a.id === S.app.id ? 'در حال ویرایش' : (a.bot_username ? '@' + a.bot_username : 'بدون ربات')));
+        r.append(t, gg);
+        if (a.id !== S.app.id) r.addEventListener('click', async () => { popAll(); await saveNow(); openApp(a.id).catch(failed); });
+        appsSec.appendChild(r);
+      });
+      const more = h('button', 'add-item', '+ مینی‌اپ جدید');
+      more.type = 'button';
+      more.addEventListener('click', () => {
+        if (S.me.apps.length >= S.me.plan.max_apps) { upsellSheet(`پلن ${S.me.plan.title} فقط ${S.me.plan.max_apps} مینی‌اپ دارد.`); return; }
+        popAll();
+        onboard();
+      });
+      appsSec.appendChild(more);
+      body.appendChild(appsSec);
+    });
+  }
+
+  /* ---------- آمادهٔ انتشار (چک‌لیست کوتاه) ---------- */
+  function emptyLinks() {
+    const res = [];
+    S.doc.pages.forEach(p => p.blocks.forEach(b => {
+      const spec = specOf(b), pr = b.props || {};
+      const open = () => { popAll(); goPage(p.id); editPage(b.id); };
+      if (b.type === 'button' && emptyUrl(pr.url)) res.push({ path: `${p.title} ‹ ${spec.title} «${pr.label || ''}»`, fix: open });
+      if ((b.type === 'passcard' || b.type === 'calc') && pr.cta && emptyUrl(pr.url)) res.push({ path: `${p.title} ‹ ${spec.title}`, fix: open });
+      if (b.type === 'links' || b.type === 'apps') {
+        (pr.items || []).forEach((it, i) => {
+          if (emptyUrl(it.url)) res.push({ path: `${p.title} ‹ ${spec.title} ‹ ${it.label || it.name || 'آیتم ' + (i + 1)}`, fix: () => { open(); itemPage(b.id, 'items', i); } });
+        });
+      }
+    }));
+    return res;
+  }
+  function publishChecks() {
+    const out = [];
+    const hasHead = S.doc.header.enabled || S.doc.pages.some(p => p.blocks.some(b => b.type === 'hero'));
+    out.push(hasHead ? { st: 'ok', t: 'اسم و سربرگ', s: S.doc.header.title || S.app.name }
+      : { st: 'warn', t: 'سربرگ ندارد', s: 'مشتری اول باید بفهمد کجا آمده', fix: framePage, fixL: 'روشن کن' });
+    out.push(S.app.bot_username ? { st: 'ok', t: 'ربات وصل است', s: '@' + S.app.bot_username, ltr: true }
+      : { st: 'warn', t: 'ربات وصل نیست', s: 'بعد از اتصال، مینی‌اپ روی ربات خودت باز می‌شود', fix: () => openBot('connect'), fixL: 'اتصال' });
+    const links = emptyLinks();
+    links.slice(0, 3).forEach(e => out.push({ st: 'warn', t: 'یک لینک خالی است', s: e.path, fix: e.fix, fixL: 'درست کن' }));
+    if (links.length > 3) out.push({ st: 'warn', t: `${links.length - 3} لینک خالی دیگر`, s: 'بعد از درست کردن بالایی‌ها دوباره نگاه کن' });
+    out.push(S.app.welcome ? { st: 'ok', t: 'پیام خوش‌آمد ربات', s: 'نوشته شده' }
+      : { st: 'no', t: 'پیام خوش‌آمد ربات', s: 'اختیاری · هنوز نوشته نشده', fix: settingsPage, fixL: 'نوشتن' });
+    return out;
+  }
+  function publishSheet() {
+    if (!totalBlocks()) { toast('اول حداقل یک بخش اضافه کن', true); notify('warning'); return; }
+    openSheet(sheet => {
+      sheetHead(sheet, 'brand', 'send', 'آمادهٔ انتشار؟', 'یک نگاه سریع قبل از این‌که مشتری‌ها ببینند');
+      const list = h('div', 'checks');
+      const checks = publishChecks();
+      checks.forEach(c => {
+        const r = h('div', 'check ' + c.st);
+        const mark = h('span', 'chk ' + c.st);
+        mark.appendChild(ico(c.st === 'ok' ? 'check' : c.st === 'warn' ? 'warn' : 'minus'));
+        const m = h('span', 'row-m');
+        m.append(h('b', 'row-t', c.t), h('span', 'row-s' + (c.ltr ? ' ltr' : ''), c.s || ''));
+        r.append(mark, m);
+        if (c.fix) {
+          const b = h('button', 'btn btn-s btn-sm', c.fixL);
+          b.type = 'button';
+          b.addEventListener('click', () => { haptic(); closeSheet(); c.fix(); });
+          r.appendChild(b);
+        }
+        list.appendChild(r);
+      });
+      sheet.appendChild(list);
+      if (checks.some(c => c.st === 'warn')) sheet.appendChild(h('p', 'caption sw-note', 'می‌تونی همین حالا هم منتشر کنی و بعداً درستشون کنی.'));
+      const go = h('button', 'btn primary block pub-go');
+      go.type = 'button';
+      go.append(ico('send'), document.createTextNode('انتشار همین حالا'));
+      go.addEventListener('click', () => { closeSheet(); publish(); });
+      const later = h('button', 'btn block pub-later', 'بعداً');
+      later.type = 'button';
+      later.addEventListener('click', closeSheet);
+      sheet.append(go, later);
+    });
+  }
   /* ---------- انتشار ---------- */
   async function publish() {
     if (!totalBlocks()) { toast('اول حداقل یک کامپوننت اضافه کن', true); notify('warning'); return; }
@@ -2012,66 +2434,6 @@
     const t = document.createElement('textarea');
     t.innerHTML = s || '';
     return t.value;
-  }
-
-  function settingsSheet() {
-    openSheet(sheet => {
-      sheetHead(sheet, 'brand', 'settings', S.app.name, S.app.bot_username ? '@' + S.app.bot_username : 'هنوز به رباتی وصل نشده');
-
-      const stats = h('div', 'stats');
-      [['visitors', 'بازدیدکننده'], ['views_today', 'بازدید امروز'], ['views_week', 'هفت روز']].forEach(([k, label]) => {
-        const s = h('div', 'stat');
-        s.append(h('div', 'num-lg', ((S.stats && S.stats[k]) || 0).toLocaleString('en-US')), h('div', 'label', label));
-        stats.appendChild(s);
-      });
-      sheet.appendChild(stats);
-
-      sheet.appendChild(nameSection());
-
-      const conn = h('div', 'sh-sec stack');
-      conn.appendChild(h('span', 'label', 'اتصال'));
-      conn.append(linkRow(), botRow());
-      sheet.appendChild(conn);
-
-      sheet.appendChild(welcomeSection());
-
-      const planSec = h('div', 'sh-sec');
-      const plan = h('div', 'plan current');
-      const head = h('div', 'plan-head');
-      head.append(h('b', 'title-2', 'پلن ' + S.plan.title), h('span', 'pill label', 'پلن فعلی تو'));
-      const ul = h('ul', 'body');
-      [`${totalBlocks()} از ${S.plan.max_blocks} کامپوننت`, `${S.doc.pages.length} از ${S.plan.max_pages} صفحه`, `${S.me.apps.length} از ${S.plan.max_apps} مینی‌اپ`].forEach(t => {
-        const li = h('li'); li.append(ico('check'), document.createTextNode(t)); ul.appendChild(li);
-      });
-      plan.append(head, ul);
-      if (!S.plan.premium_blocks) {
-        const up = h('button', 'btn primary block', 'ارتقا');
-        up.addEventListener('click', () => upsellSheet(''));
-        plan.appendChild(up);
-      }
-      planSec.appendChild(plan);
-      sheet.appendChild(planSec);
-
-      const appsSec = h('div', 'sh-sec stack');
-      appsSec.appendChild(h('span', 'label', 'مینی‌اپ‌های من'));
-      S.me.apps.forEach(a => {
-        const r = h('button', 'row');
-        const t = h('span', 'appbar-tile', (a.name || '?').charAt(0));
-        const g = h('span', 'grow');
-        g.append(h('b', 'body-strong', a.name), h('span', 'caption', a.id === S.app.id ? 'در حال ویرایش' : (a.bot_username ? '@' + a.bot_username : 'بدون ربات')));
-        r.append(t, g);
-        if (a.id !== S.app.id) r.addEventListener('click', async () => { closeSheet(); await saveNow(); openApp(a.id).catch(failed); });
-        appsSec.appendChild(r);
-      });
-      const more = h('button', 'add-item', '+ مینی‌اپ جدید');
-      more.addEventListener('click', () => {
-        if (S.me.apps.length >= S.me.plan.max_apps) { upsellSheet(`پلن ${S.me.plan.title} فقط ${S.me.plan.max_apps} مینی‌اپ دارد.`); return; }
-        closeSheet();
-        onboard();
-      });
-      appsSec.appendChild(more);
-      sheet.appendChild(appsSec);
-    }, null, 'settings');
   }
 
   /* اسم مینی‌اپ و پیام خوش‌آمد: در تنظیمات ادیتور و از خانه */
@@ -2261,7 +2623,7 @@
     const connected = !!S.app.bot_username;
     [
       ['write', 'brush', 'ویرایش صفحه‌ها', 'سبک، رنگ و کامپوننت‌ها', () => openEditor()],
-      ['shop', 'eye', 'پیش‌نمایش', 'همونی که کاربرها می‌بینن', () => { openEditor(); preview(true); }],
+      ['shop', 'eye', 'پیش‌نمایش', 'همونی که کاربرها می‌بینن', () => { openEditor(); previewPage(); }],
       ['media', 'template', 'قالب‌ها', 'شروع دوباره با یک قالب', () => tab('templates')],
       ['act', 'bot', connected ? 'ربات تو' : 'اتصال ربات', connected ? '@' + S.app.bot_username : 'توکن رو در ربات بفرست', () => openBot(connected ? 'myapp' : 'connect')],
     ].forEach(([cat, icon, t, sub, fn]) => {
@@ -2394,75 +2756,36 @@
     $('ed-back').addEventListener('click', () => { haptic(); leaveEditor(); });
     $('bar-undo').addEventListener('click', () => { haptic(); undo(); });
     $('bar-redo').addEventListener('click', () => { haptic(); redo(); });
-    document.querySelectorAll('#blockbar [data-bb]').forEach(b => b.addEventListener('click', () => { haptic(); blockAction(b.dataset.bb); }));
-    const insert = d => {
-      const f = findBlock(S.selected);
-      if (!f) return;
-      haptic();
-      addSheet(f.index + d);
-    };
-    $('ins-above').addEventListener('click', () => insert(0));
-    $('ins-below').addEventListener('click', () => insert(1));
-    const canvas = $('canvas');
-    // لمس متنِ کامپوننتِ انتخاب‌شده = تایپ همان‌جا (قبل از کلیک خود کامپوننت)
-    canvas.addEventListener('click', ev => {
-      if (S.previewing || S.inline) return;
-      const t = ev.target.closest('[data-edit]');
-      if (!t) return;
-      const wrap = t.closest('.pg-block, .pg-header');
-      if (!wrap) return;
-      const id = wrap.classList.contains('pg-header') ? 'header' : wrap.dataset.id;
-      if (S.selected !== id || $('sheet').classList.contains('on')) return;
-      ev.stopPropagation();
-      ev.preventDefault();
-      startInline(t, id, t.dataset.edit);
-    }, true);
-    // لمس جای خالی بوم = لغو انتخاب
-    canvas.addEventListener('click', ev => {
-      if (S.previewing || S.inline || !S.selected || $('sheet').classList.contains('on')) return;
-      if (ev.target.closest('.pg-block, .pg-header, .pg-tabbar')) return;
-      S.selected = null;
-      renderCanvas();
-    });
-    let placeQ = false;
-    canvas.addEventListener('scroll', () => {
-      if (placeQ) return;
-      placeQ = true;
-      requestAnimationFrame(() => { placeQ = false; placeBlockbar(); });
-    }, { passive: true });
-    window.addEventListener('resize', () => placeBlockbar());
-    // ارتفاع واقعی نوار بالای ادیتور → --etop-h (بوم زیر آن شروع می‌شود)
-    const etop = document.querySelector('#editor .etop');
-    const setEtop = () => { if (etop.offsetHeight) document.documentElement.style.setProperty('--etop-h', etop.offsetHeight + 'px'); };
-    if (window.ResizeObserver) new ResizeObserver(setEtop).observe(etop);
     $('scrim').addEventListener('click', closeSheet);
-    $('bar-app').addEventListener('click', () => { haptic(); settingsSheet(); });
-    $('bar-preview').addEventListener('click', () => preview(!S.previewing));
-    $('bar-publish').addEventListener('click', () => { haptic(); publish(); });
-    $('empty-add').addEventListener('click', () => { haptic(); addSheet(); });
-    $('empty-tpl').addEventListener('click', () => { haptic(); templatesScreen(false); });
-    $('exit-preview').addEventListener('click', () => preview(false));
+    $('bar-app').addEventListener('click', () => { haptic(); settingsPage(); });
+    $('bar-preview').addEventListener('click', () => { haptic(); previewPage(); });
+    $('bar-publish').addEventListener('click', () => { haptic(); publishSheet(); });
     $('demo-link').addEventListener('click', e => { e.preventDefault(); location.hash = '#demo'; location.reload(); });
-    const tools = { layers: layersSheet, templates: () => templatesScreen(false), add: addSheet, theme: themeSheet, settings: settingsSheet };
+    const tools = {
+      theme: themePage,
+      templates: () => { popAll(); templatesScreen(false); },
+      add: () => addSheet(),
+      order: orderPage,
+      settings: settingsPage,
+    };
     document.querySelectorAll('#toolbar button[data-act]').forEach(b => {
       b.addEventListener('click', () => { haptic(); tools[b.dataset.act](); });
     });
     if (tg) {
       tg.BackButton.onClick(() => {
         if ($('sheet').classList.contains('on')) closeSheet();
-        else if (S.previewing) preview(false);
+        else if (S.stack.length) pop();
         else if (S.screen === 'editor') leaveEditor();
         else if (S.screen === 'templates' && !S.asTab && S.app) openEditor();
         else if (S.screen === 'onboard' && S.me && S.me.apps.length) tab('home');
       });
-      tg.onEvent('themeChanged', () => { applyChrome(); if (S.doc) renderCanvas(); });
+      tg.onEvent('themeChanged', () => { applyChrome(); if (S.doc && S.screen === 'editor') renderAll(); });
       tg.onEvent('safeAreaChanged', applyChrome);
       tg.onEvent('contentSafeAreaChanged', applyChrome);
     }
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyChrome(); if (S.doc) renderCanvas(); });
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyChrome(); if (S.doc && S.screen === 'editor') renderAll(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden && S.app && S.saveState === 'busy') saveNow(); });
   }
-
   /* ---------- شروع ---------- */
   async function boot() {
     applyChrome();

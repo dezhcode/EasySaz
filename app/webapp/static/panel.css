@@ -325,11 +325,13 @@ button.grow-row:active,div.grow-row:active{background:var(--ground)}
 .dock-st .status span{overflow:hidden; text-overflow:ellipsis}
 .dock-cnt{font-size:11.5px; color:var(--ink-3); white-space:nowrap; flex:none}
 .dock-cnt.full{color:var(--danger); font-weight:700}
-.dock-row{height:64px; display:flex; align-items:center; gap:6px; padding:0 10px}
-.dock-row button{width:44px; height:44px; flex:none; border-radius:12px; background:var(--ground); color:var(--ink-2); display:grid; place-items:center; transition:transform .15s var(--ease), background .2s}
-.dock-row button .ico{width:21px; height:21px}
-.dock-row button:active{transform:scale(.94)}
-.dock-row .dock-add{flex:1; width:auto; height:48px; border-radius:var(--radius-md); background:var(--brand); color:var(--on-brand); display:inline-flex; align-items:center; justify-content:center; gap:8px; font-size:14.5px; font-weight:800}
+.dock-row{height:64px; display:flex; align-items:center; gap:2px; padding:0 8px}
+.dock-row button{width:54px; height:52px; flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:var(--ink-2)}
+.dock-t{width:44px; height:32px; border-radius:11px; background:var(--ground); display:grid; place-items:center; transition:transform .15s var(--ease)}
+.dock-row button .dock-t .ico{width:20px; height:20px}
+.dock-row button:active .dock-t{transform:scale(.92)}
+.dock-l{font-size:10.5px; font-weight:700; line-height:1.2; color:var(--ink-3); white-space:nowrap}
+.dock-row .dock-add{flex:1; width:auto; min-width:0; margin:0 4px; height:48px; flex-direction:row; border-radius:var(--radius-md); background:var(--brand); color:var(--on-brand); display:inline-flex; align-items:center; justify-content:center; gap:7px; font-size:14px; font-weight:800; white-space:nowrap}
 .dock-row .dock-add .ico{width:20px; height:20px; stroke-width:2.4}
 body.has-sub .dock{transform:translateY(160%)}
 

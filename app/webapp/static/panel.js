@@ -594,6 +594,20 @@
     const sp = $('st-publish');
     if (sp) sp.classList.toggle('dirty', !!S.app.dirty || !live);
     document.querySelectorAll('.saved').forEach(drawSaved);
+    renderDock();
+  }
+  /* نوار وضعیت داک: صفحهٔ فعلی · تعداد بخش · ذخیره | سهم کامپوننت پلن */
+  function renderDock() {
+    const ds = $('dock-status');
+    if (!ds || !S.doc) return;
+    const pg = page(), st = S.saveState;
+    const save = st === 'busy' ? 'ذخیره…' : st === 'err' ? 'ذخیره نشد' : 'ذخیره شد';
+    ds.querySelector('span').textContent = `${pg.title || 'صفحه'} · ${pg.blocks.length} بخش · ${save}`;
+    ds.className = 'status ' + (st || 'live');
+    const used = totalBlocks(), max = S.plan.max_blocks;
+    const cnt = $('dock-count');
+    cnt.textContent = `${used} از ${max} کامپوننت`;
+    cnt.classList.toggle('full', used >= max);
   }
   /* «ذخیره شد» کنار نوار بالای زیرصفحه‌ها */
   function drawSaved(el) {
@@ -677,6 +691,7 @@
     const box = $('secs');
     box.textContent = '';
     const pg = page();
+    renderDock();
     if (coachOn()) box.appendChild(coachCard());
     box.appendChild(headerCard());
     if (!pg.blocks.length) { box.appendChild(emptyState()); return; }

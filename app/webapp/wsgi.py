@@ -9,6 +9,8 @@
   POST /api/app/create|rename|save|publish                  (initData ربات اصلی)
   GET  /api/templates            قالب‌های آماده (عمومی)
   POST /api/app/welcome          پیام خوش‌آمد ربات مشتری          (initData ربات اصلی)
+  POST /api/app/status           روشن/خاموش برای خواننده‌ها        (initData ربات اصلی)
+  POST /api/app/remove_kit       حذف قالب و محتوایش              (initData ربات اصلی)
   POST /api/upload               آپلود تصویر (data URL)          (initData ربات اصلی)
   GET  /u/<name>                 تصویرهای آپلودشده
   GET  /api/page/<slug>          سند منتشر شده (عمومی)
@@ -212,7 +214,8 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
         elif method == "GET" and path == "/api/app":
             coro = api.app(init_data, query.get("id"))
         elif method == "POST" and path in ("/api/app/create", "/api/app/rename", "/api/app/save",
-                                           "/api/app/publish", "/api/app/welcome"):
+                                           "/api/app/publish", "/api/app/welcome", "/api/app/status",
+                                           "/api/app/remove_kit"):
             action = path.rsplit("/", 1)[1]
             coro = getattr(api, action)(init_data, _body(environ, limit=1_000_000 if action in ("save", "publish") else 262_144))
         elif method == "POST" and path == "/api/upload":

@@ -8,6 +8,7 @@
   SCHEMA                      جدول‌های خودش (CREATE TABLE IF NOT EXISTS)
   public_view(doc)            سندی که به خواننده می‌رسد (مثلاً بدون متن قسمت‌ها)
   on_publish(db, app, doc)    بعد از انتشار؛ خروجی در پاسخ انتشار به پنل می‌رسد
+  on_remove(db, app_id)       حذف قالب: داده‌های سمت سرور همین مینی‌اپ پاک می‌شود
   READER / OWNER              نام کارهای API خواننده (/api/page/<slug>/<کار>)
                               و صاحب مینی‌اپ (/api/kit/<کیت>/<کار>)
 """
@@ -36,3 +37,9 @@ async def on_publish(db, app, doc: dict) -> dict:  # noqa: ANN001
     if not kit:
         return {}
     return await kit.on_publish(db, app, doc) or {}
+
+
+async def remove(db, app_id: int) -> None:  # noqa: ANN001
+    """قالب از مینی‌اپ برداشته شد: هر کیت داده‌های همین مینی‌اپ را پاک می‌کند."""
+    for kit in KITS.values():
+        await kit.on_remove(db, app_id)

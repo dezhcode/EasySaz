@@ -222,6 +222,25 @@ class Api:
         kit = await kits.on_publish(self.db, app, doc)
         return {"doc": doc, "app": _app_json(app), "kit": kit}
 
+    async def status(self, init_data: str, body: dict) -> dict:
+        """روشن/خاموش کردن مینی‌اپ برای خواننده‌ها. خاموش: صفحهٔ «موقتاً بسته»، چیزی پاک نمی‌شود."""
+        user, _ = await self._owner(init_data, write=True)
+        app = await self._owned(user.id, body.get("id"))
+        await self.db.set_status(app["id"], "active" if body.get("active") else "paused")
+        app = await self.db.get_app(app["id"])
+        return {"app": _app_json(app)}
+
+    async def remove_kit(self, init_data: str, body: dict) -> dict:
+        """حذف قالب: محتوا و داده‌های سمت سرور قالب پاک می‌شود و مینی‌اپ (پیش‌نویس و
+        منتشرشده) همان لحظه خالی می‌شود تا صاحبش قالب تازه‌ای انتخاب کند."""
+        user, _ = await self._owner(init_data, write=True)
+        app = await self._owned(user.id, body.get("id"))
+        await kits.remove(self.db, app["id"])
+        doc = blocks.empty_page(kit="base")
+        await self.db.publish(app["id"], doc)
+        app = await self.db.get_app(app["id"])
+        return {"doc": doc, "app": _app_json(app)}
+
     async def welcome(self, init_data: str, body: dict) -> dict:
         """پیام خوش‌آمد ربات مشتری در حالت کنترل کامل (خالی = متن پیش‌فرض)."""
         user, _ = await self._owner(init_data, write=True)

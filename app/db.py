@@ -297,8 +297,9 @@ class Database:
         )
 
     async def delete_app(self, app_id: int) -> None:
-        for table in ("shab_chapters", "shab_readers", "shab_progress", "shab_marks", "shab_announces"):
-            await self.execute(f"DELETE FROM {table} WHERE app_id = ?", (app_id,))
+        from app import kits
+
+        await kits.remove(self, app_id)
         await self.execute("DELETE FROM visitors WHERE app_id = ?", (app_id,))
         await self.execute("DELETE FROM views_daily WHERE app_id = ?", (app_id,))
         await self.execute("DELETE FROM apps WHERE id = ?", (app_id,))

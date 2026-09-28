@@ -550,6 +550,26 @@ def test_shab(slug: str, app_id: int) -> None:
     btn = calls("SendMessage", 2000002)[-1]["reply_markup"]["inline_keyboard"][0][0]
     ok(btn["web_app"]["url"].endswith("#read=" + free_id), "لینک کانال (start=c_…) همان فصل را در مینی‌اپ باز می‌کند")
 
+    # خاموش/روشن و حذف قالب از پنل
+    st, res = jcall("POST", "/api/app/status", {"id": app_id, "active": False})
+    st2, page = jcall("GET", f"/api/page/{slug}", uid=None)
+    st3, ch = jcall("GET", f"/api/page/{slug}/chapter?id={free_id}", uid=None)
+    ok(st == 200 and res["app"]["status"] == "paused" and page.get("paused") and st3 != 200,
+       "خاموش: خواننده «فعلاً بسته» می‌بیند و متن قسمت هم داده نمی‌شود")
+    st, res = jcall("POST", "/api/app/status", {"id": app_id, "active": True})
+    st2, page = jcall("GET", f"/api/page/{slug}", uid=None)
+    ok(res["app"]["status"] == "active" and "doc" in page, "روشن: مینی‌اپ دوباره همان است")
+    st, _ = jcall("POST", "/api/app/status", {"id": app_id, "active": False}, uid=99)
+    ok(st == 404, "مینی‌اپ دیگران خاموش نمی‌شود")
+    st, _ = jcall("POST", "/api/app/remove_kit", {"id": app_id}, uid=99)
+    ok(st == 404, "قالب مینی‌اپ دیگران حذف نمی‌شود")
+    st, res = jcall("POST", "/api/app/remove_kit", {"id": app_id})
+    st2, page = jcall("GET", f"/api/page/{slug}", uid=None)
+    import sqlite3
+    left = sqlite3.connect(os.environ["DB_PATH"]).execute("SELECT COUNT(*) FROM shab_chapters WHERE app_id = ?", (app_id,)).fetchone()[0]
+    ok(st == 200 and res["doc"]["kit"] == "base" and not res["doc"]["pages"][0]["blocks"] and page["doc"]["kit"] == "base" and left == 0,
+       "حذف قالب: مینی‌اپ خالی و متن قسمت‌ها از سرور پاک می‌شود")
+
 
 if __name__ == "__main__":
     test_blocks()

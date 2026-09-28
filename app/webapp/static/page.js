@@ -43,9 +43,9 @@
     return { ok: res.ok, data: await res.json() };
   }
 
-  /* ---------- سرور شب‌نوشت: متن فصل، جای خواندن، نشان‌ها ----------
+  /* ---------- سرور قسمت: متن قسمت، جای خواندن، نشان‌ها ----------
      هویت خواننده initData ربات همین مینی‌اپ است (سرور امضا را می‌سنجد).
-     بیرون از تلگرام فقط متن فصل‌های آزاد گرفته می‌شود و بقیه در گوشی می‌ماند. */
+     بیرون از تلگرام فقط متن قسمت‌های آزاد گرفته می‌شود و بقیه در گوشی می‌ماند. */
   const initData = (!demo && tg && tg.initData) || '';
   function shabRemote() {
     if (demo) return null;
@@ -96,7 +96,7 @@
     const doc = ES.normalize(data.doc);
     const empty = doc.pages.every(pg => !(pg.blocks || []).length);
     if (empty) { state('spark', data.name, 'به‌زودی اینجا چیزهای خوبی می‌بینی.', doc.theme, doc.kit); return; }
-    // #read=<فصل> یا startapp=c_<فصل>: همان فصل مستقیم باز می‌شود
+    // #read=<قسمت> یا startapp=c_<قسمت>: همان قسمت مستقیم باز می‌شود
     const hash = decodeURIComponent(location.hash.slice(1));
     const startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '';
     let readId = /^read=/.test(hash) ? hash.slice(5) : (/^c_/.test(startParam) ? startParam.slice(2) : '');

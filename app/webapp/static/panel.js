@@ -184,15 +184,15 @@
   }
 
   /* ---------- API ---------- */
-  /* بعد از انتشار: فصل‌های تازه را به کانال و خواننده‌ها اعلام کن (app/kits/shab/api.py) */
+  /* بعد از انتشار: قسمت‌های تازه را به کانال و خواننده‌ها اعلام کن (app/kits/shab/api.py) */
   function announceCard(fresh) {
     const card = h('div', 'ann');
     const head = h('div', 'ann-h');
-    head.append(catTile('story', 'notice'), h('b', '', fresh.length > 1 ? `${faN(fresh.length)} فصل تازه منتشر شد` : 'یک فصل تازه منتشر شد'));
+    head.append(catTile('story', 'notice'), h('b', '', fresh.length > 1 ? `${faN(fresh.length)} قسمت تازه منتشر شد` : 'یک قسمت تازه منتشر شد'));
     card.appendChild(head);
     const list = h('ul', 'ann-l');
     fresh.slice(0, 5).forEach(c => list.appendChild(h('li', '', `${c.title} — «${c.story}»`)));
-    if (fresh.length > 5) list.appendChild(h('li', 'caption', `و ${faN(fresh.length - 5)} فصل دیگر`));
+    if (fresh.length > 5) list.appendChild(h('li', 'caption', `و ${faN(fresh.length - 5)} قسمت دیگر`));
     card.appendChild(list);
     if (!S.app.bot_username) {
       card.appendChild(h('p', 'caption', 'برای خبر دادن به خواننده‌ها اول ربات مینی‌اپ را وصل کن.'));
@@ -304,8 +304,8 @@
   /* ===== ساخت مینی‌اپ تازه: جادوی سه‌قدمی =====
      ۱. برای چیه؟ (کاشی نوع ← قالب مناسب)  ۲. اسم و لوگو، روی کارت عبور زنده
      ۳. حال‌وهوا: همین مینی‌اپ در چند رنگ. آخرش مینی‌اپ کامل در ادیتور. */
-  /* فقط یک نوع مینی‌اپ: کانال داستان با قالب «شب‌نوشت» */
-  const KIND = { key: 'story', tpl: 'shab', title: 'کانال داستان · شب‌نوشت', names: ['کابوس‌های کوتاه', 'قصه‌های شب', 'رمان من'] };
+  /* فقط یک نوع مینی‌اپ: کانال داستان با قالب «قسمت» */
+  const KIND = { key: 'story', tpl: 'shab', title: 'کانال داستان · قسمت', names: ['کابوس‌های کوتاه', 'قصه‌های شب', 'رمان من'] };
   const MOODS = [
     ['آبی عبور', '#1D55F0'], ['سرمه‌ای', '#0A2572'], ['مرجانی', '#E0573E'], ['سبز', '#12A071'], ['بنفش', '#6A55E0'], ['فیروزه‌ای', '#0E8FAE'],
   ];
@@ -345,7 +345,7 @@
     document.querySelectorAll('.wz-dots i').forEach((d, i) => d.classList.toggle('on', i < n - 1));
     const titles = {
       2: ['اسم کانال و لوگو', 'قدم ۱ از ۲ · بالای مینی‌اپ و روی ربات دیده می‌شه'],
-      3: ['رنگ تأکید', 'قدم ۲ از ۲ · پوستهٔ شب‌نوشت تیره است؛ فقط رنگ تأکیدش را انتخاب کن'],
+      3: ['رنگ تأکید', 'قدم ۲ از ۲ · پوستهٔ «قسمت» روشن و گرم است؛ رنگ تأکیدش را انتخاب کن'],
     };
     $('wz-title').textContent = titles[n][0];
     $('wz-sub').textContent = titles[n][1];
@@ -488,7 +488,7 @@
 
   /* ===== قالب‌ها (TemplatePicker) =====
      دو جور: «قالب اختصاصی» (کیت: پوسته، سربرگ و کامپوننت‌های خودش، مثل
-     شب‌نوشت) که نصب می‌شود، و قالب‌های شروع سریع روی پوستهٔ پایه. */
+     قسمت) که نصب می‌شود، و قالب‌های شروع سریع روی پوستهٔ پایه. */
   const kitOf = k => (k && k !== 'base' && S.schema.kits && S.schema.kits[k]) || null;
   const docKit = () => kitOf(S.doc && S.doc.kit);
   function fillName(doc) {
@@ -496,7 +496,7 @@
     return JSON.parse(JSON.stringify(doc).split('{name}').join(name.replace(/["\\]/g, '')));
   }
 
-  /* نصب (یا نصب دوباره) قالب شب‌نوشت روی همین مینی‌اپ؛ لوگو و اسم می‌ماند */
+  /* نصب (یا نصب دوباره) قالب قسمت روی همین مینی‌اپ؛ لوگو و اسم می‌ماند */
   function installShab() {
     pickTemplate(shabTemplate(), false);
   }
@@ -530,7 +530,7 @@
   }
 
   /* ===== ادیتور ===== */
-  /* شناسهٔ پایدار فصل‌ها (جای خواندن، نشان و آمار خواننده‌ها به آن بسته است).
+  /* شناسهٔ پایدار قسمت‌ها (جای خواندن، نشان و آمار خواننده‌ها به آن بسته است).
      سرور هم خالی/تکراری را پر می‌کند، ولی پنل خودش می‌گذارد تا پیش‌نویس
      و سند منتشرشده یک شناسه داشته باشند. */
   const newChId = () => 'c' + Array.from(crypto.getRandomValues(new Uint8Array(5)), b => b.toString(16).padStart(2, '0')).join('');
@@ -1869,13 +1869,13 @@
     { key: 'service', title: 'اشتراک و قیمت دلخواه', sub: 'کارت عبور + ماشین‌حساب قیمت', blocks: () => [['passcard', {}], ['calc', {}]] },
   ];
   const SHAB_SECTIONS = [
-    { key: 'story', title: 'داستان تازه', sub: 'جلد، خلاصه و فصل‌ها', blocks: () => [['story', { title: 'داستان تازه' }]] },
-    { key: 'library', title: 'کتابخانه', sub: 'ادامهٔ خواندن + قفسه + فصل‌های تازه', blocks: () => [['shab_continue', {}], ['shab_shelf', {}], ['shab_latest', { count: 3 }]] },
+    { key: 'story', title: 'داستان تازه', sub: 'جلد، خلاصه و قسمت‌ها', blocks: () => [['story', { title: 'داستان تازه' }]] },
+    { key: 'library', title: 'کتابخانه', sub: 'ادامهٔ خواندن + قفسه + قسمت‌های تازه', blocks: () => [['shab_continue', {}], ['shab_shelf', {}], ['shab_latest', { count: 3 }]] },
     { key: 'join', title: 'دعوت به کانال', sub: 'متن کوتاه + دکمهٔ عضویت', blocks: () => [
-      ['text', { title: 'دربارهٔ کانال', body: 'هر شب یک فصل تازه. هر جا بمانی، دفعهٔ بعد از همان‌جا ادامه می‌دهی.' }],
+      ['text', { title: 'دربارهٔ کانال', body: 'هر شب یک قسمت تازه. هر جا بمانی، دفعهٔ بعد از همان‌جا ادامه می‌دهی.' }],
       ['button', { label: 'عضویت در کانال', url: '' }]] },
     { key: 'quote', title: 'جمله از داستان', sub: 'یک جملهٔ درشت و ماندگار', blocks: () => [['shab_quote', {}]] },
-    { key: 'marks', title: 'نشان‌های خواننده', sub: 'فصل‌هایی که هر کس نشان گذاشته', blocks: () => [['shab_marks', {}]] },
+    { key: 'marks', title: 'نشان‌های خواننده', sub: 'قسمت‌هایی که هر کس نشان گذاشته', blocks: () => [['shab_marks', {}]] },
   ];
   const sectionsFor = () => (S.doc.kit === 'shab' ? SHAB_SECTIONS : SECTIONS);
   const presetBlocks = sec => sec.blocks().map(([type, props]) => defaultBlock(type, props));
@@ -2355,7 +2355,7 @@
     const lockNoLink = S.app.channel ? [] : allBlocks().filter(({ block }) => block.type === 'story'
       && (block.props.chapters || []).some(c => c.lock && !c.draft));
     if (lockNoLink.length) {
-      out.push({ st: 'warn', t: 'فصل «فقط اعضا» بدون کانال', s: 'کانال را در تنظیمات ثبت کن تا عضوها بتوانند بخوانند',
+      out.push({ st: 'warn', t: 'قسمت «فقط اعضا» بدون کانال', s: 'کانال را در تنظیمات ثبت کن تا عضوها بتوانند بخوانند',
         fix: () => { popAll(); settingsPage(); }, fixL: 'ثبت کانال' });
     }
     const links = emptyLinks();
@@ -2553,7 +2553,7 @@
     nameSec.appendChild(row);
     return nameSec;
   }
-  /* کانال شب‌نوشت: قفل «فقط اعضا» و پست فصل تازه. ربات مینی‌اپ باید ادمین کانال باشد. */
+  /* کانال قسمت: قفل «فقط اعضا» و پست قسمت تازه. ربات مینی‌اپ باید ادمین کانال باشد. */
   function channelSection() {
     const sec = h('div', 'sh-sec stack');
     sec.appendChild(h('span', 'label', 'کانال داستان‌ها'));
@@ -2563,7 +2563,7 @@
       box.textContent = '';
       const ch = S.app.channel;
       if (!S.app.bot_username) {
-        box.appendChild(h('p', 'caption', 'اول ربات مینی‌اپ را وصل کن؛ همان ربات باید ادمین کانال باشد تا عضویت خواننده‌ها را ببیند و فصل تازه را پست کند.'));
+        box.appendChild(h('p', 'caption', 'اول ربات مینی‌اپ را وصل کن؛ همان ربات باید ادمین کانال باشد تا عضویت خواننده‌ها را ببیند و قسمت تازه را پست کند.'));
         const c = h('button', 'btn btn-s btn-block', 'اتصال ربات');
         c.type = 'button';
         c.addEventListener('click', () => openBot('connect'));
@@ -2576,12 +2576,12 @@
         g.append(h('b', 'body-strong', ch.title || 'کانال'), h('span', 'caption ltr', ch.username ? '@' + ch.username : String(ch.id)));
         const rm = h('button', 'btn btn-s btn-sm', 'برداشتن');
         rm.type = 'button';
-        rm.addEventListener('click', () => confirmBox('کانال برداشته شود؟ فصل‌های «فقط اعضا» تا کانال تازه ثبت نشود برای کسی باز نمی‌شوند.', async () => {
+        rm.addEventListener('click', () => confirmBox('کانال برداشته شود؟ قسمت‌های «فقط اعضا» تا کانال تازه ثبت نشود برای کسی باز نمی‌شوند.', async () => {
           try { await api('kit/shab/channel', { id: S.app.id, channel: '' }); S.app.channel = null; draw(); toast('کانال برداشته شد'); } catch (err) { failed(err); }
         }));
         row.append(catTile('act', 'send'), g, rm);
         box.appendChild(row);
-        box.appendChild(h('p', 'caption', 'فصل‌های «فقط اعضا» فقط برای عضوهای این کانال باز می‌شوند.'));
+        box.appendChild(h('p', 'caption', 'قسمت‌های «فقط اعضا» فقط برای عضوهای این کانال باز می‌شوند.'));
         return;
       }
       box.appendChild(h('p', 'caption', `@${S.app.bot_username} را ادمین کانالت کن، بعد آیدی کانال را این‌جا بنویس.`));
@@ -2933,7 +2933,7 @@
     const t = h('div', 'acard-t');
     const sub = entry ? entry.title : 'قالب پایه';
     const extra = current && S.doc.kit === 'shab'
-      ? (() => { const l = storyList(); return ` · ${faN(l.length)} داستان · ${faN(l.reduce((n, x) => n + chaps(x.block).length, 0))} فصل`; })()
+      ? (() => { const l = storyList(); return ` · ${faN(l.length)} داستان · ${faN(l.reduce((n, x) => n + chaps(x.block).length, 0))} قسمت`; })()
       : (a.bot_username ? ' · @' + a.bot_username : '');
     t.append(h('b', '', a.name), h('span', '', sub + extra));
     body.append(tq(entry, 'lg halo'), t);
@@ -2962,7 +2962,7 @@
     return [
       ['ساختن مینی‌اپ', true],
       [shab ? 'داستان اول' : 'چیدن صفحه‌ها', shab ? storyList().some(x => !isSample(x.block)) : totalBlocks() > 0,
-        shab ? 'اسم، جلد و اولین فصل' : 'چند کامپوننت روی صفحه بگذار', shab ? 'نوشتن' : 'ویرایش', () => (shab ? (showStories(), newStorySheet()) : openEditor())],
+        shab ? 'اسم، جلد و اولین قسمت' : 'چند کامپوننت روی صفحه بگذار', shab ? 'نوشتن' : 'ویرایش', () => (shab ? (showStories(), newStorySheet()) : openEditor())],
       ['اتصال ربات', !!S.app.bot_username, `توکن را در @${S.me.bot || 'EasySazBot'} بفرست`, 'اتصال', () => openBot('connect')],
       ['انتشار', !!S.app.published_at && !S.app.dirty, 'تا کاربرها نسخهٔ تازه را ببینند', 'انتشار', () => publishSheet()],
     ];
@@ -3059,7 +3059,7 @@
     if (entry && S.doc.kit === 'shab') {
       const l = storyList();
       const all = l.reduce((a, x) => a.concat(chaps(x.block)), []);
-      ttx.append(h('b', '', entry.title), h('span', '', `${faN(l.length)} داستان · ${faN(all.length)} فصل · ${faN(all.filter(c => c.draft).length)} پیش‌نویس`));
+      ttx.append(h('b', '', entry.title), h('span', '', `${faN(l.length)} داستان · ${faN(all.length)} قسمت · ${faN(all.filter(c => c.draft).length)} پیش‌نویس`));
       manage = () => showStories();
     } else {
       ttx.append(h('b', '', entry ? entry.title : 'قالب پایه'), h('span', '', 'صفحه‌ها و کامپوننت‌ها'));
@@ -3154,7 +3154,7 @@
       const kp = h('div', 'kpis mx');
       const l = storyList();
       const pubCh = l.reduce((n, x) => n + chaps(x.block).filter(c => !c.draft).length, 0);
-      [['brand', st ? faN(st.readers) : '…', 'خواننده'], ['act', st ? faN(st.followers) : '…', 'منتظر فصل تازه'], ['media', faN(pubCh), 'فصل منتشر']].forEach(([c, n, lb]) => {
+      [['brand', st ? faN(st.readers) : '…', 'خواننده'], ['act', st ? faN(st.followers) : '…', 'منتظر قسمت تازه'], ['media', faN(pubCh), 'قسمت منتشر']].forEach(([c, n, lb]) => {
         const k = h('div', 'kpi-t ' + c);
         k.append(h('b', 'n', n), h('span', '', lb));
         kp.appendChild(k);
@@ -3166,7 +3166,7 @@
           const r = h('div', 'drow');
           const tx = h('span', 'grow');
           const rd = st && st.stories && st.stories[block.id];
-          tx.append(h('b', '', block.props.title || 'بی‌نام'), h('span', '', `${faN(chaps(block).length)} فصل`));
+          tx.append(h('b', '', block.props.title || 'بی‌نام'), h('span', '', `${faN(chaps(block).length)} قسمت`));
           r.append(coverMini(block.props, 'xs'), tx, h('b', 'n', rd ? faN(rd.readers) + ' خواننده' : '۰ خواننده'));
           g.appendChild(r);
         });
@@ -3256,14 +3256,14 @@
   /* ===================== داستان‌ها: پنل مدیریت =====================
      همهٔ داستان‌های مینی‌اپ (کامپوننت story در هر صفحه) یک‌جا. داستان تازه با
      اسم، جلد، عنوان کوتاه و توضیحات ساخته می‌شود و در صفحهٔ داستان‌ها
-     می‌نشیند؛ قفسه، ادامهٔ خواندن و فصل‌های تازه خودشان پر می‌شوند.
-     هر فصل ادیتور متن دارد با سبک‌های نوشتاری شب‌نوشت (render.js، storyText):
+     می‌نشیند؛ قفسه، ادامهٔ خواندن و قسمت‌های تازه خودشان پر می‌شوند.
+     هر قسمت ادیتور متن دارد با سبک‌های نوشتاری قسمت (render.js، storyText):
      متن ساده با چند نشانه که دکمه‌ها می‌گذارند؛ HTML در کار نیست. */
   const GENRES = ['وحشت', 'معمایی', 'عاشقانه', 'فانتزی', 'علمی‌تخیلی', 'درام', 'جنایی', 'طنز'];
   const storyList = () => allBlocks().filter(({ block }) => block.type === 'story');
   const chaps = b => (Array.isArray(b.props.chapters) ? b.props.chapters : (b.props.chapters = []));
   const faN = n => Number(n || 0).toLocaleString('fa-IR');
-  const BODY_MAX = 8000;
+  const BODY_MAX = 12000;
 
   // داستان‌های نمونهٔ قالب از روی متن خود قالب شناخته می‌شوند، نه نشانه‌ای در سند
   function isSample(b) {
@@ -3276,18 +3276,6 @@
   function storyHome() {
     return S.doc.pages.find(p => p.blocks.some(b => b.type === 'story'))
       || S.doc.pages.find(p => p.id === 'stories') || S.doc.pages[S.doc.pages.length > 1 ? 1 : 0];
-  }
-  /* کاغذ روشن نوشتن: سبک‌های شب‌نوشت با رنگ تأکید همین مینی‌اپ، روی زمینهٔ روشن پنل.
-     «پیش‌نمایش» همچنان خوانندهٔ واقعی (تیره) را نشان می‌دهد. */
-  function lightPaper(el) {
-    ES.applyTheme(el, S.doc.theme, 'shab');
-    el.classList.remove('pg-dark');
-    el.classList.add('paper-light');
-    [['--pg-bg', 'var(--surface)'], ['--pg-surface', 'var(--ground)'], ['--pg-ink', 'var(--ink)'], ['--pg-ink-2', 'var(--ink-2)'],
-     ['--pg-ink-3', 'var(--ink-3)'], ['--pg-line', 'var(--line)'], ['--sh-candle', 'var(--media)'],
-     ['--pg-accent-ink', 'color-mix(in srgb, var(--pg-accent) 72%, var(--ink))'],
-     ['--pg-soft', 'color-mix(in srgb, var(--pg-accent) 10%, transparent)']].forEach(([k, v]) => el.style.setProperty(k, v));
-    return el;
   }
   /* داستان‌های نمونهٔ مینی‌اپ‌هایی که پیش از آمدن جلدها ساخته شده‌اند: یک بار جلد قالب
      را می‌گیرند (اگر صاحبش بعداً جلد را پاک کند، دوباره گذاشته نمی‌شود). */
@@ -3364,9 +3352,9 @@
     body.textContent = '';
     if (S.doc.kit !== 'shab') {
       const card = h('div', 'st-empty');
-      card.append(catTile('story', 'book'), h('b', '', 'این مینی‌اپ روی قالب شب‌نوشت نیست'),
-        h('p', '', 'برای نوشتن و مدیریت داستان‌ها، قالب شب‌نوشت را نصب کن. اسم و لوگو می‌ماند.'));
-      const go = h('button', 'btn btn-p btn-block', 'نصب قالب شب‌نوشت');
+      card.append(catTile('story', 'book'), h('b', '', 'این مینی‌اپ روی قالب «قسمت» نیست'),
+        h('p', '', 'برای نوشتن و مدیریت داستان‌ها، قالب «قسمت» را نصب کن. اسم و لوگو می‌ماند.'));
+      const go = h('button', 'btn btn-p btn-block', 'نصب قالب «قسمت»');
       go.type = 'button';
       go.addEventListener('click', () => { haptic(); installShab(); });
       card.appendChild(go);
@@ -3378,7 +3366,7 @@
     const drafts = all.filter(c => c.draft).length;
     const stats = h('div', 'st-stats');
     const stats0 = shabStats();
-    [[list.length, 'داستان'], [all.length - drafts, 'فصل منتشر'], [drafts, 'پیش‌نویس'], [stats0 ? stats0.readers : '…', 'خواننده']].forEach(([n, l]) => {
+    [[list.length, 'داستان'], [all.length - drafts, 'قسمت منتشر'], [drafts, 'پیش‌نویس'], [stats0 ? stats0.readers : '…', 'خواننده']].forEach(([n, l]) => {
       const s = h('div', 'st-stat');
       s.append(h('b', '', typeof n === 'number' ? faN(n) : n), h('span', '', l));
       stats.appendChild(s);
@@ -3390,7 +3378,7 @@
     const plus = h('span', 'st-new-ic');
     plus.appendChild(ico('plus'));
     const t = h('span', 'grow');
-    t.append(h('b', '', 'داستان تازه'), h('span', '', 'اسم، جلد، عنوان کوتاه و توضیحات؛ بعد فصل‌ها را می‌نویسی'));
+    t.append(h('b', '', 'داستان تازه'), h('span', '', 'اسم، جلد، عنوان کوتاه و توضیحات؛ بعد قسمت‌ها را می‌نویسی'));
     add.append(plus, t, ico('arrow', 'chev'));
     add.addEventListener('click', () => { haptic(); newStorySheet(); });
     body.appendChild(add);
@@ -3403,7 +3391,7 @@
         h('span', '', 'برای دیدن حال‌وهوای قالب‌اند. داستان خودت را که اضافه کردی، برشان دار.'));
       const rm = h('button', 'btn btn-s btn-sm', 'برداشتن نمونه‌ها');
       rm.type = 'button';
-      rm.addEventListener('click', () => confirmBox('داستان‌های نمونه با فصل‌هایشان حذف بشوند؟', () => {
+      rm.addEventListener('click', () => confirmBox('داستان‌های نمونه با قسمت‌هایشان حذف بشوند؟', () => {
         samples.forEach(({ block }) => { const f = findBlock(block.id); if (f) f.page.blocks.splice(f.index, 1); });
         notify('success');
         changed();
@@ -3419,7 +3407,7 @@
       body.appendChild(empty);
     }
     list.forEach(({ block }) => body.appendChild(storyCard(block)));
-    const foot = h('p', 'st-foot', 'داستان‌ها خودکار در قفسه، «ادامهٔ خواندن» و «فصل‌های تازه» مینی‌اپ می‌نشینند. فصل پیش‌نویس را خواننده نمی‌بیند.');
+    const foot = h('p', 'st-foot', 'داستان‌ها خودکار در قفسه، «ادامهٔ خواندن» و «قسمت‌های تازه» مینی‌اپ می‌نشینند. قسمت پیش‌نویس را خواننده نمی‌بیند.');
     body.appendChild(foot);
   }
   function storyCard(b) {
@@ -3437,7 +3425,7 @@
     const drafts = list.filter(c => c.draft).length;
     if (isSample(b)) meta.appendChild(h('span', 'st-badge sample', 'نمونه'));
     if (p.genre) meta.appendChild(h('span', 'st-badge', p.genre));
-    meta.appendChild(h('span', 'st-badge', `${faN(list.length)} فصل`));
+    meta.appendChild(h('span', 'st-badge', `${faN(list.length)} قسمت`));
     if (drafts) meta.appendChild(h('span', 'st-badge draft', `${faN(drafts)} پیش‌نویس`));
     const sst = (shabStats() || { stories: {} }).stories[b.id];
     if (sst) meta.appendChild(h('span', 'st-badge readers', `${faN(sst.readers)} خواننده`));
@@ -3447,10 +3435,10 @@
     main.addEventListener('click', () => { haptic(); storyPage(b.id); });
     const foot = h('div', 'st-card-f');
     const last = list[list.length - 1];
-    foot.appendChild(h('span', 'grow caption', last ? `آخرین فصل: «${last.title || 'بی‌نام'}»` : 'هنوز فصلی ندارد'));
+    foot.appendChild(h('span', 'grow caption', last ? `آخرین قسمت: «${last.title || 'بی‌نام'}»` : 'هنوز قسمتی ندارد'));
     const addc = h('button', 'btn btn-s btn-sm');
     addc.type = 'button';
-    addc.append(ico('pencil'), document.createTextNode('فصل تازه'));
+    addc.append(ico('pencil'), document.createTextNode('قسمت تازه'));
     addc.addEventListener('click', () => { haptic(); addChapter(b.id); });
     foot.appendChild(addc);
     card.append(main, foot);
@@ -3465,7 +3453,7 @@
     const fld = k => spec.fields.find(x => x.key === k);
     const d = { title: '', subtitle: '', blurb: '', genre: 'وحشت', cover: '', tone: 'blood', status: 'ongoing', url: '' };
     openSheet(sheet => {
-      sheetHead(sheet, 'story', 'book', 'داستان تازه', 'اسم کافی است؛ فصل‌ها را بعد می‌نویسی.');
+      sheetHead(sheet, 'story', 'book', 'داستان تازه', 'اسم کافی است؛ قسمت‌ها را بعد می‌نویسی.');
       const pv = h('div', 'st-new-pv');
       const drawPv = () => {
         pv.textContent = '';
@@ -3492,13 +3480,13 @@
       go.addEventListener('click', () => {
         if (!d.title.trim()) return;
         const b = defaultBlock('story', Object.assign({}, d, { title: d.title.trim(),
-          chapters: [{ id: newChId(), title: 'فصل اول', body: '', note: '', lock: false, url: '', draft: true }] }));
+          chapters: [{ id: newChId(), title: 'قسمت اول', body: '', note: '', lock: false, url: '', draft: true }] }));
         storyHome().blocks.push(b);
         notify('success');
         closeSheet();
         changed();
         storyPage(b.id);
-        toast('داستان ساخته شد؛ حالا فصل اول را بنویس');
+        toast('داستان ساخته شد؛ حالا قسمت اول را بنویس');
       });
     });
   }
@@ -3507,14 +3495,14 @@
     const f = findBlock(id);
     if (!f) return;
     const list = chaps(f.block);
-    if (list.length >= 60) { toast('هر داستان حداکثر ۶۰ فصل دارد', true); return; }
-    const ch = { id: newChId(), title: `فصل ${faN(list.length + 1)}`, body: '', note: '', lock: false, url: '', draft: true };
+    if (list.length >= 60) { toast('هر داستان حداکثر ۶۰ قسمت دارد', true); return; }
+    const ch = { id: newChId(), title: `قسمت ${faN(list.length + 1)}`, body: '', note: '', lock: false, url: '', draft: true };
     list.push(ch);
     changed();
     chapterPage(id, ch);
   }
 
-  /* ---------- یک داستان: فصل‌ها و مشخصات ---------- */
+  /* ---------- یک داستان: قسمت‌ها و مشخصات ---------- */
   function storyPage(id) {
     const f = findBlock(id);
     if (!f) return;
@@ -3528,11 +3516,11 @@
       const body = h('div', 'sbody');
       el.appendChild(body);
 
-      secLabel(body, 'فصل‌ها', 'بزن تا بنویسی؛ با دستگیره جابه‌جا کن');
+      secLabel(body, 'قسمت‌ها', 'بزن تا بنویسی؛ با دستگیره جابه‌جا کن');
       const list = h('div', 'layers st-chs');
       const add = h('button', 'btn btn-s btn-block st-addch');
       add.type = 'button';
-      add.append(ico('plus'), document.createTextNode('فصل تازه'));
+      add.append(ico('plus'), document.createTextNode('قسمت تازه'));
       body.append(list, add);
       const drawList = () => {
         list.textContent = '';
@@ -3544,8 +3532,8 @@
           const txt = h('button', 'layer-txt');
           txt.type = 'button';
           const t = h('span', 'st-ch-t');
-          t.append(h('b', 'body-strong', c.title || `فصل ${faN(i + 1)}`),
-            h('span', 'caption', (c.body ? `${faN(ES.words(c.body))} کلمه، ${faN(ES.minutes(c.body))} دقیقه` : 'هنوز متنی ندارد')
+          t.append(h('b', 'body-strong', c.title || `قسمت ${faN(i + 1)}`),
+            h('span', 'caption', (c.body ? `${ES.parseLines(c.body).some(l => l.who) ? 'گفت‌وگو' : 'روایت'} · ${faN(ES.parseLines(c.body).length)} خط، ${faN(ES.minutes(c.body))} دقیقه` : 'هنوز متنی ندارد')
               + (((shabStats() || { chapters: {} }).chapters[c.id]) ? ` · ${faN(shabStats().chapters[c.id].readers)} خواننده، ${faN(shabStats().chapters[c.id].finished || 0)} تا آخر` : '')));
           const badges = h('span', 'st-badges');
           if (c.draft) badges.appendChild(h('span', 'st-badge draft', 'پیش‌نویس'));
@@ -3558,7 +3546,7 @@
           row.append(txt, handle);
           list.appendChild(row);
         });
-        if (!chaps(cur.block).length) list.appendChild(h('p', 'caption empty-items', 'هنوز فصلی ندارد.'));
+        if (!chaps(cur.block).length) list.appendChild(h('p', 'caption empty-items', 'هنوز قسمتی ندارد.'));
       };
       sortable(list, order => {
         const cur = findBlock(id);
@@ -3570,6 +3558,14 @@
       });
       add.addEventListener('click', () => { haptic(); addChapter(id); });
       drawList();
+
+      secLabel(body, 'شخصیت‌ها', 'هر کس در گفت‌وگو حرف می‌زند؛ با عکس پروفایل');
+      const drawCast = castSection(body, b, () => redrawPv());
+      body.appendChild(switchControl(fld('avatars'), b.props.avatars !== false, v => { b.props.avatars = v; changed(); }));
+      secLabel(body, 'نمایش گفت‌وگو', 'خواننده هم می‌تواند در صفحهٔ قسمت عوضشان کند');
+      body.appendChild(selectControl(fld('chat_theme'), b.props.chat_theme || 'light', v => { b.props.chat_theme = v; changed(); }));
+      body.appendChild(selectControl(Object.assign({}, fld('read_mode'), { options: [['scroll', 'اسکرول'], ['tap', 'لمس'], ['notif', 'اعلان']] }), b.props.read_mode || 'scroll', v => { b.props.read_mode = v; changed(); }));
+      body.appendChild(h('p', 'caption qc-note', 'اسکرول: پیام‌ها با پایین رفتن تازه می‌آیند · لمس: هر لمس یک خط · اعلان: مثل صفحهٔ قفل گوشی'));
 
       secLabel(body, 'مشخصات داستان', 'روی جلد، قفسه و صفحهٔ داستان');
       body.appendChild(control(fld('title'), b.props.title, v => { b.props.title = v; titleEl.textContent = v || 'داستان'; changed(); }));
@@ -3590,7 +3586,7 @@
       del.type = 'button';
       del.setAttribute('aria-label', 'حذف داستان');
       del.appendChild(ico('trash'));
-      del.addEventListener('click', () => confirmBox(`«${b.props.title || 'این داستان'}» با همهٔ فصل‌هایش حذف بشه؟`, () => {
+      del.addEventListener('click', () => confirmBox(`«${b.props.title || 'این داستان'}» با همهٔ قسمت‌هایش حذف بشه؟`, () => {
         const cur = findBlock(id);
         if (cur) cur.page.blocks.splice(cur.index, 1);
         notify('warning');
@@ -3600,161 +3596,173 @@
       }));
       foot.append(see, del);
       el.appendChild(foot);
-      pg.refresh = () => { if (!findBlock(id)) return; redrawPv(); drawList(); };
+      pg.refresh = () => { if (!findBlock(id)) return; redrawPv(); drawList(); drawCast(); };
     });
   }
 
-  /* ---------- ادیتور فصل: بلوک‌ها ----------
-     متن فصل در ادیتور به «بلوک»ها شکسته می‌شود: هر پاراگراف یک کارت با سبک
-     خودش (عادی، میان‌تیتر، گفت‌وگو، زمزمه، فریاد، نامه، نقل‌قول، وسط‌چین) و
-     جداکننده هم یک بلوک است. هر بلوک همان‌طور که خواننده می‌بیند نوشته
-     می‌شود (contenteditable روی پوستهٔ شب‌نوشت)، با دستگیره جابه‌جا می‌شود و
-     سبک چند کلمه (پررنگ، خونی، خط‌خورده، کم‌رنگ) روی متن انتخاب‌شده می‌نشیند.
-     ذخیره همان متن ساده با نشانه‌هاست (render.js، storyText)؛ پس خواننده و
-     سرور چیزی از ادیتور نمی‌دانند. هیچ HTML از DOM ویرایش ذخیره نمی‌شود:
-     متن از گره‌ها خوانده و دوباره به نشانه تبدیل می‌شود. */
-  const BK_KINDS = [
-    ['p', 'عادی', ''], ['h', 'میان‌تیتر', '# '], ['talk', 'گفت‌وگو', '— '], ['whisper', 'زمزمه', '~ '],
-    ['scream', 'فریاد', '! '], ['note', 'نامه', '✉ '], ['quote', 'نقل‌قول', '> '], ['center', 'وسط‌چین', '^ '],
-  ];
-  const BK_NAME = Object.fromEntries(BK_KINDS.map(([k, n]) => [k, n]).concat([['hr', 'جداکننده']]));
-  const BK_PREFIX = Object.fromEntries(BK_KINDS.map(([k, , p]) => [k, p]));
-  const BK_CLS = { p: 'sh-r-p', h: 'sh-t-h', talk: 'sh-r-p sh-t-talk', whisper: 'sh-r-p sh-t-whisper', scream: 'sh-r-p sh-t-scream',
-    note: 'sh-r-p', quote: 'sh-r-p sh-t-quote', center: 'sh-r-p sh-t-center' };
-  const BK_MULTI = { note: 1, center: 1 }; // اینتر در این‌ها خط تازه است، نه بلوک تازه
-  const MARKS = [['b', '**', '**', 'پررنگ'], ['blood', '!!', '!!', 'خونی'], ['strike', '~~', '~~', 'خط‌خورده'], ['faint', '((', '))', 'کم‌رنگ']];
-  const MARK = Object.fromEntries(MARKS.map(m => [m[0], m]));
-
-  const runsText = runs => runs.map(r => r.t).join('');
-  function mergeRuns(runs) {
-    const out = [];
-    runs.forEach(r => {
-      if (!r.t) return;
-      const last = out[out.length - 1];
-      if (last && last.m === r.m) last.t += r.t; else out.push({ t: r.t, m: r.m });
-    });
-    return out;
-  }
-  function parseBlocks(body) {
-    const list = ES.paragraphs(body).map(t => {
-      const [kind, text] = ES.paraKind(t);
-      return kind === 'hr' ? { kind: 'hr', runs: [] } : { kind, runs: ES.inlineRuns(text) };
-    });
-    return list.length ? list : [{ kind: 'p', runs: [] }];
-  }
-  function serializeBlock(b) {
-    if (b.kind === 'hr') return '***';
-    let text = b.runs.map(r => {
-      if (!r.m) return r.t;
-      const [, o, c] = MARK[r.m];
-      // نشانه‌ها از خط رد نمی‌شوند؛ هر خط جدا بسته می‌شود
-      return r.t.split('\n').map(line => (line.trim() ? o + line + c : line)).join('\n');
-    }).join('');
-    text = text.replace(/\n[ \t]*\n+/g, '\n').replace(/^\s+|\s+$/g, '');
-    return text ? BK_PREFIX[b.kind] + text : '';
-  }
-  const serializeBlocks = blocks => blocks.map(serializeBlock).filter(Boolean).join('\n\n');
-
-  // DOM ↔ تکه‌ها: متن و <br> و spanهای سبک؛ هر عنصر دیگری (div مرورگر) یعنی خط تازه
-  function nodeLen(n) {
-    if (n.nodeType === 3) return n.nodeValue.length;
-    if (n.nodeName === 'BR') return 1;
-    let s = 0;
-    n.childNodes.forEach(c => { s += nodeLen(c); });
-    return s;
-  }
-  function readRuns(el) {
-    const runs = [];
-    const push = (t, m) => { if (t) runs.push({ t, m }); };
-    const walk = (node, m) => node.childNodes.forEach(n => {
-      if (n.nodeType === 3) push(n.nodeValue.replace(/ /g, ' '), m);
-      else if (n.nodeName === 'BR') { if (n !== node.lastChild || n.parentNode !== el) push('\n', m); }
-      else {
-        const txt = runsText(runs);
-        if (/^(DIV|P)$/.test(n.nodeName) && txt && !txt.endsWith('\n')) push('\n', m);
-        walk(n, (n.dataset && n.dataset.m) || m);
-      }
-    });
-    walk(el, '');
-    return mergeRuns(runs);
-  }
-  function paintRuns(el, runs) {
-    el.textContent = '';
-    runs.forEach(r => {
-      const host = r.m ? h('span', 'sh-i-' + r.m) : el;
-      if (r.m) { host.dataset.m = r.m; el.appendChild(host); }
-      r.t.split('\n').forEach((part, i) => {
-        if (i) host.appendChild(document.createElement('br'));
-        if (part) host.appendChild(document.createTextNode(part));
+  /* ---------- شخصیت‌های یک داستان ----------
+     هر شخصیت شناسهٔ پایدار دارد (مثل قسمت‌ها)؛ خط‌های قسمت با همین شناسه
+     به او اشاره می‌کنند، پس عوض کردن اسم یا عکس همهٔ حباب‌ها را عوض می‌کند. */
+  const castOf = story => (Array.isArray(story.props.cast) ? story.props.cast : (story.props.cast = []));
+  const castColor = (story, c) => (/^#[0-9a-f]{6}$/i.test(c.color || '') ? c.color : ES.Q_COLORS[Math.max(0, castOf(story).indexOf(c)) % ES.Q_COLORS.length]);
+  const castAvatar = (story, c) => ES.avatar(c, castColor(story, c));
+  function castSheet(story, c, onDone) {
+    const isNew = !c;
+    const list = castOf(story);
+    if (isNew && list.length >= 12) { toast('هر داستان حداکثر ۱۲ شخصیت دارد', true); return; }
+    const d = c ? Object.assign({}, c) : { id: newChId(), name: '', avatar: '', side: list.some(x => x.side === 'me') ? 'them' : 'me', color: '' };
+    if (isNew && !d.color) d.color = ES.Q_COLORS[list.length % ES.Q_COLORS.length];
+    openSheet(sheet => {
+      sheetHead(sheet, 'story', 'user', isNew ? 'شخصیت تازه' : 'ویرایش شخصیت', 'اسم، عکس و این‌که حبابش کدام طرف باشد');
+      const top = h('div', 'qc-top');
+      const av = h('span', 'qc-av');
+      const drawAv = () => { av.textContent = ''; av.appendChild(castAvatar(story, Object.assign({}, d, { name: d.name || '؟' }))); };
+      const acts = h('div', 'qc-acts');
+      const up = h('button', 'btn btn-s btn-sm');
+      up.type = 'button';
+      up.append(ico('upload'), document.createTextNode('عکس پروفایل'));
+      const rm = h('button', 'btn btn-s btn-sm', 'بی‌عکس');
+      rm.type = 'button';
+      const syncRm = () => { rm.hidden = !d.avatar; };
+      up.addEventListener('click', async () => {
+        up.disabled = true;
+        try { const url = await uploadImage(); if (url) { d.avatar = url; drawAv(); syncRm(); notify('success'); } } catch (err) { failed(err); } finally { up.disabled = false; }
       });
-    });
-    if (runsText(runs).endsWith('\n')) el.appendChild(document.createElement('br'));
-  }
-  function caretOffset(el, node, off) {
-    let n = 0, found = false;
-    const walk = p => {
-      for (let i = 0; i < p.childNodes.length && !found; i++) {
-        const c = p.childNodes[i];
-        if (p === node && i === off) { found = true; return; }
-        if (c === node && c.nodeType === 3) { n += off; found = true; return; }
-        if (c.nodeType === 3) n += c.nodeValue.length;
-        else if (c.nodeName === 'BR') n += 1;
-        else walk(c);
+      rm.addEventListener('click', () => { d.avatar = ''; drawAv(); syncRm(); });
+      acts.append(up, rm);
+      top.append(av, acts);
+      sheet.appendChild(top);
+      const name = h('input', 'qc-name');
+      name.maxLength = 30;
+      name.placeholder = 'اسم شخصیت (مثلاً «من»، «مادر»، «ناشناس»)';
+      name.value = d.name;
+      name.addEventListener('input', () => { d.name = name.value; drawAv(); sync(); });
+      const nf = h('div', 'field');
+      nf.append(h('span', 'label', 'اسم'), name);
+      sheet.appendChild(nf);
+      sheet.appendChild(selectControl({ label: 'طرف گفت‌وگو', options: [['me', 'من · چپ، رنگ اصلی'], ['them', 'دیگران · راست']] }, d.side, v => { d.side = v; }));
+      const cf = h('div', 'field');
+      cf.appendChild(h('span', 'label', 'رنگ اسم و عکس'));
+      const sw = h('div', 'colors');
+      const drawSw = () => {
+        sw.textContent = '';
+        ES.Q_COLORS.forEach(col => {
+          const b = h('button', col.toLowerCase() === (d.color || '').toLowerCase() ? 'on' : '');
+          b.type = 'button';
+          b.style.background = col;
+          b.setAttribute('aria-label', col);
+          b.appendChild(ico('check'));
+          b.addEventListener('click', () => { d.color = col; select(); drawSw(); drawAv(); });
+          sw.appendChild(b);
+        });
+      };
+      drawSw();
+      cf.appendChild(sw);
+      sheet.appendChild(cf);
+      const go = h('button', 'btn btn-p btn-block', isNew ? 'افزودن شخصیت' : 'ذخیره');
+      go.type = 'button';
+      const sync = () => { go.disabled = !d.name.trim(); };
+      go.addEventListener('click', () => {
+        if (!d.name.trim()) return;
+        d.name = d.name.trim();
+        if (isNew) list.push(d); else Object.assign(c, d);
+        notify('success');
+        closeSheet();
+        changed();
+        if (onDone) onDone(isNew ? d : c);
+      });
+      sheet.appendChild(go);
+      if (!isNew) {
+        const del = h('button', 'btn danger btn-block qc-del');
+        del.type = 'button';
+        del.append(ico('trash'), document.createTextNode('حذف شخصیت'));
+        del.addEventListener('click', () => {
+          const used = chaps(story).filter(x => (x.body || '').indexOf('@' + c.id + ':') >= 0).length;
+          confirmBox(used ? `«${c.name}» در ${faN(used)} قسمت حرف زده؛ حباب‌هایش بی‌نام و خاکستری می‌شوند. حذف بشود؟` : `«${c.name}» حذف بشود؟`, () => {
+            const i = list.indexOf(c);
+            if (i >= 0) list.splice(i, 1);
+            notify('warning');
+            changed();
+            if (onDone) onDone(null);
+          });
+        });
+        sheet.appendChild(del);
       }
-      if (p === node && off >= p.childNodes.length) found = true;
-    };
-    walk(el);
-    return n;
-  }
-  function getSel(el) {
-    const s = window.getSelection();
-    if (!s || !s.rangeCount || !el.contains(s.anchorNode)) return null;
-    const r = s.getRangeAt(0);
-    return [caretOffset(el, r.startContainer, r.startOffset), caretOffset(el, r.endContainer, r.endOffset)];
-  }
-  function pointAt(el, off) {
-    let left = off, res = null;
-    const walk = p => {
-      for (let i = 0; i < p.childNodes.length && !res; i++) {
-        const c = p.childNodes[i];
-        if (c.nodeType === 3) {
-          if (left <= c.nodeValue.length) { res = [c, left]; return; }
-          left -= c.nodeValue.length;
-        } else if (c.nodeName === 'BR') {
-          if (left === 0) { res = [p, i]; return; }
-          left -= 1;
-          if (left === 0) { res = [p, i + 1]; return; }
-        } else walk(c);
-      }
-    };
-    walk(el);
-    return res || [el, el.childNodes.length];
-  }
-  function setSel(el, a, b) {
-    const s = window.getSelection();
-    if (!s) return;
-    const r = document.createRange();
-    const [n1, o1] = pointAt(el, a);
-    const [n2, o2] = pointAt(el, b == null ? a : b);
-    try { r.setStart(n1, o1); r.setEnd(n2, o2); s.removeAllRanges(); s.addRange(r); } catch (e) {}
-  }
-  function splitRuns(runs, at) {
-    const left = [], right = [];
-    let pos = 0;
-    runs.forEach(r => {
-      const s = pos, e = pos + r.t.length;
-      pos = e;
-      if (e <= at) left.push(r);
-      else if (s >= at) right.push(r);
-      else { left.push({ t: r.t.slice(0, at - s), m: r.m }); right.push({ t: r.t.slice(at - s), m: r.m }); }
+      drawAv();
+      syncRm();
+      sync();
     });
-    return [mergeRuns(left), mergeRuns(right)];
   }
-  function markRuns(runs, a, b, m) {
-    const [l, rest] = splitRuns(runs, a);
-    const [mid, r] = splitRuns(rest, b - a);
-    const all = mid.filter(x => x.t.trim()).every(x => x.m === m);
-    return mergeRuns(l.concat(mid.map(x => ({ t: x.t, m: all ? '' : m })), r));
+  /* فهرست شخصیت‌ها در صفحهٔ داستان */
+  function castSection(body, story, onChange) {
+    const box = h('div', 'layers qc-list');
+    const draw = () => {
+      box.textContent = '';
+      castOf(story).forEach(c => {
+        const row = h('button', 'layer qc-row');
+        row.type = 'button';
+        row.appendChild(castAvatar(story, c));
+        const t = h('span', 'layer-txt');
+        t.append(h('b', 'body-strong', c.name || 'بی‌نام'), h('span', 'caption', c.side === 'me' ? 'من · حباب سمت چپ' : 'دیگران · حباب سمت راست'));
+        row.append(t, ico('arrow', 'chev'));
+        row.addEventListener('click', () => { haptic(); castSheet(story, c, () => { draw(); onChange(); }); });
+        box.appendChild(row);
+      });
+      const add = h('button', 'layer qc-row qc-add');
+      add.type = 'button';
+      const pl = h('span', 'qc-plus');
+      pl.appendChild(ico('plus'));
+      const t = h('span', 'layer-txt');
+      t.append(h('b', 'body-strong', 'شخصیت تازه'), h('span', 'caption', castOf(story).length ? 'تا ۱۲ شخصیت' : 'برای قسمت‌های گفت‌وگویی؛ اول «من» را بساز'));
+      add.append(pl, t);
+      add.addEventListener('click', () => { haptic(); castSheet(story, null, () => { draw(); onChange(); }); });
+      box.appendChild(add);
+    };
+    draw();
+    body.appendChild(box);
+    return draw;
+  }
+
+  /* ---------- ادیتور قسمت: خط‌به‌خط، مثل نوشتن در یک گفت‌وگو ----------
+     متن قسمت چند «خط» است (render.js، parseLines): متن راوی، حباب یک شخصیت،
+     یا تصویر (تنها یا داخل حباب). پایین صفحه گوینده را انتخاب می‌کنی و
+     می‌نویسی؛ هر خط در فهرست همان‌طور دیده می‌شود که خواننده می‌بیند، با
+     زدن ویرایش می‌شود و با دستگیره جابه‌جا. ذخیره همان متن ساده است
+     (ES.joinLines) و هیچ HTML از ادیتور ذخیره نمی‌شود. */
+  function chatPaper(el, story) {
+    ES.applyTheme(el, S.doc.theme, 'shab');
+    el.classList.toggle('q-dark', story.props.chat_theme === 'dark');
+    return el;
+  }
+  function speakerName(story, who) {
+    if (!who) return 'راوی';
+    const c = castOf(story).find(x => x.id === who);
+    return c ? c.name || 'بی‌نام' : 'شخصیت حذف‌شده';
+  }
+  /* ردیف انتخاب گوینده: راوی، شخصیت‌ها، «+ شخصیت» */
+  function speakerRow(story, value, onPick, onAdd) {
+    const row = h('div', 'ql-spk');
+    const mk = (who, label, lead) => {
+      const b = h('button', 'ql-sp' + (who === value ? ' on' : ''));
+      b.type = 'button';
+      b.appendChild(lead);
+      b.appendChild(h('span', '', label));
+      b.addEventListener('pointerdown', e => e.preventDefault());
+      b.addEventListener('click', () => { select(); onPick(who); });
+      row.appendChild(b);
+    };
+    const nar = h('span', 'ql-sp-ic');
+    nar.appendChild(ico('book'));
+    mk('', 'راوی', nar);
+    castOf(story).forEach(c => mk(c.id, c.name || 'بی‌نام', castAvatar(story, c)));
+    if (onAdd) {
+      const add = h('button', 'ql-sp ql-sp-add');
+      add.type = 'button';
+      add.append(ico('plus'), h('span', '', 'شخصیت'));
+      add.addEventListener('click', () => { haptic(); onAdd(); });
+      row.appendChild(add);
+    }
+    return row;
   }
 
   function chapterPage(id, ch) {
@@ -3762,42 +3770,38 @@
     if (!f || chaps(f.block).indexOf(ch) < 0) return;
     const story = f.block;
     let mode = 'write';
-    let blocks = parseBlocks(ch.body);
-    let active = 0;
+    let lines = ES.parseLines(ch.body);
+    let who = (castOf(story).find(c => c.side === 'me') || {}).id || '';
+    if (!lines.some(l => l.who)) who = '';
+    let img = '';        // تصویرِ پیوست خط بعد
+    let at = -1;         // خط بعد کجا بنشیند (‎-1 یعنی آخر)
     const past = [], future = [];
-    let typing = 0;
     push((el, pg) => {
       el.classList.add('sub-ch');
       const num = () => chaps(story).indexOf(ch) + 1;
-      const top = subTop(el, story.props.title || 'داستان', `فصل ${faN(num())}`, [savedMark()]);
+      const top = subTop(el, story.props.title || 'داستان', `قسمت ${faN(num())}`, [savedMark()]);
       const head = h('div', 'ch-head');
       el.insertBefore(head, top);
       head.appendChild(top);
       const seg = h('div', 'seg ch-mode');
-      const bar = h('div', 'ch-bar');
-      const rowKinds = h('div', 'ch-row');
-      const rowTools = h('div', 'ch-row');
-      bar.append(rowKinds, rowTools);
-      head.append(seg, bar);
+      head.appendChild(seg);
       const body = h('div', 'sbody ch-body');
       el.appendChild(body);
 
-      // سر فصل
       const write = h('div', 'ch-write');
       const title = h('input', 'ch-title');
       title.maxLength = 80;
-      title.placeholder = 'اسم فصل';
+      title.placeholder = 'اسم قسمت';
       title.value = ch.title || '';
       title.addEventListener('input', () => { ch.title = title.value; changed(true); });
       const status = selectControl({ label: 'وضعیت', options: [['draft', 'پیش‌نویس (خواننده نمی‌بیند)'], ['live', 'منتشر شود']] },
         ch.draft ? 'draft' : 'live', v => { ch.draft = v === 'draft'; changed(true); });
-      const paper = h('div', 'bk-paper');
-      lightPaper(paper);
-      const list = h('div', 'bk-list');
-      const adds = h('div', 'bk-adds');
-      paper.append(list, adds);
+      const paper = chatPaper(h('div', 'ql-paper'), story);
+      const list = h('div', 'q-body ql-list');
+      paper.appendChild(list);
+      const tools = h('div', 'ql-tools');
       const stats = h('div', 'ch-stats');
-      write.append(title, status, h('span', 'label bk-label', 'متن فصل · هر کارت یک پاراگراف؛ با دستگیره جابه‌جا کن'), paper, stats);
+      write.append(title, status, tools, paper, stats);
 
       const more = h('details', 'more-sec');
       const sum = h('summary');
@@ -3811,260 +3815,178 @@
       more.append(sum, mb);
       write.appendChild(more);
 
-      const read = h('div', 'ch-read');
-      ES.applyTheme(read, S.doc.theme, 'shab');
+      const read = chatPaper(h('div', 'ch-read ql-read'), story);
       const drawRead = () => {
         read.textContent = '';
         const art = h('article', 'sh-r-art');
-        art.append(h('span', 'sh-r-k', `فصل ${faN(num())}`), h('h1', 'sh-r-h', ch.title || ''));
-        if ((ch.body || '').trim()) art.appendChild(ES.storyText(ch.body));
-        else art.appendChild(h('p', 'sh-r-p', 'هنوز متنی ننوشته‌ای.'));
+        art.append(h('span', 'sh-r-k', `قسمت ${faN(num())}`), h('h1', 'sh-r-h', ch.title || ''));
+        if ((ch.body || '').trim()) art.appendChild(ES.episodeView(ch.body, story.props));
+        else art.appendChild(h('p', 'sh-r-p', 'هنوز چیزی ننوشته‌ای.'));
         read.appendChild(art);
       };
       body.append(write, read);
 
+      // ---- نویسنده (پایین صفحه، همیشه پیدا) ----
+      const comp = h('div', 'ql-comp');
+      const spk = h('div', 'ql-spk-w');
+      const where = h('div', 'ql-where');
+      const att = h('div', 'ql-att');
+      const row = h('div', 'ql-row');
+      const pic = h('button', 'ql-ib');
+      pic.type = 'button';
+      pic.setAttribute('aria-label', 'تصویر');
+      pic.appendChild(ico('image'));
+      const ta = h('textarea', 'ql-ta');
+      ta.rows = 1;
+      ta.dir = 'rtl';
+      const send = h('button', 'ql-send');
+      send.type = 'button';
+      send.setAttribute('aria-label', 'افزودن خط');
+      send.appendChild(ico('send'));
+      row.append(pic, ta, send);
+      comp.append(spk, where, att, row);
+      el.appendChild(comp);
+
       // ---- مدل ↔ ذخیره و «برگرد» محلی ----
-      const snap = () => JSON.stringify(blocks);
-      const remember = () => { past.push(snap()); if (past.length > 80) past.shift(); future.length = 0; drawBar(); };
+      const snap = () => JSON.stringify(lines);
+      const remember = () => { past.push(snap()); if (past.length > 80) past.shift(); future.length = 0; drawTools(); };
       const commit = () => {
-        const v = serializeBlocks(blocks);
-        ch.body = v;
+        ch.body = ES.joinLines(lines);
         changed(true);
         drawStats();
       };
-      const restore = s => { blocks = JSON.parse(s); active = Math.min(active, blocks.length - 1); drawList(); commit(); drawBar(); };
-      const undoLocal = () => { if (!past.length) return; future.push(snap()); restore(past.pop()); };
-      const redoLocal = () => { if (!future.length) return; past.push(snap()); restore(future.pop()); };
+      const restore = s => { lines = JSON.parse(s); drawList(); commit(); drawTools(); };
 
-      // ---- کارت‌ها ----
-      const edOf = i => list.children[i] && list.children[i].querySelector('.bk-ed');
-      const focusBlock = (i, off) => {
-        active = Math.max(0, Math.min(i, blocks.length - 1));
-        drawActive();
-        const ed = edOf(active);
-        if (!ed) { const w = list.children[active]; if (w) w.focus({ preventScroll: false }); return; }
-        ed.focus({ preventScroll: true });
-        setSel(ed, off == null ? runsText(blocks[active].runs).length : off);
-        const r = ed.getBoundingClientRect();
-        if (r.top < 170 || r.bottom > window.innerHeight - 40) ed.scrollIntoView({ block: 'center' });
-      };
-      function drawActive() {
-        [...list.children].forEach((w, i) => w.classList.toggle('on', i === active));
-        drawBar();
-      }
-      function card(b, i) {
-        const w = h('div', 'bk bk-' + b.kind + (i === active ? ' on' : ''));
-        w.dataset.i = String(i);
-        const handle = h('button', 'bk-grip');
-        handle.type = 'button';
-        handle.setAttribute('aria-label', 'جابه‌جایی بلوک');
-        handle.appendChild(ico('grip'));
-        const tag = h('button', 'bk-tag');
-        tag.type = 'button';
-        tag.append(document.createTextNode(BK_NAME[b.kind]), ico('chev'));
-        tag.addEventListener('pointerdown', e => e.preventDefault());
-        tag.addEventListener('click', () => { haptic(); active = Number(w.dataset.i); drawActive(); blockSheet(active); });
-        let content;
-        if (b.kind === 'hr') {
-          content = h('div', 'sh-orn bk-orn');
-          content.append(h('i'), h('i'), h('i'));
-          w.tabIndex = 0;
-          w.addEventListener('click', () => { active = Number(w.dataset.i); drawActive(); });
-        } else {
-          const ed = h('div', 'bk-ed ' + BK_CLS[b.kind]);
-          ed.contentEditable = 'true';
-          ed.dir = 'rtl';
-          ed.setAttribute('role', 'textbox');
-          ed.setAttribute('aria-multiline', 'true');
-          ed.setAttribute('aria-label', 'بلوک ' + BK_NAME[b.kind]);
-          ed.dataset.ph = { p: 'بنویس…', h: 'میان‌تیتر', talk: 'جملهٔ گفت‌وگو', whisper: 'زمزمه…', scream: 'فریاد!', note: 'متن نامه یا یادداشت', quote: 'نقل‌قول', center: 'خط‌ها وسط‌چین' }[b.kind];
-          paintRuns(ed, b.runs);
-          wireEd(ed, w);
-          content = b.kind === 'note' ? h('div', 'sh-t-note bk-note') : ed;
-          if (b.kind === 'note') content.appendChild(ed);
-        }
-        w.append(handle, content, tag);
-        wireDrag(handle, w);
-        return w;
-      }
       function drawList() {
         list.textContent = '';
-        blocks.forEach((b, i) => list.appendChild(card(b, i)));
-        drawBar();
-      }
-      function wireEd(ed, w) {
-        const idx = () => Number(w.dataset.i);
-        ed.addEventListener('focus', () => { if (active !== idx()) { active = idx(); drawActive(); } });
-        ed.addEventListener('input', () => {
-          if (!typing) remember();
-          clearTimeout(typing);
-          typing = setTimeout(() => { typing = 0; }, 900);
-          const i = idx();
-          const sel = getSel(ed);
-          blocks[i].runs = readRuns(ed);
-          // مرورگر گاهی div می‌گذارد؛ دوباره از مدل کشیده می‌شود
-          if (ed.querySelector('div,p')) { paintRuns(ed, blocks[i].runs); if (sel) setSel(ed, sel[0]); }
-          commit();
+        const nodes = ES.lineNodes(lines, story.props);
+        nodes.forEach((n, i) => {
+          const r = h('div', 'layer ql-line' + (at === i + 1 ? ' ql-at' : ''));
+          r.dataset.id = String(i);
+          const hd = h('span', 'layer-handle');
+          hd.setAttribute('aria-label', 'جابه‌جایی');
+          hd.appendChild(ico('grip'));
+          const tap = h('button', 'ql-hit');
+          tap.type = 'button';
+          tap.setAttribute('aria-label', `خط ${faN(i + 1)}، ${speakerName(story, lines[i].who)}`);
+          tap.addEventListener('click', () => { haptic(); lineSheet(i); });
+          r.append(n, tap, hd);
+          list.appendChild(r);
         });
-        ed.addEventListener('paste', e => {
-          e.preventDefault();
-          const text = ((e.clipboardData || window.clipboardData).getData('text') || '').replace(/\r/g, '');
-          if (!text) return;
-          const i = idx();
-          const sel = getSel(ed) || [0, 0];
-          remember();
-          const [l, rest] = splitRuns(blocks[i].runs, sel[0]);
-          const [, r] = splitRuns(rest, sel[1] - sel[0]);
-          // چند پاراگراف یا چند خط (پست کانال) ← چند بلوک
-          const parts = /\n[ \t]*\n/.test(text) ? text.split(/\n[ \t]*\n/) : (!BK_MULTI[blocks[i].kind] && /\n/.test(text) ? text.split('\n') : [text]);
-          const clean = parts.map(x => x.trim()).filter(Boolean);
-          if (clean.length <= 1) {
-            blocks[i].runs = mergeRuns(l.concat([{ t: clean[0] || '', m: '' }], r));
-            paintRuns(ed, blocks[i].runs);
-            setSel(ed, sel[0] + (clean[0] || '').length);
-            commit();
-            return;
-          }
-          const made = clean.map(t => { const [kind, tx] = ES.paraKind(t); return kind === 'hr' ? { kind: 'hr', runs: [] } : { kind, runs: ES.inlineRuns(tx) }; });
-          blocks[i].runs = mergeRuns(l.concat(made[0].runs));
-          const lastB = made[made.length - 1];
-          const tailLen = runsText(lastB.runs).length;
-          lastB.runs = mergeRuns(lastB.runs.concat(r));
-          blocks.splice(i + 1, 0, ...made.slice(1));
-          drawList();
-          commit();
-          focusBlock(i + made.length - 1, tailLen);
-          toast(`${faN(made.length)} پاراگراف چسبانده شد`);
-        });
-        ed.addEventListener('beforeinput', e => {
-          const i = idx();
-          const b = blocks[i];
-          const sel = getSel(ed);
-          if (!sel) return;
-          if (e.inputType === 'insertParagraph' || e.inputType === 'insertLineBreak') {
-            e.preventDefault();
-            remember();
-            b.runs = readRuns(ed);
-            if (e.inputType === 'insertLineBreak' || BK_MULTI[b.kind]) {
-              const [l, rest] = splitRuns(b.runs, sel[0]);
-              const [, r] = splitRuns(rest, sel[1] - sel[0]);
-              b.runs = mergeRuns(l.concat([{ t: '\n', m: '' }], r));
-              paintRuns(ed, b.runs);
-              setSel(ed, sel[0] + 1);
-              commit();
-              return;
-            }
-            // اینتر: بلوک از جای نشانگر دو تکه می‌شود
-            const [l, rest] = splitRuns(b.runs, sel[0]);
-            const [, r] = splitRuns(rest, sel[1] - sel[0]);
-            b.runs = l;
-            if (l.length) l[l.length - 1].t = l[l.length - 1].t.replace(/[ \t]+$/, '');
-            if (r.length) r[0].t = r[0].t.replace(/^[ \t]+/, '');
-            const nextKind = b.kind === 'talk' ? 'talk' : 'p';
-            blocks.splice(i + 1, 0, { kind: nextKind, runs: r });
-            drawList();
-            commit();
-            focusBlock(i + 1, 0);
-            return;
-          }
-          if (e.inputType === 'deleteContentBackward' && sel[0] === 0 && sel[1] === 0) {
-            e.preventDefault();
-            remember();
-            b.runs = readRuns(ed);
-            if (b.kind !== 'p' && runsText(b.runs)) { b.kind = 'p'; drawList(); commit(); focusBlock(i, 0); return; }
-            if (i === 0) { if (b.kind !== 'p') { b.kind = 'p'; drawList(); commit(); focusBlock(0, 0); } return; }
-            const prev = blocks[i - 1];
-            if (prev.kind === 'hr') { blocks.splice(i - 1, 1); drawList(); commit(); focusBlock(i - 1, 0); return; }
-            const at = runsText(prev.runs).length;
-            prev.runs = mergeRuns(prev.runs.concat(b.runs));
-            blocks.splice(i, 1);
-            drawList();
-            commit();
-            focusBlock(i - 1, at);
-          }
-        });
-      }
-
-      // ---- کشیدن و رها کردن ----
-      function wireDrag(handle, w) {
-        let drag = null;
-        const scroller = el;
-        const place = () => {
-          if (!drag) return;
-          const y = drag.y;
-          const rows = [...list.children].filter(r => r !== w);
-          const target = rows.find(r => { const b = r.getBoundingClientRect(); return y < b.top + b.height / 2; });
-          if (target) { if (target !== w.nextElementSibling) { list.insertBefore(w, target); select(); } }
-          else if (list.lastElementChild !== w) { list.appendChild(w); select(); }
-          w.style.transform = '';
-          const top = w.getBoundingClientRect().top;
-          w.style.transform = `translateY(${y - drag.grab - top}px)`;
-        };
-        const tick = () => {
-          if (!drag) return;
-          const headH = head.getBoundingClientRect().bottom;
-          const edge = drag.y < headH + 50 ? -1 : drag.y > window.innerHeight - 60 ? 1 : 0;
-          if (edge) { scroller.scrollTop += edge * 10; place(); }
-          drag.raf = requestAnimationFrame(tick);
-        };
-        // گوش‌دادن روی پنجره: جابه‌جا کردن کارت در DOM، pointer capture را از دستگیره می‌گیرد
-        const move = e => { if (drag && e.pointerId === drag.pid) { e.preventDefault(); drag.y = e.clientY; place(); } };
-        handle.addEventListener('pointerdown', e => {
-          e.preventDefault();
-          const r = w.getBoundingClientRect();
-          drag = { y: e.clientY, grab: e.clientY - r.top, from: Number(w.dataset.i), pid: e.pointerId };
-          w.classList.add('dragging');
-          list.classList.add('dragging');
-          active = drag.from;
-          drawActive();
-          haptic();
-          window.addEventListener('pointermove', move, { passive: false });
-          window.addEventListener('pointerup', end);
-          window.addEventListener('pointercancel', end);
-          drag.raf = requestAnimationFrame(tick);
-        });
-        function end(e) {
-          if (!drag || (e && e.pointerId !== drag.pid)) return;
-          window.removeEventListener('pointermove', move);
-          window.removeEventListener('pointerup', end);
-          window.removeEventListener('pointercancel', end);
-          cancelAnimationFrame(drag.raf);
-          const order = [...list.children].map(r => Number(r.dataset.i));
-          drag = null;
-          w.classList.remove('dragging');
-          list.classList.remove('dragging');
-          w.style.transform = '';
-          const moved = order.some((v, i) => v !== i);
-          if (!moved) return;
-          remember();
-          const from = Number(w.dataset.i);
-          blocks = order.map(k => blocks[k]);
-          active = order.indexOf(from);
-          drawList();
-          commit();
-          notify('success');
+        if (!lines.length) {
+          const e = h('div', 'ql-empty');
+          e.append(h('b', '', 'قسمت خالی است'), h('span', '', 'پایین گوینده را انتخاب کن و بنویس: «راوی» برای متن داستان، یا یک شخصیت برای حباب گفت‌وگو.'));
+          list.appendChild(e);
         }
       }
+      sortable(list, order => {
+        const next = order.map(k => lines[Number(k)]);
+        if (next.every((l, i) => l === lines[i])) return;
+        remember();
+        lines = next;
+        drawList();
+        commit();
+      });
 
-      // ---- کارهای یک بلوک (شیت) ----
-      function blockSheet(i) {
-        const b = blocks[i];
-        if (!b) return;
+      const drawSpk = () => {
+        spk.textContent = '';
+        spk.appendChild(speakerRow(story, who, w => { who = w; drawSpk(); ta.focus(); },
+          () => castSheet(story, null, c => { if (c) who = c.id; drawSpk(); drawList(); })));
+        ta.placeholder = who ? `پیام ${speakerName(story, who)}…` : 'متن راوی…';
+      };
+      const drawWhere = () => {
+        where.textContent = '';
+        where.hidden = at < 0;
+        if (at < 0) return;
+        where.append(ico('plus'), h('span', 'grow', `خط تازه بعد از خط ${faN(at)}`));
+        const x = h('button', 'ql-x', 'آخر قسمت');
+        x.type = 'button';
+        x.addEventListener('click', () => { at = -1; drawWhere(); drawList(); });
+        where.appendChild(x);
+      };
+      const drawAtt = () => {
+        att.textContent = '';
+        att.hidden = !img;
+        if (!img) return;
+        const th = h('span', 'ql-thumb');
+        const i = h('img');
+        i.alt = '';
+        i.src = ES.safeUrl(img, true);
+        th.appendChild(i);
+        const x = h('button', 'ql-x');
+        x.type = 'button';
+        x.setAttribute('aria-label', 'برداشتن تصویر');
+        x.appendChild(ico('x'));
+        x.addEventListener('click', () => { img = ''; drawAtt(); syncSend(); });
+        att.append(th, h('span', 'grow caption', who ? 'تصویر داخل حباب؛ متن زیرش اختیاری است' : 'تصویر تنها؛ متن زیرنویس اختیاری است'), x);
+      };
+      const syncSend = () => { send.disabled = !ta.value.trim() && !img; };
+      const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.min(160, ta.scrollHeight) + 'px'; };
+      pic.addEventListener('click', async () => {
+        pic.disabled = true;
+        try { const url = await uploadImage(); if (url) { img = url; drawAtt(); syncSend(); notify('success'); } } catch (err) { failed(err); } finally { pic.disabled = false; }
+      });
+      ta.addEventListener('input', () => { grow(); syncSend(); });
+      ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addLine(); } });
+      const addLine = () => {
+        const text = ta.value.replace(/\r/g, '').trim();
+        if (!text && !img) return;
+        if (lines.length >= 400) { toast('هر قسمت حداکثر ۴۰۰ خط دارد؛ بقیه را قسمت بعد بنویس', true); return; }
+        remember();
+        // چند پاراگراف چسبانده شده ← چند خط از همین گوینده
+        const parts = text ? text.split(/\n[ \t]*\n/).map(x => x.trim()).filter(Boolean) : [''];
+        const made = parts.map((t, k) => ({ who, img: k === 0 ? img : '', text: t }));
+        const pos = at < 0 ? lines.length : at;
+        lines.splice(pos, 0, ...made);
+        if (at >= 0) at += made.length;
+        ta.value = '';
+        img = '';
+        grow();
+        drawAtt();
+        drawWhere();
+        syncSend();
+        drawList();
+        commit();
+        haptic();
+        const last = list.children[pos + made.length - 1];
+        if (last) last.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        if (made.length > 1) toast(`${faN(made.length)} خط اضافه شد`);
+      };
+      send.addEventListener('pointerdown', e => e.preventDefault()); // کیبورد بسته نشود
+      send.addEventListener('click', addLine);
+
+      // ---- یک خط (شیت) ----
+      function lineSheet(i) {
+        const l = lines[i];
+        if (!l) return;
+        const d = Object.assign({}, l);
         openSheet(sheet => {
-          sheetHead(sheet, 'story', 'text', `بلوک ${faN(i + 1)} از ${faN(blocks.length)}`, BK_NAME[b.kind]);
-          if (b.kind !== 'hr') {
-            sheet.appendChild(h('span', 'label bk-sh-l', 'سبک این بلوک'));
-            const grid = h('div', 'bk-kinds');
-            lightPaper(grid);
-            BK_KINDS.forEach(([k, name]) => {
-              const c = h('button', 'bk-kind ch-p-' + k + (k === b.kind ? ' on' : ''));
-              c.type = 'button';
-              c.appendChild(h('span', '', name));
-              c.addEventListener('click', () => { haptic(); setKind(i, k); closeSheet(); });
-              grid.appendChild(c);
-            });
-            sheet.appendChild(grid);
-          }
+          sheetHead(sheet, 'story', d.who ? 'chat' : 'book', `خط ${faN(i + 1)} از ${faN(lines.length)}`, speakerName(story, d.who));
+          sheet.appendChild(h('span', 'label ql-l', 'گوینده'));
+          const sp = h('div');
+          const drawSp = () => { sp.textContent = ''; sp.appendChild(speakerRow(story, d.who, w => { d.who = w; drawSp(); })); };
+          drawSp();
+          sheet.appendChild(sp);
+          const t = h('textarea', 'ql-ta ql-ta-lg');
+          t.dir = 'rtl';
+          t.rows = 4;
+          t.value = d.text;
+          t.placeholder = 'متن';
+          t.addEventListener('input', () => { d.text = t.value; });
+          sheet.appendChild(t);
+          sheet.appendChild(imageControl({ label: 'تصویر (اختیاری)' }, d.img, v => { d.img = v; }));
+          const ok = h('button', 'btn btn-p btn-block', 'ذخیرهٔ خط');
+          ok.type = 'button';
+          ok.addEventListener('click', () => {
+            const text = String(d.text || '').replace(/\r/g, '').trim();
+            if (!text && !d.img) { toast('خط خالی ماند؛ برای برداشتن «حذف» را بزن', true); return; }
+            remember();
+            lines[i] = { who: d.who, img: d.img, text };
+            closeSheet();
+            drawList();
+            commit();
+          });
+          sheet.appendChild(ok);
           const acts = h('div', 'acts');
           const act = (icon, label, fn, opt) => {
             const x = h('button', 'act' + (opt && opt.danger ? ' danger' : ''));
@@ -4074,115 +3996,49 @@
             x.addEventListener('click', () => { haptic(); closeSheet(); fn(); });
             acts.appendChild(x);
           };
-          act('up', 'یکی بالاتر', () => moveBlk(i, -1), { disabled: i === 0 });
-          act('down', 'یکی پایین‌تر', () => moveBlk(i, 1), { disabled: i === blocks.length - 1 });
-          act('plus', 'پاراگراف تازه زیرش', () => insertAfter(i, 'p'));
-          act('minus', 'جداکننده زیرش', () => insertAfter(i, 'hr'));
-          act('copy', 'تکثیر', () => { remember(); blocks.splice(i + 1, 0, JSON.parse(JSON.stringify(b))); drawList(); commit(); focusBlock(i + 1); });
-          act('trash', 'حذف بلوک', () => removeBlk(i), { danger: true });
+          act('plus', 'خط تازه بعد از این', () => { at = i + 1; who = d.who; drawWhere(); drawSpk(); drawList(); ta.focus(); });
+          act('up', 'یکی بالاتر', () => moveLine(i, -1), { disabled: i === 0 });
+          act('down', 'یکی پایین‌تر', () => moveLine(i, 1), { disabled: i === lines.length - 1 });
+          act('copy', 'تکثیر', () => { remember(); lines.splice(i + 1, 0, Object.assign({}, l)); drawList(); commit(); });
+          act('trash', 'حذف خط', () => { remember(); lines.splice(i, 1); if (at > i) at -= 1; drawWhere(); drawList(); commit(); toast('خط حذف شد · «برگرد» بالای متن'); }, { danger: true });
           sheet.appendChild(acts);
         });
       }
-      function setKind(i, k) {
-        const b = blocks[i];
-        if (!b || b.kind === 'hr' || b.kind === k) return;
+      function moveLine(i, dlt) {
+        const j = i + dlt;
+        if (j < 0 || j >= lines.length) return;
         remember();
-        const ed = edOf(i);
-        if (ed) b.runs = readRuns(ed);
-        b.kind = k;
+        [lines[i], lines[j]] = [lines[j], lines[i]];
         drawList();
         commit();
-        focusBlock(i);
-      }
-      function moveBlk(i, d) {
-        const j = i + d;
-        if (j < 0 || j >= blocks.length) return;
-        remember();
-        [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
-        active = j;
-        drawList();
-        commit();
-        list.children[j].scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }
-      function insertAfter(i, kind) {
-        remember();
-        blocks.splice(i + 1, 0, { kind, runs: [] });
-        drawList();
-        commit();
-        focusBlock(i + 1, 0);
-      }
-      function removeBlk(i) {
-        remember();
-        blocks.splice(i, 1);
-        if (!blocks.length) blocks.push({ kind: 'p', runs: [] });
-        active = Math.max(0, i - 1);
-        drawList();
-        commit();
-        toast('بلوک حذف شد · «برگرد» بالای صفحه');
       }
 
-      // ---- نوار ابزار (بالای صفحه، همیشه پیدا) ----
-      const kindBtns = {};
+      // ---- ابزار بالای متن: برگرد و دوباره ----
       const undoB = h('button', 'ch-chip ch-ic');
       const redoB = h('button', 'ch-chip ch-ic');
-      function drawBar() {
-        const b = blocks[active];
-        Object.keys(kindBtns).forEach(k => kindBtns[k].classList.toggle('on', !!b && b.kind === k));
-        undoB.disabled = !past.length;
-        redoB.disabled = !future.length;
-      }
-      const chip = (cls, label, onTap) => {
-        const b = h('button', 'ch-chip ' + cls);
-        b.type = 'button';
-        b.appendChild(h('span', '', label));
-        b.addEventListener('pointerdown', e => e.preventDefault()); // انتخاب متن نپرد
-        b.addEventListener('click', () => { haptic(); onTap(); });
-        (chip.row || rowKinds).appendChild(b);
-        return b;
-      };
       [undoB, redoB].forEach((b, k) => {
         b.type = 'button';
         b.setAttribute('aria-label', k ? 'دوباره' : 'برگرد');
         b.appendChild(ico(k ? 'redo' : 'undo'));
-        b.addEventListener('pointerdown', e => e.preventDefault());
-        b.addEventListener('click', () => { haptic(); if (k) redoLocal(); else undoLocal(); });
-        rowTools.appendChild(b);
+        b.addEventListener('click', () => {
+          haptic();
+          if (k) { if (!future.length) return; past.push(snap()); restore(future.pop()); }
+          else { if (!past.length) return; future.push(snap()); restore(past.pop()); }
+        });
       });
-      rowTools.appendChild(h('i', 'ch-sep'));
-      chip.row = rowTools;
-      MARKS.forEach(([k, , , label]) => chip('ch-i-' + k, label, () => applyMark(k)));
-      rowTools.appendChild(h('span', 'ch-hint', 'چند کلمه را انتخاب کن'));
-      chip.row = rowKinds;
-      BK_KINDS.forEach(([k, name]) => { kindBtns[k] = chip('ch-p-' + k, name, () => setKind(active, k)); });
-      chip('ch-p-hr', '✦ جداکننده', () => insertAfter(active, 'hr'));
-      function applyMark(m) {
-        const b = blocks[active];
-        const ed = edOf(active);
-        if (!b || !ed) { toast('اول روی یک پاراگراف بزن', true); return; }
-        const sel = getSel(ed);
-        if (!sel || sel[0] === sel[1]) { toast('چند کلمه را انتخاب کن، بعد سبک را بزن', true); return; }
-        remember();
-        b.runs = markRuns(readRuns(ed), sel[0], sel[1], m);
-        paintRuns(ed, b.runs);
-        setSel(ed, sel[0], sel[1]);
-        commit();
+      function drawTools() {
+        undoB.disabled = !past.length;
+        redoB.disabled = !future.length;
       }
-
-      // ---- افزودن بلوک در انتها ----
-      [['p', 'پاراگراف'], ['talk', 'گفت‌وگو'], ['hr', 'جداکننده'], ['note', 'نامه']].forEach(([k, label]) => {
-        const b = h('button', 'bk-add');
-        b.type = 'button';
-        b.append(ico('plus'), document.createTextNode(label));
-        b.addEventListener('click', () => { haptic(); insertAfter(blocks.length - 1, k); });
-        adds.appendChild(b);
-      });
+      tools.append(h('span', 'label grow', 'متن قسمت · روی هر خط بزن تا ویرایش شود'), undoB, redoB);
 
       const drawStats = () => {
         const v = ch.body || '';
+        const max = BODY_MAX;
         stats.textContent = '';
-        stats.append(h('span', '', `${faN(blocks.length)} بلوک، ${faN(ES.words(v))} کلمه، ${faN(ES.minutes(v))} دقیقه خواندن`),
-          h('span', v.length > BODY_MAX ? 'danger-t' : v.length > BODY_MAX * 0.9 ? 'warn-t' : '',
-            v.length > BODY_MAX ? `${faN(v.length - BODY_MAX)} حرف بیشتر از سقف؛ بقیه را فصل بعد بنویس` : `${faN(v.length)} از ${faN(BODY_MAX)} حرف`));
+        stats.append(h('span', '', `${faN(lines.length)} خط، ${faN(ES.words(v))} کلمه، ${faN(ES.minutes(v))} دقیقه خواندن`),
+          h('span', v.length > max ? 'danger-t' : v.length > max * 0.9 ? 'warn-t' : '',
+            v.length > max ? `${faN(v.length - max)} حرف بیشتر از سقف؛ بقیه را قسمت بعد بنویس` : `${faN(v.length)} از ${faN(max)} حرف`));
       };
 
       const drawSeg = () => {
@@ -4196,16 +4052,27 @@
       };
       const showMode = () => {
         write.hidden = mode !== 'write';
+        comp.hidden = mode !== 'write';
         read.hidden = mode !== 'read';
-        bar.hidden = mode !== 'write';
         if (mode === 'read') drawRead();
         el.scrollTop = 0;
       };
       drawSeg();
       showMode();
+      drawSpk();
+      drawWhere();
+      drawAtt();
+      syncSend();
+      drawTools();
       drawList();
       drawStats();
-      pg.refresh = () => { if (mode === 'read') drawRead(); };
+      pg.refresh = () => {
+        chatPaper(paper, story);
+        chatPaper(read, story);
+        drawSpk();
+        drawList();
+        if (mode === 'read') drawRead();
+      };
     });
   }
 

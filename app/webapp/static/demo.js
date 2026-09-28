@@ -22,9 +22,9 @@
   // همان کامپوننت‌هایی که در app/blocks.py پریمیوم‌اند
   const PREMIUM = ['cards', 'pricing', 'gallery', 'features', 'passcard', 'calc'];
 
-  /* مینی‌اپ تازه روی قالب شب‌نوشت (مثل app/blocks.py → empty_page) */
+  /* مینی‌اپ تازه روی قالب قسمت (مثل app/blocks.py → empty_page) */
   function blank() {
-    return { v: 2, kit: 'shab', theme: { accent: '#C8192F', mode: 'light', radius: 'soft', radius_px: 18, bg: 'tint' },
+    return { v: 2, kit: 'shab', theme: { accent: '#D0452B', mode: 'light', radius: 'soft', radius_px: 18, bg: 'tint' },
       header: { enabled: false, style: 'bar', title: '', subtitle: '', logo: '', align: 'start' },
       tabbar: { enabled: true, style: 'floating' },
       pages: [{ id: 'home', title: 'خانه', icon: 'home', blocks: [] }] };
@@ -113,7 +113,7 @@
       d.apps.push(a); save(d);
       return Promise.resolve({ app: appJson(a), doc: a.draft });
     }
-    // شب‌نوشت (app/kits/shab/api.py): در نسخهٔ نمایشی خواننده‌ای نیست
+    // قسمت (app/kits/shab/api.py): در نسخهٔ نمایشی خواننده‌ای نیست
     if (path.indexOf('kit/shab/stats') === 0) return Promise.resolve({ readers: 0, followers: 0, stories: {}, chapters: {} });
     const a = find(body && body.id);
     if (!a) return fail(404, 'مینی‌اپ پیدا نشد');
@@ -141,7 +141,7 @@
       let kit = {};
       if (path === 'app/publish') {
         a.published = JSON.parse(JSON.stringify(doc)); a.published_at = now();
-        // مثل kits.shab.on_publish: فصل‌هایی که تا حالا منتشر نشده بودند
+        // مثل kits.shab.on_publish: قسمت‌هایی که تا حالا منتشر نشده بودند
         const seen = new Set((a.pubCh || []).concat(a.announced || []));
         const fresh = [];
         (doc.pages || []).forEach(pg => (pg.blocks || []).forEach(b => {
@@ -163,14 +163,14 @@
     const a = d.apps[0];
     const branding = plan(d).branding;
     if (a && a.published) {
-      // مثل api.page → blocks.reader_view: فصل‌های پیش‌نویس به خواننده نمی‌رسند
+      // مثل api.page → blocks.reader_view: قسمت‌های پیش‌نویس به خواننده نمی‌رسند
       const doc = JSON.parse(JSON.stringify(a.published));
       (doc.pages || []).forEach(pg => (pg.blocks || []).forEach(b => {
         if (b.type === 'story' && b.props) b.props.chapters = (b.props.chapters || []).filter(c => !c.draft);
       }));
       return { name: a.name, doc: doc, branding: branding, brand_bot: 'EasySazBot' };
     }
-    return { name: 'شب‌نوشت', doc: blank(), branding: branding, brand_bot: 'EasySazBot' };
+    return { name: 'قسمت', doc: blank(), branding: branding, brand_bot: 'EasySazBot' };
   }
 
   function reset() { try { localStorage.removeItem(KEY); } catch (e) {} }

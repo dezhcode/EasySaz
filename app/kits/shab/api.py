@@ -1,7 +1,7 @@
-"""API شب‌نوشت.
+"""API قسمت.
 
 خواننده (/api/page/<slug>/<کار>): هویت از initData امضاشده با توکن ربات همان
-مینی‌اپ است (مثل ثبت بازدید). بدون initData معتبر فقط متن فصل‌های آزاد
+مینی‌اپ است (مثل ثبت بازدید). بدون initData معتبر فقط متن قسمت‌های آزاد
 داده می‌شود؛ جای خواندن و نشان‌ها در این حالت فقط در گوشی می‌ماند.
 
 صاحب مینی‌اپ (/api/kit/shab/<کار>): با initData ربات اصلی و مالکیت اپ،
@@ -40,7 +40,7 @@ _SENDING: set[int] = set()
 def _cid(value: Any) -> str:
     v = str(value or "")
     if not _CH_ID.match(v):
-        raise ApiError(400, "فصل نامعتبر")
+        raise ApiError(400, "قسمت نامعتبر")
     return v
 
 
@@ -107,12 +107,12 @@ class ShabApi:
         return ""
 
     async def chapter(self, slug: str, init_data: str, query: dict) -> dict:
-        """متن یک فصل منتشرشده. فصل قفل فقط برای عضو کانال (و صاحب مینی‌اپ)."""
+        """متن یک قسمت منتشرشده. قسمت قفل فقط برای عضو کانال (و صاحب مینی‌اپ)."""
         app = await self._app(slug)
         row = await self.db.fetchone(
             "SELECT * FROM shab_chapters WHERE app_id = ? AND chapter_id = ?", (app["id"], _cid(query.get("id"))))
         if not row:
-            raise ApiError(404, "این فصل پیدا نشد؛ شاید برداشته شده")
+            raise ApiError(404, "این قسمت پیدا نشد؛ شاید برداشته شده")
         base = {"id": row["chapter_id"], "story": row["story_id"], "title": row["title"], "words": row["words"]}
         if not row["lock"]:
             return dict(base, body=row["body"])
@@ -123,7 +123,7 @@ class ShabApi:
                     channel=app["channel_title"] or "", members_only=bool(app["channel_id"]))
 
     async def me(self, slug: str, init_data: str, query: dict) -> dict:
-        """وضعیت خواندن این خواننده: آخرین جا، هر فصل تا کجا، نشان‌ها، «خبرم کن»."""
+        """وضعیت خواندن این خواننده: آخرین جا، هر قسمت تا کجا، نشان‌ها، «خبرم کن»."""
         app = await self._app(slug)
         user = self._reader(app, init_data)
         await self._touch(app, user)
@@ -168,7 +168,7 @@ class ShabApi:
         cid = _cid(body.get("k"))
         row = await self.db.fetchone("SELECT story_id FROM shab_chapters WHERE app_id = ? AND chapter_id = ?", (app["id"], cid))
         if not row:
-            raise ApiError(404, "این فصل پیدا نشد")
+            raise ApiError(404, "این قسمت پیدا نشد")
         if body.get("on"):
             await self.db.execute(
                 "INSERT OR IGNORE INTO shab_marks(app_id, tg_id, chapter_id, story_id, created_at) VALUES (?,?,?,?,?)",
@@ -218,7 +218,7 @@ class ShabApi:
         return {"channel": {"id": chat.id, "username": chat.username or "", "title": chat.title or ""}}
 
     async def stats(self, init_data: str, query: dict) -> dict:
-        """آمار خواندن: هر فصل چند نفر شروع کرده و چند نفر تا آخر خوانده."""
+        """آمار خواندن: هر قسمت چند نفر شروع کرده و چند نفر تا آخر خوانده."""
         app = await self._mine(init_data, query.get("id"))
         a = app["id"]
         chapters = {r["chapter_id"]: {"readers": r["n"], "finished": r["f"]} for r in await self.db.fetchall(
@@ -230,17 +230,17 @@ class ShabApi:
         return {"readers": tot["n"], "followers": tot["f"], "stories": stories, "chapters": chapters}
 
     async def announce(self, init_data: str, body: dict) -> dict:
-        """اعلام فصل‌های تازه: پست در کانال و پیام به خواننده‌هایی که «خبرم کن» دارند.
+        """اعلام قسمت‌های تازه: پست در کانال و پیام به خواننده‌هایی که «خبرم کن» دارند.
 
         فرستادن در پس‌زمینه (همان event loop) و با سرعت مجاز تلگرام انجام
-        می‌شود؛ هر فصل فقط یک بار اعلام می‌شود."""
+        می‌شود؛ هر قسمت فقط یک بار اعلام می‌شود."""
         app = await self._mine(init_data, body.get("id"), write=True)
         bot = self.clients.for_app(app)
         if bot is None:
             raise ApiError(400, "اول ربات مینی‌اپ را وصل کن")
         ids = [_cid(x) for x in (body.get("chapters") or [])][:20]
         if not ids:
-            raise ApiError(400, "فصلی انتخاب نشده")
+            raise ApiError(400, "قسمتی انتخاب نشده")
         done = {r["chapter_id"] for r in await self.db.fetchall(
             "SELECT chapter_id FROM shab_announces WHERE app_id = ?", (app["id"],))}
         rows = []
@@ -251,7 +251,7 @@ class ShabApi:
             if r:
                 rows.append(r)
         if not rows:
-            raise ApiError(400, "این فصل‌ها قبلاً اعلام شده‌اند یا منتشر نشده‌اند")
+            raise ApiError(400, "این قسمت‌ها قبلاً اعلام شده‌اند یا منتشر نشده‌اند")
         if app["id"] in _SENDING:
             raise ApiError(429, "اعلام قبلی هنوز در حال فرستادن است")
         to_channel = bool(body.get("channel")) and bool(app["channel_id"])
@@ -271,10 +271,10 @@ class ShabApi:
         try:
             first = rows[0]
             if len(rows) == 1:
-                text = f"📖 فصل تازه از «{_esc(first['story_title'])}»\n<b>{_esc(first['title'])}</b>"
+                text = f"📖 قسمت تازه از «{_esc(first['story_title'])}»\n<b>{_esc(first['title'])}</b>"
             else:
                 names = "\n".join(f"• {_esc(r['title'])} — «{_esc(r['story_title'])}»" for r in rows[:8])
-                text = f"📖 {len(rows)} فصل تازه\n{names}"
+                text = f"📖 {len(rows)} قسمت تازه\n{names}"
             page = config.page_url(app["slug"]) + "#read=" + first["chapter_id"]
             if to_channel:
                 # دکمهٔ web_app در کانال مجاز نیست؛ لینک به ربات، که در حالت کامل خودش مینی‌اپ را باز می‌کند

@@ -27,7 +27,7 @@ from app.config import config
 from app.webapp.api import ApiError, _rate_ok
 from app.webapp.auth import AuthError, WebAppUser, verify
 
-from . import teaser
+from . import teaser_lines
 
 log = logging.getLogger("easysaz.shab")
 
@@ -119,7 +119,7 @@ class ShabApi:
         user = self._reader(app, init_data, required=False)
         if user and await self.is_member(app, user.id, fresh=query.get("fresh") == "1"):
             return dict(base, body=row["body"], member=True)
-        return dict(base, locked=True, teaser=teaser(row["body"]), join_url=self._join_url(app, row),
+        return dict(base, locked=True, teaser=teaser_lines(row["body"]), join_url=self._join_url(app, row),
                     channel=app["channel_title"] or "", members_only=bool(app["channel_id"]))
 
     async def me(self, slug: str, init_data: str, query: dict) -> dict:

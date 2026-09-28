@@ -250,6 +250,15 @@ def test_blocks() -> None:
     ok(len(covers) == 2 and all(c.startswith(blocks.sample_prefix()) and blocks.clean_url(c, images=True) == c
                                 and os.path.isfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "app/webapp/static/samples", c.rsplit("/", 1)[1])) for c in covers),
        "جلد داستان‌های نمونه از static/samples می‌آید")
+    from app.kits import shab as shab_kit
+    body = "راوی **گفت**.\n\n@cmen001: سلام\n\n@cbongah: !img(https://x.test/a.jpg) عکس\n\n!img(https://x.test/b.jpg)"
+    ok(shab_kit.line("@cmen001: سلام") == ("cmen001", "سلام", "")
+       and shab_kit.line("@cbongah: !img(https://x.test/a.jpg) عکس") == ("cbongah", "عکس", "https://x.test/a.jpg")
+       and shab_kit.line("متن ساده") == ("", "متن ساده", "")
+       and shab_kit.words(body) == 4
+       and shab_kit.teaser_lines(body) == "راوی **گفت**.\n\n@cmen001: سلام"
+       and [x["w"] for x in shab_kit.lead(body)] == ["", "cmen001", "cbongah"] and shab_kit.lead(body)[2]["i"],
+       "خط‌های قسمت: گوینده، تصویر، شمارش کلمه و چند خط اول")
     ok(blocks.empty_page()["kit"] == "shab" and blocks.upgrade({"blocks": [{"type": "text"}]})["kit"] == "base",
        "مینی‌اپ تازه روی شب‌نوشت است؛ سند قدیمی روی قالب پایه می‌ماند")
     ok(set(blocks.CATALOG_ORDER) == set(blocks.SCHEMA) and all(b["cat"] in blocks.CATEGORIES for b in blocks.SCHEMA.values()), "هر کامپوننت دسته و جای کاتالوگ دارد")
@@ -361,9 +370,9 @@ def test_web() -> None:
     cut = dict(shab_tpl["doc"], pages=shab_tpl["doc"]["pages"][:2])
     st, res = jcall("POST", "/api/app/save", {"id": app_id, "doc": cut})
     ok(st == 200 and res["doc"]["kit"] == "shab" and res["doc"]["pages"][1]["blocks"][0]["type"] == "story",
-       "نسخهٔ رایگان قالب شب‌نوشت (دو صفحه) ذخیره می‌شود")
+       "قالب «قسمت» ذخیره می‌شود")
     st, _ = jcall("POST", "/api/app/save", {"id": app_id, "doc": shab_tpl["doc"]})
-    ok(st == 402, "قالب کامل (۴ صفحه) از سقف صفحه‌های پلن رایگان می‌گذرد")
+    ok(st == 200 and len(shab_tpl["doc"]["pages"]) == 2, "قالب کامل «قسمت» (دو صفحه) در پلن رایگان جا می‌شود")
     import copy
     drafty = copy.deepcopy(cut)
     drafty["pages"][1]["blocks"][0]["props"]["chapters"][0]["draft"] = True

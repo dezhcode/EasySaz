@@ -320,6 +320,12 @@ def test_web() -> None:
     r = call("GET", "/panel")
     ok(r["status"] == 200 and b"/easysaz/static/panel.js" in r["body"], "پنل با آدرس پایه درست")
     ok("Content-Security-Policy" in r["headers"], "هدر CSP")
+    from app.webapp import wsgi as wsgi_mod
+    ver = wsgi_mod.asset_version("panel.js")
+    ok(len(ver) == 10 and f"static/panel.js?v={ver}".encode() in r["body"] and b"?v=21" not in r["body"]
+       and call("GET", "/static/panel.js?v=" + ver)["headers"]["Cache-Control"].endswith("immutable")
+       and call("GET", "/static/panel.js")["headers"]["Cache-Control"] == "no-cache",
+       "نسخهٔ js/css از هش محتواست؛ بعد از هر به‌روزرسانی نسخهٔ قدیمی از حافظه نمی‌آید")
     ok(call("GET", "/static/render.js")["status"] == 200, "فایل ثابت")
     ok(call("GET", "/static/../../.env")["status"] == 404, "جلوگیری از خروج از پوشه static")
     ok(call("GET", "/static/fonts/peyda-400.woff2")["headers"]["Content-Type"] == "font/woff2", "فونت")

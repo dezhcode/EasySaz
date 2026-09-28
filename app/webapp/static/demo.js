@@ -58,6 +58,15 @@
       kit: (a.draft && a.draft.kit) || 'base',
     };
   }
+  /* آمار نمایشی (همان شکل db.app_stats): مینی‌اپی که محتوا دارد عددهای ثابت و
+     باورپذیر می‌گیرد، مینی‌اپ خالی صفر */
+  function stats(a) {
+    const has = ((a.draft && a.draft.pages) || []).some(p => (p.blocks || []).length);
+    if (!has) return { visitors: 0, views_today: 0, views_week: 0, views_prev_week: 0, people_week: 0, days: new Array(14).fill(0) };
+    const days = [21, 26, 23, 29, 27, 31, 30, 33, 29, 36, 34, 39, 37, 42];
+    const sum = xs => xs.reduce((x, y) => x + y, 0);
+    return { visitors: 1284, views_today: days[13], views_week: sum(days.slice(7)), views_prev_week: sum(days.slice(0, 7)), people_week: 128, days: days };
+  }
   function fail(status, message) {
     const e = new Error(message);
     e.status = status;
@@ -87,7 +96,13 @@
     const P = plan(d);
     const find = id => d.apps.find(a => String(a.id) === String(id));
     if (path === 'me') {
-      return Promise.resolve({ user: { id: 1, first_name: 'مهمان' }, plan: P, apps: d.apps.map(appJson), can_create: d.apps.length < P.max_apps, bot: 'EasySazBot', plans: PLAN_LIST });
+      return Promise.resolve({ user: { id: 1, first_name: 'مهمان' }, plan: P, plan_until: d.plan === 'free' ? null : now() + 23 * 86400,
+        apps: d.apps.map(a => Object.assign(appJson(a), { stats: stats(a) })), can_create: d.apps.length < P.max_apps, bot: 'EasySazBot', plans: PLAN_LIST });
+    }
+    if (path === 'previews') {
+      const docs = {};
+      d.apps.forEach(a => { docs[String(a.id)] = a.draft; });
+      return Promise.resolve({ docs: docs });
     }
     if (path === 'demo/plan') {
       d.plan = PLANS[body && body.key] ? body.key : 'free'; save(d);
@@ -103,7 +118,7 @@
     if (path.indexOf('app?id=') === 0) {
       const a = find(decodeURIComponent(path.split('=')[1]));
       if (!a) return fail(404, 'مینی‌اپ پیدا نشد');
-      return Promise.resolve({ app: appJson(a), doc: a.draft, stats: { visitors: 1284, views_today: 96, views_week: 702 }, plan: P });
+      return Promise.resolve({ app: appJson(a), doc: a.draft, stats: stats(a), plan: P });
     }
     if (path === 'app/create') {
       const name = String(body.name || '').trim();

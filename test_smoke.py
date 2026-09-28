@@ -407,6 +407,14 @@ def test_web() -> None:
     st, res = jcall("POST", "/api/app/save", {"id": app_id, "doc": img_doc})
     ok(res["doc"]["pages"][0]["blocks"][0]["props"]["src"] == up["url"], "تصویر آپلودشده در سند پذیرفته می‌شود")
 
+    st, pv = jcall("GET", "/api/previews")
+    ok(st == 200 and list(pv["docs"]) == [str(app_id)] and pv["docs"][str(app_id)]["pages"][0]["blocks"][0]["type"] == "image",
+       "پیش‌نمایش مینی‌اپ‌ها برای ویترین خانه")
+    st, pv = jcall("GET", "/api/previews", uid=8)
+    ok(st == 200 and pv["docs"] == {}, "پیش‌نمایش مینی‌اپ دیگران دیده نمی‌شود")
+    st, _ = jcall("GET", "/api/previews", uid=None)
+    ok(st == 401, "پیش‌نمایش بدون initData: ۴۰۱")
+
     st, res = jcall("POST", "/api/app/welcome", {"id": app_id, "text": "سلام <b>دوست</b>"})
     ok(st == 200 and res["app"]["welcome"] == "سلام &lt;b&gt;دوست&lt;/b&gt;", "پیام خوش‌آمد از پنل ذخیره و امن می‌شود")
     st, _ = jcall("POST", "/api/app/welcome", {"id": app_id, "text": "x"}, uid=8)
@@ -464,6 +472,11 @@ def test_bot() -> None:
     ok(res.get("ok") is True, "بازدید با initData ربات مشتری ثبت می شود")
     st, res = jcall("POST", f"/api/page/{slug}/view", uid=55, token=MAIN_TOKEN)
     ok(res.get("ok") is False, "بازدید جعلی (امضای ربات دیگر) ثبت نمی شود")
+    st, me = jcall("GET", "/api/me")
+    stt = next(a for a in me["apps"] if a["id"] == app_id)["stats"]
+    ok(len(stt["days"]) == 14 and stt["days"][-1] == stt["views_today"] >= 1 and stt["views_week"] >= 1
+       and stt["people_week"] == 1 and stt["views_prev_week"] == 0 and me["plan_until"] is None,
+       "خانهٔ پنل: آمار هر مینی‌اپ (آدم‌های این هفته و نمودار ۱۴ روزه)")
 
     test_shab(slug, app_id)
 
@@ -499,6 +512,9 @@ def test_shab(slug: str, app_id: int) -> None:
     st, page = jcall("GET", f"/api/page/{slug}", uid=None)
     pchs = page["doc"]["pages"][1]["blocks"][0]["props"]["chapters"]
     ok(all("body" not in c and c["words"] > 0 for c in pchs), "صفحهٔ عمومی متن فصل‌ها را ندارد، فقط تعداد کلمه")
+    st, pv = jcall("GET", "/api/previews")
+    vchs = pv["docs"][str(app_id)]["pages"][1]["blocks"][0]["props"]["chapters"]
+    ok(st == 200 and all("body" not in c and c["lead"] for c in vchs), "پیش‌نمایش خانه سبک است: بدون متن کامل قسمت‌ها")
     st, ch = jcall("GET", f"/api/page/{slug}/chapter?id={free_id}", uid=None)
     ok(st == 200 and "کلید" in ch["title"] and len(ch["body"]) > 50, "متن فصل آزاد جدا گرفته می‌شود")
     st, ch = jcall("GET", f"/api/page/{slug}/chapter?id={locked_id}", uid=None)

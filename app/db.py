@@ -353,21 +353,27 @@ class Database:
             )
 
     async def app_stats(self, app_id: int) -> dict:
+        """آمار پنل: کل بازدیدکننده‌ها، بازدید ۱۴ روز اخیر (برای نمودار) و آدم‌های این هفته."""
+        t = now()
         users = await self.fetchone(
             "SELECT COUNT(*) AS n FROM visitors WHERE app_id = ?", (app_id,)
         )
-        day = await self.fetchone(
-            "SELECT views FROM views_daily WHERE app_id = ? AND day = ?", (app_id, today())
+        people = await self.fetchone(
+            "SELECT COUNT(*) AS n FROM visitors WHERE app_id = ? AND last_seen >= ?", (app_id, t - 7 * 86400)
         )
-        week_start = time.strftime("%Y-%m-%d", time.gmtime(now() - 6 * 86400))
-        week = await self.fetchone(
-            "SELECT COALESCE(SUM(views), 0) AS n FROM views_daily WHERE app_id = ? AND day >= ?",
-            (app_id, week_start),
+        day = lambda k: time.strftime("%Y-%m-%d", time.gmtime(t - k * 86400))  # noqa: E731
+        rows = await self.fetchall(
+            "SELECT day, views FROM views_daily WHERE app_id = ? AND day >= ?", (app_id, day(13))
         )
+        by_day = {r["day"]: int(r["views"]) for r in rows}
+        days = [by_day.get(day(k), 0) for k in range(13, -1, -1)]  # قدیمی ← امروز
         return {
             "visitors": int(users["n"]) if users else 0,
-            "views_today": int(day["views"]) if day else 0,
-            "views_week": int(week["n"]) if week else 0,
+            "views_today": days[-1],
+            "views_week": sum(days[7:]),
+            "views_prev_week": sum(days[:7]),
+            "people_week": int(people["n"]) if people else 0,
+            "days": days,
         }
 
     async def global_stats(self) -> dict:

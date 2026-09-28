@@ -80,6 +80,9 @@
     moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
     minus: 'M6 12h12',
     hand: 'M9 11V5a2 2 0 0 1 4 0v5M13 10a2 2 0 0 1 4 0v1M17 11a2 2 0 0 1 4 0v3a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.4L5 14a2 2 0 0 1 3.3-2.2L9 13',
+    users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21c.8-3.5 3.6-6 7-6s6.2 2.5 7 6M16 3.5a4 4 0 0 1 0 7.5M18 15c2 .8 3.4 2.9 4 6',
+    crown: 'M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z',
+    help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 0 1 5 .5c0 1.7-2.5 2-2.5 3.5M12 17v.01',
   });
   function ico(name, cls) {
     const s = document.createElementNS(SVG_NS, 'svg');
@@ -549,6 +552,7 @@
 
   async function openApp(id, quiet) {
     const res = await api('app?id=' + encodeURIComponent(id));
+    if (S.app && S.doc && S.previews) S.previews[S.app.id] = S.doc;
     S.app = res.app;
     S.doc = ensureIds(ES.normalize(res.doc));
     resetHistory();
@@ -600,9 +604,6 @@
     if (ss) { ss.querySelector('span').textContent = save || pub; ss.className = st.className; }
     const sp = $('st-publish');
     if (sp) sp.classList.toggle('dirty', !!S.app.dirty || !live);
-    const ds = $('ad-status');
-    if (ds) { ds.querySelector('span').textContent = save || pub; ds.className = st.className; }
-    $('ad-publish').classList.toggle('dirty', !!S.app.dirty || !live);
     document.querySelectorAll('.saved').forEach(drawSaved);
     renderDock();
   }
@@ -2413,6 +2414,8 @@
       if (!S.doc.pages.find(p => p.id === S.pageId)) S.pageId = S.doc.pages[0].id;
       setSave('');
       renderAll();
+      syncAppInList();
+      if (S.screen === 'app') renderApp();
       notify('success');
       S.shabStats = null;
       publishedSheet(res.kit || {});
@@ -2912,7 +2915,11 @@
     });
   }
 
-  /* ===================== خانه ===================== */
+  /* ===================== خانه: ویترین =====================
+     هر مینی‌اپ یک گوشی واقعی روی صحنه: همان صفحهٔ اولی که خواننده می‌بیند (از
+     پیش‌نویس، با نوار تلگرام بالایش). بین مینی‌اپ‌ها ورق می‌زنی؛ آخر ردیف گوشی
+     خالی «تازه» است. زیر گوشی وسط: اسم، روشن/خاموش، آدم‌های این هفته و فقط
+     یک کار اصلی (به رنگ خود مینی‌اپ) + «مدیریت». */
   function appStatus(a) {
     if (a.status === 'paused') return ['خاموش', 'off'];
     if (!a.published_at) return ['پیش‌نویس', 'warn'];
@@ -2924,205 +2931,729 @@
     p.append(h('i'), document.createTextNode(t));
     return p;
   }
-  function appCard(a) {
-    const current = S.app && String(a.id) === String(S.app.id);
-    if (current) a = S.app;
-    const entry = storeOfKit(current ? S.doc.kit : a.kit);
-    const card = tint(h('article', 'acard'), entry);
-    const band = h('div', 'acard-band');
-    band.append(h('i', 'o1'), h('i', 'o2'), statusPill(a));
-    const body = h('div', 'acard-b');
-    const t = h('div', 'acard-t');
-    const sub = entry ? entry.title : 'قالب پایه';
-    const extra = current && S.doc.kit === 'shab'
-      ? (() => { const l = storyList(); return ` · ${faN(l.length)} داستان · ${faN(l.reduce((n, x) => n + chaps(x.block).length, 0))} قسمت`; })()
-      : (a.bot_username ? ' · @' + a.bot_username : '');
-    t.append(h('b', '', a.name), h('span', '', sub + extra));
-    body.append(tq(entry, 'lg halo'), t);
-    const row = h('div', 'acard-row');
-    if (current) {
-      [[fmt(S.stats && S.stats.visitors), 'بازدیدکننده'], [`${faN(totalBlocks())}/${faN(S.plan.max_blocks)}`, 'کامپوننت']].forEach(([n, l]) => {
-        const k = h('span', 'kpi');
-        k.append(h('b', 'n', n), h('span', '', l));
-        row.appendChild(k);
-      });
-    } else {
-      row.appendChild(h('span', 'acard-note grow', 'برای آمار و ویرایش بازش کن'));
+  const isCur = a => !!(a && S.app && String(a.id) === String(S.app.id));
+  /* مینی‌اپ a را مینی‌اپ فعلی پنل کن (پیش‌نویس فعلی اول ذخیره می‌شود) */
+  async function use(a) {
+    if (isCur(a)) return;
+    await saveNow();
+    await openApp(a.id, true);
+  }
+  function brandColor() { return getComputedStyle(document.documentElement).getPropertyValue('--brand').trim() || '#4B2EE8'; }
+  const accentOf = doc => (/^#[0-9a-f]{6}$/i.test((doc && doc.theme && doc.theme.accent) || '') ? doc.theme.accent : brandColor());
+  function onColor(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const lum = (0.2126 * (n >> 16 & 255) + 0.7152 * (n >> 8 & 255) + 0.0722 * (n & 255)) / 255;
+    return lum > 0.62 ? '#17142B' : '#FFFFFF';
+  }
+
+  /* پیش‌نمایش مینی‌اپ‌های دیگر (سبک، از /api/previews)؛ مینی‌اپ فعلی همیشه S.doc است */
+  S.previews = {};
+  let previewsAt = 0;
+  function loadPreviews(done) {
+    if (Date.now() - previewsAt < 60000) return;
+    previewsAt = Date.now();
+    api('previews').then(res => {
+      Object.keys(res.docs || {}).forEach(id => { if (!S.app || String(S.app.id) !== id) S.previews[id] = ES.normalize(res.docs[id]); });
+      done();
+    }).catch(() => { previewsAt = 0; });
+  }
+  const previewOf = a => (isCur(a) ? S.doc : S.previews[a.id] || null);
+  const isEmptyDoc = doc => !!doc && doc.kit !== 'shab' && !doc.pages.some(p => p.blocks.length);
+
+  /* گوشی با صفحهٔ واقعی مینی‌اپ (۳۹۰ پیکسل، کوچک‌شده). w: پهنای کل گوشی */
+  function phoneBox(w) {
+    const bez = w > 150 ? 6 : 5;
+    const s = (w - 2 * bez) / 390;
+    const ph = h('div', 'vph');
+    ph.style.setProperty('--w', w + 'px');
+    ph.style.setProperty('--bz', bez + 'px');
+    ph.style.height = Math.round(844 * s) + 2 * bez + 'px';
+    const scr = h('div', 'vph-s');
+    const inner = h('div', 'vph-in');
+    inner.style.transform = `scale(${s.toFixed(4)})`;
+    scr.appendChild(inner);
+    ph.append(scr, h('i', 'vph-isl'));
+    ph.setAttribute('aria-hidden', 'true');
+    return { el: ph, scr, inner };
+  }
+  /* نوار ساعت و سربرگ تلگرام بالای مینی‌اپ (همان رنگ صفحه) */
+  function tgChrome(name, bg, ink) {
+    const c = h('div', 'vph-chrome');
+    c.style.background = bg;
+    c.style.color = ink;
+    const sb = h('div', 'vph-sb');
+    sb.append(h('b', '', '۹:۴۱'), h('i', 'vph-bat'));
+    const bar = h('div', 'vph-tg');
+    bar.append(h('span', 'vph-x', 'بستن'), h('b', 'grow', name), ico('more'));
+    c.append(sb, bar);
+    return c;
+  }
+  function drawPhone(box, a) {
+    const { scr, inner } = box;
+    inner.textContent = '';
+    const doc = previewOf(a);
+    scr.classList.toggle('loading', !doc);
+    if (!doc) return;
+    if (isEmptyDoc(doc)) {
+      scr.style.background = '#FFFFFF';
+      const e = h('div', 'vph-empty');
+      const ic = h('span', 'vph-empty-ic');
+      ic.appendChild(ico('layers'));
+      e.append(ic, h('b', '', 'هنوز قالب ندارد'), h('span', '', 'یک قالب انتخاب کن'));
+      inner.append(tgChrome(a.name, '#FFFFFF', '#17142B'), e);
+      return;
     }
-    const open = h('button', 'btn btn-p acard-go');
-    open.type = 'button';
-    open.append(document.createTextNode('باز کن'), ico('arrow'));
-    open.addEventListener('click', async () => { haptic(); try { await openDash(a.id); } catch (err) { failed(err); } });
-    row.appendChild(open);
-    body.appendChild(row);
-    card.append(band, body);
-    return card;
+    const host = h('div', 'vph-page');
+    inner.appendChild(host);
+    ES.render(host, doc, { page: doc.pages[0].id, appName: a.name, editing: true });
+    const r = host.firstElementChild;
+    const cs = r ? getComputedStyle(r) : null;
+    const bg = cs ? cs.backgroundColor : '#FFFFFF';
+    scr.style.background = bg;
+    inner.insertBefore(tgChrome(a.name, bg, cs ? cs.color : '#17142B'), host);
   }
-  /* قدم بعد برای مینی‌اپ فعلی: ساختن ← محتوا ← ربات ← انتشار */
-  function nextSteps() {
-    const shab = S.doc.kit === 'shab';
-    return [
-      ['ساختن مینی‌اپ', true],
-      [shab ? 'داستان اول' : 'چیدن صفحه‌ها', shab ? storyList().some(x => !isSample(x.block)) : totalBlocks() > 0,
-        shab ? 'اسم، جلد و اولین قسمت' : 'چند کامپوننت روی صفحه بگذار', shab ? 'نوشتن' : 'ویرایش', () => (shab ? (showStories(), newStorySheet()) : openEditor())],
-      ['اتصال ربات', !!S.app.bot_username, `توکن را در @${S.me.bot || 'EasySazBot'} بفرست`, 'اتصال', () => openBot('connect')],
-      ['انتشار', !!S.app.published_at && !S.app.dirty, 'تا کاربرها نسخهٔ تازه را ببینند', 'انتشار', () => publishSheet()],
-    ];
+
+  function vtBtn(icon, label, kind, fn, color) {
+    const b = h('button', 'vt-btn ' + kind);
+    b.type = 'button';
+    if (color) { b.style.setProperty('--ac', color); b.style.setProperty('--on-ac', onColor(color)); }
+    b.setAttribute('aria-label', label);
+    b.append(ico(icon), h('span', 'vt-l', label));
+    b.addEventListener('click', async () => {
+      haptic();
+      b.disabled = true;
+      try { await fn(); } catch (err) { failed(err); } finally { b.disabled = false; }
+    });
+    return b;
   }
-  function nextCard() {
-    const steps = nextSteps();
-    const done = steps.filter(x => x[1]).length;
-    const next = steps.find(x => !x[1]);
-    const card = h('div', 'next mx');
-    const ring = h('span', 'ring');
-    ring.style.setProperty('--p', Math.round(done / steps.length * 100));
-    ring.appendChild(h('b', '', `${faN(done)}/${faN(steps.length)}`));
-    const tx = h('span', 'grow');
-    if (next) tx.append(h('b', '', 'قدم بعد: ' + next[0]), h('span', '', next[2]));
-    else tx.append(h('b', '', 'همه‌چیز آماده است'), h('span', '', 'لینک مینی‌اپ را برای کاربرهایت بفرست'));
-    const go = h('button', 'btn btn-d btn-sm');
-    go.type = 'button';
-    go.textContent = next ? next[3] : 'کپی لینک';
-    go.addEventListener('click', () => { haptic(); if (next) next[4](); else copyText(S.app.url); });
-    card.append(ring, tx, go);
-    return card;
+  /* داستان‌های خود کاربر (نه نمونه‌های قالب) */
+  const ownStories = () => storyList().filter(({ block }) => !isSample(block));
+  /* پیش‌نمایش‌های سبک متن قسمت ندارند؛ نمونه‌ها را از اسم و تعداد قسمت می‌شناسیم */
+  function ownStoryCount(doc) {
+    const t = shabTemplate();
+    const samples = {};
+    if (t) t.doc.pages.forEach(p => p.blocks.forEach(b => { if (b.type === 'story') samples[b.props.title] = (b.props.chapters || []).length; }));
+    let n = 0;
+    doc.pages.forEach(p => p.blocks.forEach(b => {
+      if (b.type === 'story' && samples[b.props.title] !== (b.props.chapters || []).length) n++;
+    }));
+    return n;
   }
+  /* کار اصلی هر مینی‌اپ، بسته به حالش: [آیکن، متن، کار، رنگ] */
+  function mainAction(a) {
+    const doc = previewOf(a);
+    const kit = doc ? doc.kit : a.kit;
+    if (a.status === 'paused') return ['power', 'روشن کن', async () => { await use(a); if (await setActive(true)) renderHome(); }, 'var(--success)'];
+    if (isEmptyDoc(doc) || (!doc && kit !== 'shab')) return ['grid', 'انتخاب قالب', async () => { await use(a); tab('store'); }, brandColor()];
+    const ac = accentOf(doc);
+    if (kit === 'shab') {
+      const own = isCur(a) ? ownStories().length : (doc ? ownStoryCount(doc) : 1);
+      if (!own) return ['plus', 'اولین داستانت را بنویس', async () => { await use(a); showStories(); newStorySheet(); }, ac];
+      return ['pencil', 'قسمت تازه بنویس', async () => { await use(a); showStories(); newEpisode(); }, ac];
+    }
+    return ['pencil', 'ویرایش صفحه‌ها', async () => { await use(a); openEditor(); }, ac];
+  }
+  function stateChip(a) {
+    const [t, c] = a.status === 'paused' ? ['خاموش', 'off'] : !a.published_at ? ['منتشر نشده', 'warn'] : ['روشن', 'live'];
+    const p = h('span', 'vt-chip ' + c);
+    p.append(h('i'), document.createTextNode(t));
+    return p;
+  }
+  function weekLine(a, st) {
+    if (a.status === 'paused') return 'خواننده‌ها «فعلاً بسته است» می‌بینند';
+    if (!a.published_at) return 'هنوز کسی آن را ندیده';
+    const n = (st && st.people_week) || 0;
+    return n ? `${faN(n)} نفر این هفته` : 'این هفته هنوز کسی سر نزده';
+  }
+
   function renderHome() {
     const first = (S.me.user && S.me.user.first_name) || '';
     $('hello-s').textContent = first ? `سلام ${first}` : 'سلام';
     $('home-av').textContent = (first || 'م').trim().charAt(0);
-    const doms = $('home-doms');
-    doms.textContent = '';
-    domainList().forEach(d => {
-      const e = storeList().find(x => x.domain === d.id);
-      if (!e) return;
-      const b = h('button', 'dom');
-      b.type = 'button';
-      b.append(tq(e, 'soft round'), h('span', '', d.title));
-      b.addEventListener('click', () => { haptic(); S.storeCat = d.id; tab('store'); });
-      doms.appendChild(b);
+    const vh = (tg && tg.viewportStableHeight) || window.innerHeight || 720;
+    const phH = Math.max(260, Math.min(440, vh - 400));
+    const w = Math.round((phH - 12) * 390 / 844) + 12;
+    const rail = $('vt-rail');
+    rail.style.setProperty('--pw', w + 'px');
+    rail.textContent = '';
+    const slides = S.me.apps.map(a => ({ app: a })).concat([{ ghost: true }]);
+    S.vt = { slides, idx: -1 };
+    slides.forEach((sl, i) => {
+      const el = h('button', 'vt-slide');
+      el.type = 'button';
+      if (sl.ghost) {
+        const full = S.me.apps.length >= S.me.plan.max_apps;
+        el.classList.add('ghost');
+        el.setAttribute('aria-label', 'مینی‌اپ تازه');
+        const g = h('div', 'vt-ghost');
+        g.style.height = Math.round(844 * (w - 12) / 390) + 12 + 'px';
+        const plus = h('span', 'vt-ghost-p');
+        plus.appendChild(ico(full ? 'lock' : 'plus'));
+        g.append(plus, h('b', '', 'تازه'));
+        el.appendChild(g);
+      } else {
+        el.setAttribute('aria-label', sl.app.name);
+        sl.box = phoneBox(w);
+        drawPhone(sl.box, sl.app);
+        el.appendChild(sl.box.el);
+      }
+      el.addEventListener('click', () => {
+        if (S.vt.idx !== i) { select(); centerSlide(i, true); return; }
+        haptic();
+        if (sl.ghost) newApp();
+        else use(sl.app).then(showApp).catch(failed);
+      });
+      sl.el = el;
+      rail.appendChild(el);
     });
-    $('home-apps-e').textContent = `${faN(S.me.apps.length)} از ${faN(S.me.plan.max_apps)}`;
-    const box = $('home-apps');
-    box.textContent = '';
-    S.me.apps.forEach(a => box.appendChild(appCard(a)));
-    if (S.me.apps.length < S.me.plan.max_apps) {
-      const add = h('button', 'addapp');
-      add.type = 'button';
-      const plus = h('span', 'tq soft-brand');
-      plus.appendChild(ico('plus'));
-      const tx = h('span', 'grow');
-      tx.append(h('b', '', 'مینی‌اپ تازه'), h('span', '', `از بین ${faN(storeList().filter(e => e.status === 'ready').length)} قالب آماده`));
-      add.append(plus, tx, ico('arrow', 'chev'));
-      add.addEventListener('click', () => { haptic(); newApp(); });
-      box.appendChild(add);
+    const dots = $('vt-dots');
+    dots.textContent = '';
+    slides.forEach(() => dots.appendChild(h('i')));
+    dots.hidden = slides.length < 2;
+    rail.onscroll = () => {
+      if (S.vtRaf) return;
+      S.vtRaf = requestAnimationFrame(() => { S.vtRaf = 0; setVt(nearestSlide()); });
+    };
+    const start = Math.max(0, S.me.apps.findIndex(isCur));
+    requestAnimationFrame(() => { centerSlide(start, false); setVt(start); });
+    if (S.me.apps.some(a => !isCur(a) && !S.previews[a.id])) {
+      loadPreviews(() => {
+        if (S.screen !== 'home' || !S.vt) return;
+        S.vt.slides.forEach(sl => { if (sl.box && !isCur(sl.app)) drawPhone(sl.box, sl.app); });
+        if (S.vt.idx >= 0) renderVtInfo(S.vt.idx);
+      });
     }
-    const nx = $('home-next');
-    nx.textContent = '';
-    if (S.app) nx.appendChild(nextCard());
+  }
+  function centerSlide(i, smooth) {
+    const rail = $('vt-rail');
+    const sl = S.vt.slides[i];
+    if (!sl) return;
+    const a = sl.el.getBoundingClientRect(), r = rail.getBoundingClientRect();
+    const d = Math.round((a.left + a.width / 2) - (r.left + r.width / 2));
+    // با scroll-snap حتی یک حرکت ریز (مثلاً ۰٫۰۰۰۰۱) به نقطهٔ بعدی می‌پرد
+    if (Math.abs(d) >= 2) rail.scrollBy({ left: d, behavior: smooth ? 'smooth' : 'auto' });
+  }
+  function nearestSlide() {
+    const r = $('vt-rail').getBoundingClientRect();
+    const mid = r.left + r.width / 2;
+    let best = 0, bd = Infinity;
+    S.vt.slides.forEach((sl, i) => {
+      const b = sl.el.getBoundingClientRect();
+      const d = Math.abs(b.left + b.width / 2 - mid);
+      if (d < bd) { bd = d; best = i; }
+    });
+    return best;
+  }
+  function setVt(i) {
+    if (!S.vt || i === S.vt.idx) return;
+    S.vt.idx = i;
+    S.vt.slides.forEach((sl, k) => sl.el.classList.toggle('on', k === i));
+    Array.from($('vt-dots').children).forEach((d, k) => d.classList.toggle('on', k === i));
+    renderVtInfo(i);
+  }
+  function renderVtInfo(i) {
+    const sl = S.vt.slides[i];
+    const box = $('vt-info');
+    box.textContent = '';
+    const meta = h('div', 'vt-meta');
+    const acts = h('div', 'vt-acts');
+    if (sl.ghost) {
+      const left = S.me.plan.max_apps - S.me.apps.length;
+      $('vt-glow').style.setProperty('--gc', brandColor());
+      meta.appendChild(h('span', '', left > 0 ? `${faN(left)} جای خالی داری · اسم، رنگ و قالب` : `پلن ${S.me.plan.title} فقط ${faN(S.me.plan.max_apps)} مینی‌اپ دارد`));
+      acts.appendChild(vtBtn(left > 0 ? 'plus' : 'star', left > 0 ? 'ساختن مینی‌اپ تازه' : 'جای بیشتر', 'main', () => newApp(), brandColor()));
+      box.append(h('b', 'vt-name', 'مینی‌اپ تازه'), meta, acts);
+      return;
+    }
+    const a = isCur(sl.app) ? S.app : sl.app;
+    const st = isCur(sl.app) ? S.stats : sl.app.stats;
+    $('vt-glow').style.setProperty('--gc', accentOf(previewOf(a)));
+    meta.append(stateChip(a), h('span', '', weekLine(a, st)));
+    const [icon, label, fn, color] = mainAction(a);
+    acts.append(vtBtn(icon, label, 'main', fn, color), vtBtn('settings', 'مدیریت', 'sec', async () => { await use(a); showApp(); }));
+    box.append(h('b', 'vt-name', a.name), meta, acts);
   }
 
-  /* ===================== داشبورد مینی‌اپ ===================== */
+  /* «قسمت تازه»: اگر یک داستان خودت داری همان؛ اگر چند تا، اول می‌پرسد کدام؛
+     اگر هنوز فقط نمونه‌ها هست، «داستان تازه». */
+  function newEpisode() {
+    const own = ownStories();
+    if (!own.length) { newStorySheet(); return; }
+    if (own.length === 1) { addChapter(own[0].block.id); return; }
+    openSheet(sh => {
+      sheetHead(sh, 'story', 'pencil', 'قسمت تازه برای کدام داستان؟', 'قسمت به آخر همان داستان اضافه می‌شود');
+      const list = h('div', 'mk-list');
+      own.slice().reverse().forEach(({ block }) => {
+        const n = chaps(block).length;
+        list.appendChild(mkOpt(coverMini(block.props, 'xs'), block.props.title || 'داستان', `قسمت ${faN(n + 1)}`, () => { closeSheet(); addChapter(block.id); }));
+      });
+      sh.appendChild(list);
+    });
+  }
+
+  /* ===================== داشبورد مینی‌اپ: کاشی‌ها (بنتو) =====================
+     پیش‌نمایش زنده، کلید بزرگ روشن/خاموش، لینک با QR، آخرین قسمت، آمار هفته و
+     سه کاشی کوچک (ربات، پیام خوش‌آمد، قالب). «انتشار» فقط وقتی لازم است. */
+  function tile(cls, tag) {
+    const t = h(tag || 'div', 'tile ' + (cls || ''));
+    if (tag === 'button') t.type = 'button';
+    return t;
+  }
+  function tLbl(icon, text) {
+    const l = h('span', 't-lbl');
+    l.append(ico(icon), document.createTextNode(text));
+    return l;
+  }
+  function tBtn(icon, label, cls, fn) {
+    const b = h('button', 't-btn ' + (cls || ''));
+    b.type = 'button';
+    if (icon) b.appendChild(ico(icon));
+    b.appendChild(document.createTextNode(label));
+    b.addEventListener('click', e => { e.stopPropagation(); haptic(); fn(); });
+    return b;
+  }
+  function bdiAt(user) {
+    const b = h('bdi', '', '@' + user);
+    b.dir = 'ltr';
+    return b;
+  }
+  /* نمودار خطی کوچک؛ راست‌به‌چپ: روز قدیمی سمت راست، امروز سمت چپ */
+  let sparkN = 0;
+  function sparkSvg(vals, w, hh, color) {
+    const v = vals && vals.length > 1 ? vals : [0, 0];
+    const mx = Math.max.apply(null, v), mn = Math.min.apply(null, v), pad = 5;
+    const pts = v.map((x, i) => [w - pad - i * (w - 2 * pad) / (v.length - 1), mx === mn ? hh - pad - 2 : pad + (1 - (x - mn) / (mx - mn)) * (hh - 2 * pad)]);
+    let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+    for (let i = 1; i < pts.length; i++) {
+      const p0 = pts[Math.max(0, i - 2)], p1 = pts[i - 1], p2 = pts[i], p3 = pts[Math.min(pts.length - 1, i + 1)];
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d += ` C${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${c2[0].toFixed(1)} ${c2[1].toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+    }
+    const id = 'spk' + (++sparkN);
+    const last = pts[pts.length - 1];
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${w} ${hh}`);
+    svg.setAttribute('width', w);
+    svg.setAttribute('height', hh);
+    svg.setAttribute('class', 'spark');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".22"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>`
+      + `<path d="${d} L${last[0].toFixed(1)} ${hh} L${pts[0][0].toFixed(1)} ${hh} Z" fill="url(#${id})"/>`
+      + `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"/>`
+      + `<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="4.5" fill="${color}" stroke="#fff" stroke-width="2.5"/>`;
+    return svg;
+  }
+  /* تغییر بازدید این هفته نسبت به هفتهٔ قبل */
+  function weekChange(st) {
+    const a = (st && st.views_week) || 0, b = (st && st.views_prev_week) || 0;
+    if (!a && !b) return null;
+    const c = h('span', 't-chg');
+    if (!b) { c.textContent = 'هفتهٔ اول'; return c; }
+    const pct = Math.round((a - b) / b * 100);
+    c.classList.add(pct >= 0 ? 'up' : 'down');
+    c.append(ico(pct >= 0 ? 'up' : 'down'), document.createTextNode(`${faN(Math.abs(pct))}٪`));
+    return c;
+  }
+  /* آخرین قسمتِ آخرین داستان (اول داستان‌های خودت، اگر نبود نمونه‌ها) */
+  function lastEpisode() {
+    const own = ownStories();
+    const pool = own.length ? own : storyList();
+    for (let k = pool.length - 1; k >= 0; k--) {
+      const b = pool[k].block, l = chaps(b);
+      if (l.length) return { b, ch: l[l.length - 1], n: l.length, own: own.length > 0 };
+    }
+    return null;
+  }
+
   function renderApp() {
     if (S.screen !== 'app' || !S.doc) return;
     const entry = storeOfKit(S.doc.kit);
-    const top = $('ad-top');
-    top.style.removeProperty('--tc');
-    top.style.removeProperty('--tt');
-    tint(top, entry);
-    $('ad-icon').replaceWith(Object.assign(tq(entry, 'xl'), { id: 'ad-icon' }));
-    $('ad-name').textContent = S.app.name;
-    renderBar();
-    const body = $('ad-body');
-    body.textContent = '';
-
-    if (S.app.status === 'paused') body.appendChild(pausedBanner());
-
-    const kpis = h('div', 'kpis mx');
-    [['brand', fmt(S.stats && S.stats.visitors), 'بازدیدکننده'],
-     ['act', `${faN(S.doc.pages.length)}/${faN(S.plan.max_pages)}`, 'صفحه'],
-     ['media', `${faN(totalBlocks())}/${faN(S.plan.max_blocks)}`, 'کامپوننت']].forEach(([c, n, l]) => {
-      const k = h('div', 'kpi-t ' + c);
-      k.append(h('b', 'n', n), h('span', '', l));
-      kpis.appendChild(k);
-    });
-    body.appendChild(kpis);
-
-    // قالب‌های نصب‌شده
-    const tg1 = h('div', 'card mx dcard');
-    const th = h('div', 'dcard-h');
-    const addT = h('button', 'link-btn');
-    addT.type = 'button';
-    addT.append(ico('plus'), document.createTextNode('قالب‌ها'));
-    addT.addEventListener('click', () => { haptic(); tab('store'); });
-    th.append(h('b', '', 'قالب نصب‌شده'), addT);
-    tg1.appendChild(th);
-    const tr = h('div', 'drow');
-    const ttx = h('span', 'grow');
-    const noKit = S.doc.kit !== 'shab' && !totalBlocks();
-    let manage;
-    if (noKit) {
-      ttx.append(h('b', '', 'هنوز قالبی نصب نیست'), h('span', '', 'یک قالب انتخاب کن تا مینی‌اپ جان بگیرد'));
-      manage = () => tab('store');
-    } else if (entry && S.doc.kit === 'shab') {
-      const l = storyList();
-      const all = l.reduce((a, x) => a.concat(chaps(x.block)), []);
-      ttx.append(h('b', '', entry.title), h('span', '', `${faN(l.length)} داستان · ${faN(all.length)} قسمت`
-        + (S.app.status === 'paused' ? ' · خاموش' : '')));
-      manage = () => showStories();
-    } else {
-      ttx.append(h('b', '', entry ? entry.title : 'قالب پایه'), h('span', '', 'صفحه‌ها و کامپوننت‌ها'));
-      manage = () => openEditor();
-    }
-    const mg = h('button', 'btn btn-sm ' + (noKit ? 'btn-p' : 'btn-s'), noKit ? 'انتخاب قالب' : 'مدیریت');
-    mg.type = 'button';
-    mg.addEventListener('click', () => { haptic(); manage(); });
-    tr.append(tq(entry), ttx, mg);
-    if (!noKit) {
-      const more = h('button', 'btn btn-s btn-sm sq tpl-more');
-      more.type = 'button';
-      more.setAttribute('aria-label', 'روشن، خاموش یا حذف قالب');
-      more.appendChild(ico('more'));
-      more.addEventListener('click', () => { haptic(); templateSheet(); });
-      tr.appendChild(more);
-    }
-    tg1.appendChild(tr);
-    body.appendChild(tg1);
-
-    // صفحه‌ها
-    const pc = h('div', 'card mx dcard');
-    const ph = h('div', 'dcard-h');
-    ph.append(h('b', '', 'صفحه‌ها'), h('span', 'caption', `${faN(S.doc.pages.length)} از ${faN(S.plan.max_pages)} · ${faN(totalBlocks())} از ${faN(S.plan.max_blocks)} کامپوننت`));
-    pc.appendChild(ph);
-    S.doc.pages.forEach((p, i) => {
-      const r = h('button', 'drow');
-      r.type = 'button';
-      const th2 = h('span', 'pthumb');
-      th2.append(h('i'), h('i'), h('i'));
-      const tx = h('span', 'grow');
-      tx.append(h('b', '', p.title), h('span', '', `${faN(p.blocks.length)} بخش` + (i === 0 ? ' · صفحهٔ اول' : '')));
-      r.append(th2, tx, ico('arrow', 'chev'));
-      r.addEventListener('click', () => { haptic(); S.pageId = p.id; openEditor(); });
-      pc.appendChild(r);
-    });
-    body.appendChild(pc);
-
-    // اتصال و تنظیمات
-    const sec = h('div', 'sec');
-    sec.append(h('span', 'sec-t', 'اتصال و تنظیمات'));
-    body.appendChild(sec);
-    const conn = h('div', 'group');
+    const shab = S.doc.kit === 'shab';
+    const noKit = !shab && !totalBlocks();
     const connected = !!S.app.bot_username;
-    const copy = h('button', 'btn btn-s btn-sm', 'کپی');
-    copy.addEventListener('click', () => copyText(S.app.url));
-    conn.appendChild(grow('brand', 'link', 'لینک مینی‌اپ', h('span', 'row-s ltr', S.app.url.replace(/^https?:\/\//, '')), copy));
-    conn.appendChild(grow(connected ? 'act' : '', 'bot', connected ? '@' + S.app.bot_username : 'ربات وصل نیست',
-      connected ? (S.app.mode === 'full' ? 'کنترل کامل · /start هم جواب می‌ده' : 'دکمهٔ منو · مینی‌اپ روی ربات فعال است') : 'توکن رباتت رو در ایزی‌ساز بفرست',
-      null, () => openBot(connected ? 'myapp' : 'connect')));
+    const on = S.app.status !== 'paused';
+    const live = !!S.app.published_at;
+    $('ad-name').textContent = S.app.name;
+    const sub = $('ad-sub');
+    sub.textContent = noKit ? 'هنوز قالب ندارد' : `قالب «${entry ? entry.title : 'پایه'}»`;
+    if (connected) sub.append(' · ', bdiAt(S.app.bot_username));
+    renderBar();
+    const g = $('ad-body');
+    g.textContent = '';
+
+    // انتشار: فقط وقتی چیزی منتشرنشده هست
+    if (!noKit && (!live || S.app.dirty)) {
+      const t = tile('wide t-pub');
+      const ic = h('span', 't-ic');
+      ic.appendChild(ico('send'));
+      const tx = h('span', 't-tx grow');
+      tx.append(h('b', '', live ? 'تغییرهایت هنوز منتشر نشده' : 'هنوز منتشر نشده'),
+        h('span', '', live ? 'خواننده‌ها هنوز نسخهٔ قبلی را می‌بینند' : 'تا منتشر نکنی، خواننده‌ها چیزی نمی‌بینند'));
+      t.append(ic, tx, tBtn('', 'انتشار', 'main', publishSheet));
+      g.appendChild(t);
+    }
+    // بدون قالب: انتخاب قالب کار اصلی است
+    if (noKit) {
+      const t = tile('wide t-pick');
+      const stack = h('span', 't-stack');
+      storeList().slice(0, 4).forEach(e => stack.appendChild(tq(e, 'xs')));
+      const tx = h('span', 't-tx grow');
+      const ready = storeList().filter(e => e.status === 'ready');
+      tx.append(h('b', '', 'این مینی‌اپ هنوز قالب ندارد'),
+        h('span', '', ready.length ? `«${ready[0].title}» آماده است؛ بقیه به‌زودی` : 'یک قالب انتخاب کن'));
+      const top = h('span', 't-row');
+      top.append(stack, tx);
+      t.append(top, tBtn('grid', 'انتخاب قالب', 'main', () => tab('store')));
+      g.appendChild(t);
+    }
+
+    // پیش‌نمایش زنده (بلند، ستون راست)
+    const pv = tile('tall t-prev');
+    pv.appendChild(tLbl('eye', 'پیش‌نمایش'));
+    // پهنای ستون: (پهنای شبکه − دو حاشیه − فاصله) ÷ ۲، منهای حاشیهٔ کاشی
+    const colW = ((g.clientWidth || 390) - 2 * (parseFloat(getComputedStyle(g).paddingLeft) || 22) - 12) / 2;
+    const box = phoneBox(Math.round(Math.max(104, Math.min(150, colW - 26))));
+    box.el.classList.add('t-phone');
+    drawPhone(box, S.app);
+    const peek = h('button', 't-peek');
+    peek.type = 'button';
+    peek.setAttribute('aria-label', 'دیدن مثل خواننده');
+    peek.appendChild(box.el);
+    peek.addEventListener('click', () => { haptic(); S.pageId = S.doc.pages[0].id; previewPage(); });
+    pv.append(peek, h('i', 't-fade'), tBtn('pencil', noKit ? 'صفحه‌ها' : 'ویرایش', 'ink t-edit', openEditor));
+    g.appendChild(pv);
+
+    // روشن / خاموش
+    const pw = tile('t-power' + (on ? ' on' : ''), 'button');
+    pw.setAttribute('role', 'switch');
+    pw.setAttribute('aria-checked', on ? 'true' : 'false');
+    const prow = h('span', 't-row');
+    const pic = h('span', 't-ic');
+    pic.appendChild(ico('power'));
+    const sw = h('span', 'switch');
+    sw.setAttribute('aria-checked', on ? 'true' : 'false');
+    prow.append(pic, sw);
+    const ptx = h('span', 't-tx');
+    ptx.append(h('b', '', on ? 'روشن است' : 'خاموش است'), h('span', '', on ? 'همه می‌توانند ببینند' : 'خواننده‌ها «فعلاً بسته است» می‌بینند'));
+    pw.append(prow, ptx);
+    pw.addEventListener('click', () => {
+      haptic();
+      if (on) confirmBox('مینی‌اپ خاموش شود؟ تا دوباره روشنش کنی خواننده‌ها «فعلاً بسته است» می‌بینند؛ چیزی پاک نمی‌شود.', () => setActive(false), { yes: 'خاموش کن' });
+      else setActive(true);
+    });
+    g.appendChild(pw);
+
+    // لینک و QR
+    const lk = tile('t-link');
+    const lrow = h('span', 't-row');
+    const qb = h('button', 't-qr');
+    qb.type = 'button';
+    qb.setAttribute('aria-label', 'QR بزرگ و فرستادن لینک');
+    qb.appendChild(qrSvg(S.app.url));
+    qb.addEventListener('click', () => { haptic(); linkSheet(); });
+    lrow.append(qb, tLbl('link', 'لینک'));
+    lk.append(lrow, tBtn('copy', 'کپی لینک', 'soft', () => copyText(S.app.url)));
+    g.appendChild(lk);
+
+    // محتوا: آخرین قسمت (قالب قسمت) یا صفحه‌ها (قالب پایه)
+    if (shab) {
+      const le = lastEpisode();
+      const t = tile('wide t-ep');
+      const head = h('span', 't-row t-head');
+      const all = h('button', 't-link-btn');
+      all.type = 'button';
+      all.append(document.createTextNode('همهٔ داستان‌ها'), ico('arrow'));
+      all.addEventListener('click', () => { haptic(); showStories(); });
+      head.append(tLbl('book', le && le.own ? 'آخرین قسمت' : 'داستان‌ها'), all);
+      const row = h('span', 't-row');
+      if (le) {
+        const cv = coverMini(le.b.props, 'ep');
+        const tx = h('span', 't-tx grow');
+        const rd = ((shabStats() || { chapters: {} }).chapters || {})[le.ch.id];
+        const bits = [`قسمت ${faN(le.n)} از «${le.b.props.title || 'داستان'}»`];
+        if (le.ch.draft) bits.push('پیش‌نویس');
+        else if (rd && rd.readers) bits.push(`${faN(rd.readers)} نفر خواندند`);
+        tx.append(h('b', '', le.own ? (le.ch.title || `قسمت ${faN(le.n)}`) : 'داستان‌های نمونه'),
+          h('span', '', le.own ? bits.join(' · ') : 'حالا داستان خودت را بنویس'));
+        row.append(cv, tx);
+      } else {
+        const tx = h('span', 't-tx grow');
+        tx.append(h('b', '', 'هنوز داستانی نداری'), h('span', '', 'فقط یک اسم لازم است'));
+        row.appendChild(tx);
+      }
+      const ac = accentOf(S.doc);
+      const go = le && le.own ? tBtn('plus', 'قسمت تازه', 'accent', newEpisode) : tBtn('plus', 'داستان تازه', 'accent', newStorySheet);
+      go.style.setProperty('--ac', ac);
+      go.style.setProperty('--on-ac', onColor(ac));
+      row.appendChild(go);
+      t.append(head, row);
+      g.appendChild(t);
+    } else if (!noKit) {
+      const t = tile('wide t-ep');
+      const row = h('span', 't-row');
+      const ic = h('span', 't-ic soft');
+      ic.appendChild(ico('page'));
+      const tx = h('span', 't-tx grow');
+      tx.append(h('b', '', `${faN(S.doc.pages.length)} صفحه · ${faN(totalBlocks())} بخش`), h('span', '', 'چیدن، نوشتن و عکس‌ها'));
+      row.append(ic, tx, tBtn('pencil', 'ویرایش', 'ink', openEditor));
+      t.appendChild(row);
+      g.appendChild(t);
+    }
+
+    // آمار این هفته (بی‌بازدید: یک قدم روشن به جای نمودار خالی)
+    const st = S.stats || {};
+    if (!st.views_week && !st.people_week) {
+      const t = tile('wide t-stats zero');
+      const ic = h('span', 't-ic soft');
+      ic.appendChild(ico('users'));
+      const tx = h('span', 't-tx grow');
+      tx.append(h('b', '', 'هنوز کسی سر نزده'), h('span', '', live ? 'لینک را برای خواننده‌هایت بفرست' : 'بعد از انتشار، لینک را برای خواننده‌ها بفرست'));
+      t.append(ic, tx, tBtn('send', 'فرستادن', 'soft', linkSheet));
+      g.appendChild(t);
+    } else {
+      const sc = tile('wide t-stats', 'button');
+      const sl = h('span', 't-st-l');
+      const big = h('span', 't-big');
+      big.append(h('b', '', faN(st.people_week || 0)), h('span', '', 'نفر'));
+      const line = h('span', 't-st-sub');
+      line.appendChild(document.createTextNode(`${faN(st.views_week || 0)} بار باز شد`));
+      const chg = weekChange(st);
+      if (chg) line.appendChild(chg);
+      sl.append(tLbl('users', 'این هفته'), big, line);
+      const sr = h('span', 't-st-r');
+      const more = h('span', 't-more');
+      more.append(document.createTextNode('آمار کامل'), ico('arrow'));
+      sr.append(sparkSvg(st.days, 168, 52, brandColor()), more);
+      sc.append(sl, sr);
+      sc.addEventListener('click', () => { haptic(); tab('stats'); });
+      g.appendChild(sc);
+    }
+
+    // سه کاشی کوچک
+    const row3 = h('div', 't-row3');
+    const small = (icon, cls, title, subEl, fn) => {
+      const t = tile('t-small', 'button');
+      const ic = h('span', 't-ic ' + cls);
+      ic.appendChild(ico(icon));
+      const tx = h('span', 't-tx');
+      const s2 = h('span', '');
+      if (typeof subEl === 'string') s2.textContent = subEl; else s2.appendChild(subEl);
+      tx.append(h('b', '', title), s2);
+      t.append(ic, tx);
+      t.addEventListener('click', () => { haptic(); fn(); });
+      return t;
+    };
     const wl = decodeHtml(S.app.welcome).split('\n')[0];
-    conn.appendChild(grow('shop', 'chat', 'پیام خوش‌آمد ربات', wl || 'متن پیش‌فرض', null, welcomeSheet));
-    conn.appendChild(grow('write', 'pencil', 'اسم مینی‌اپ', S.app.name, null, renameSheet));
-    body.appendChild(conn);
+    row3.append(
+      small('bot', 'tg', 'ربات', connected ? bdiAt(S.app.bot_username) : 'وصل کن', () => openBot(connected ? 'myapp' : 'connect')),
+      small('chat', 'media', 'پیام خوش‌آمد', wl || 'متن پیش‌فرض', welcomeSheet),
+      small('layers', 'plain', 'قالب', noKit ? 'انتخاب' : 'عوض یا حذف', noKit ? () => tab('store') : templateSheet));
+    g.appendChild(row3);
+  }
+
+  /* لینک مینی‌اپ: QR بزرگ (برای چاپ یا اسکرین‌شات)، کپی و فرستادن */
+  function linkSheet() {
+    openSheet(sh => {
+      sheetHead(sh, 'brand', 'link', 'لینک مینی‌اپ', 'خواننده‌ها با این لینک یا QR به مینی‌اپ می‌رسند');
+      const box = h('div', 'qr-big');
+      box.appendChild(qrSvg(S.app.url));
+      sh.append(box, h('div', 'qr-url ltr', S.app.url.replace(/^https?:\/\//, '')));
+      const row = h('div', 'qr-acts');
+      const cp = h('button', 'btn btn-s grow');
+      cp.type = 'button';
+      cp.append(ico('copy'), document.createTextNode('کپی لینک'));
+      cp.addEventListener('click', () => copyText(S.app.url));
+      const share = h('button', 'btn btn-p grow');
+      share.type = 'button';
+      share.append(ico('send'), document.createTextNode('فرستادن'));
+      share.addEventListener('click', () => {
+        haptic();
+        const u = 'https://t.me/share/url?url=' + encodeURIComponent(S.app.url) + '&text=' + encodeURIComponent(S.app.name);
+        if (DEMO || !tg) { toast('در تلگرام، فهرست گفت‌وگوها برای فرستادن باز می‌شود'); return; }
+        tg.openTelegramLink(u);
+      });
+      row.append(cp, share);
+      sh.appendChild(row);
+    });
+  }
+
+  /* ---------- QR (بایت، سطح تصحیح M، نسخهٔ ۱ تا ۱۰) ----------
+     پیاده‌سازی کوچک از روی استاندارد (همان روش qrcodegen): کدگذاری داده، رید-سالومون،
+     الگوهای ثابت، چیدن زیگزاگ و انتخاب بهترین ماسک با امتیاز جریمه. */
+  const QR_ECC = [0, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26];
+  const QR_BLK = [0, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5];
+  function qrRaw(v) {
+    let r = (16 * v + 128) * v + 64;
+    if (v >= 2) { const na = Math.floor(v / 7) + 2; r -= (25 * na - 10) * na - 55; if (v >= 7) r -= 36; }
+    return r;
+  }
+  function gfMul(x, y) {
+    let z = 0;
+    for (let i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11D); z ^= ((y >>> i) & 1) * x; }
+    return z;
+  }
+  function rsDivisor(deg) {
+    const r = new Array(deg).fill(0);
+    r[deg - 1] = 1;
+    let root = 1;
+    for (let i = 0; i < deg; i++) {
+      for (let j = 0; j < deg; j++) { r[j] = gfMul(r[j], root); if (j + 1 < deg) r[j] ^= r[j + 1]; }
+      root = gfMul(root, 2);
+    }
+    return r;
+  }
+  function rsRem(data, div) {
+    const r = div.map(() => 0);
+    data.forEach(b => {
+      const f = b ^ r.shift();
+      r.push(0);
+      div.forEach((c, i) => { r[i] ^= gfMul(c, f); });
+    });
+    return r;
+  }
+  function qrMatrix(text) {
+    const bytes = Array.from(new TextEncoder().encode(text));
+    let v = 1;
+    for (; v <= 10; v++) {
+      const cap = (Math.floor(qrRaw(v) / 8) - QR_ECC[v] * QR_BLK[v]) * 8;
+      if (4 + (v < 10 ? 8 : 16) + bytes.length * 8 <= cap) break;
+    }
+    if (v > 10) return null;
+    const dataCw = Math.floor(qrRaw(v) / 8) - QR_ECC[v] * QR_BLK[v];
+    const bits = [];
+    const put = (val, n) => { for (let i = n - 1; i >= 0; i--) bits.push((val >>> i) & 1); };
+    put(4, 4);
+    put(bytes.length, v < 10 ? 8 : 16);
+    bytes.forEach(b => put(b, 8));
+    put(0, Math.min(4, dataCw * 8 - bits.length));
+    put(0, (8 - bits.length % 8) % 8);
+    const cw = [];
+    for (let i = 0; i < bits.length; i += 8) cw.push(parseInt(bits.slice(i, i + 8).join(''), 2));
+    for (let p = 0xEC; cw.length < dataCw; p ^= 0xEC ^ 0x11) cw.push(p);
+    // بلوک‌ها و تصحیح خطا، درهم‌آمیخته
+    const nb = QR_BLK[v], el = QR_ECC[v], raw = Math.floor(qrRaw(v) / 8);
+    const nShort = nb - raw % nb, shortLen = Math.floor(raw / nb), div = rsDivisor(el);
+    const blocks = [];
+    for (let i = 0, k = 0; i < nb; i++) {
+      const dat = cw.slice(k, k + shortLen - el + (i < nShort ? 0 : 1));
+      k += dat.length;
+      const ecc = rsRem(dat, div);
+      if (i < nShort) dat.push(0);
+      blocks.push(dat.concat(ecc));
+    }
+    const all = [];
+    for (let i = 0; i < blocks[0].length; i++) blocks.forEach((b, j) => { if (i !== shortLen - el || j >= nShort) all.push(b[i]); });
+    // ماتریس و الگوهای ثابت
+    const size = v * 4 + 17;
+    const m = [], fn = [];
+    for (let y = 0; y < size; y++) { m.push(new Array(size).fill(false)); fn.push(new Array(size).fill(false)); }
+    const set = (x, y, d) => { m[y][x] = d; fn[y][x] = true; };
+    for (let i = 0; i < size; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+    [[3, 3], [size - 4, 3], [3, size - 4]].forEach(([cx, cy]) => {
+      for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+        const d = Math.max(Math.abs(dx), Math.abs(dy)), x = cx + dx, y = cy + dy;
+        if (x >= 0 && x < size && y >= 0 && y < size) set(x, y, d !== 2 && d !== 4);
+      }
+    });
+    const al = [];
+    if (v > 1) {
+      const na = Math.floor(v / 7) + 2, step = Math.ceil((v * 4 + 4) / (na * 2 - 2)) * 2;
+      al.push(6);
+      for (let p = size - 7; al.length < na; p -= step) al.splice(1, 0, p);
+    }
+    al.forEach((ax, i) => al.forEach((ay, j) => {
+      if ((i === 0 && j === 0) || (i === 0 && j === al.length - 1) || (i === al.length - 1 && j === 0)) return;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(ax + dx, ay + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+    }));
+    const drawFormat = mask => {
+      const data = (0 << 3) | mask;          // سطح M = ۰۰
+      let rem = data;
+      for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
+      const f = ((data << 10) | rem) ^ 0x5412, bit = i => ((f >>> i) & 1) === 1;
+      for (let i = 0; i <= 5; i++) set(8, i, bit(i));
+      set(8, 7, bit(6)); set(8, 8, bit(7)); set(7, 8, bit(8));
+      for (let i = 9; i < 15; i++) set(14 - i, 8, bit(i));
+      for (let i = 0; i < 8; i++) set(size - 1 - i, 8, bit(i));
+      for (let i = 8; i < 15; i++) set(8, size - 15 + i, bit(i));
+      set(8, size - 8, true);
+    };
+    drawFormat(0);
+    if (v >= 7) {
+      let rem = v;
+      for (let i = 0; i < 12; i++) rem = (rem << 1) ^ ((rem >>> 11) * 0x1F25);
+      const vb = (v << 12) | rem;
+      for (let i = 0; i < 18; i++) {
+        const d = ((vb >>> i) & 1) === 1, a = size - 11 + i % 3, b = Math.floor(i / 3);
+        set(a, b, d); set(b, a, d);
+      }
+    }
+    // چیدن داده به شکل زیگزاگ
+    let bi = 0;
+    for (let right = size - 1; right >= 1; right -= 2) {
+      if (right === 6) right = 5;
+      for (let vert = 0; vert < size; vert++) {
+        for (let j = 0; j < 2; j++) {
+          const x = right - j, up = ((right + 1) & 2) === 0, y = up ? size - 1 - vert : vert;
+          if (!fn[y][x] && bi < all.length * 8) { m[y][x] = ((all[bi >>> 3] >>> (7 - (bi & 7))) & 1) === 1; bi++; }
+        }
+      }
+    }
+    const MASKS = [(x, y) => (x + y) % 2 === 0, (x, y) => y % 2 === 0, x => x % 3 === 0, (x, y) => (x + y) % 3 === 0,
+      (x, y) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0, (x, y) => x * y % 2 + x * y % 3 === 0,
+      (x, y) => (x * y % 2 + x * y % 3) % 2 === 0, (x, y) => ((x + y) % 2 + x * y % 3) % 2 === 0];
+    const applyMask = k => { for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (!fn[y][x] && MASKS[k](x, y)) m[y][x] = !m[y][x]; };
+    const penalty = () => {
+      let p = 0, dark = 0;
+      const line = get => {
+        let run = 1;
+        for (let i = 1; i <= size; i++) {
+          if (i < size && get(i) === get(i - 1)) { run++; continue; }
+          if (run >= 5) p += run - 2;
+          run = 1;
+        }
+        const s = [];
+        for (let i = 0; i < size; i++) s.push(get(i) ? 1 : 0);
+        const str = s.join('');
+        for (let i = str.indexOf('1011101'); i >= 0; i = str.indexOf('1011101', i + 1)) {
+          if (str.slice(Math.max(0, i - 4), i) === '0000' || str.slice(i + 7, i + 11) === '0000') p += 40;
+        }
+      };
+      for (let y = 0; y < size; y++) line(x => m[y][x]);
+      for (let x = 0; x < size; x++) line(y => m[y][x]);
+      for (let y = 0; y < size - 1; y++) for (let x = 0; x < size - 1; x++) {
+        const c = m[y][x];
+        if (c === m[y][x + 1] && c === m[y + 1][x] && c === m[y + 1][x + 1]) p += 3;
+      }
+      for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (m[y][x]) dark++;
+      p += Math.floor(Math.abs(dark * 20 - size * size * 10) / (size * size)) * 10;
+      return p;
+    };
+    let best = 0, bestP = Infinity;
+    for (let k = 0; k < 8; k++) {
+      applyMask(k); drawFormat(k);
+      const pp = penalty();
+      if (pp < bestP) { bestP = pp; best = k; }
+      applyMask(k);
+    }
+    applyMask(best); drawFormat(best);
+    return m;
+  }
+  const qrCache = {};
+  function qrSvg(text) {
+    const m = qrCache[text] || (qrCache[text] = qrMatrix(text));
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'qr');
+    svg.setAttribute('aria-hidden', 'true');
+    if (!m) return svg;
+    const n = m.length, q = 2;
+    svg.setAttribute('viewBox', `${-q} ${-q} ${n + 2 * q} ${n + 2 * q}`);
+    svg.setAttribute('shape-rendering', 'crispEdges');
+    let d = '';
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (m[y][x]) d += `M${x} ${y}h1v1h-1z`;
+    const p = document.createElementNS(SVG_NS, 'path');
+    p.setAttribute('d', d);
+    svg.appendChild(p);
+    return svg;
   }
 
   /* ---------- روشن، خاموش و حذف قالب ----------
@@ -3143,18 +3674,6 @@
       renderApp();
       return true;
     } catch (err) { failed(err); return false; }
-  }
-  function pausedBanner() {
-    const b = h('div', 'paused-b mx');
-    const ic = h('span', 'paused-ic');
-    ic.appendChild(ico('power'));
-    const tx = h('span', 'grow');
-    tx.append(h('b', '', 'مینی‌اپ خاموش است'), h('span', '', 'خواننده‌ها پیام «فعلاً بسته است» می‌بینند. چیزی پاک نشده.'));
-    const go = h('button', 'btn btn-p btn-sm', 'روشن کن');
-    go.type = 'button';
-    go.addEventListener('click', () => { haptic(); setActive(true); });
-    b.append(ic, tx, go);
-    return b;
   }
   function templateSheet() {
     const entry = storeOfKit(S.doc.kit);
@@ -3252,6 +3771,12 @@
       row.appendChild(c);
     });
     big.appendChild(row);
+    const days = (S.stats && S.stats.days) || [];
+    if (days.some(Boolean)) {
+      const ch = h('div', 'bigstat-chart');
+      ch.append(h('span', 'caption', 'بازدید ۱۴ روز اخیر'), sparkSvg(days, 320, 64, brandColor()));
+      big.appendChild(ch);
+    }
     body.appendChild(big);
     if (S.doc.kit === 'shab') {
       const st = shabStats();
@@ -3283,79 +3808,107 @@
     body.appendChild(h('p', 'st-foot', 'آمار از باز شدن مینی‌اپ داخل تلگرام جمع می‌شود؛ هر کاربر یک بار در روز شمرده می‌شود.'));
   }
 
-  /* ===================== حساب ===================== */
+  /* ===================== حساب: کاشی‌ها =====================
+     خودت، پلن فعلی، جای مینی‌اپ‌ها و ارتقای بعدی؛ کارهای ربات ایزی‌ساز در سه
+     کاشی کوچک. فهرست کامل پلن‌ها در شیت «همهٔ پلن‌ها». */
+  async function buyPlan(p) {
+    if (DEMO && p.key === 'pro') {
+      await api('demo/plan', { key: 'pro' });
+      S.me = await api('me');
+      if (S.app) await openApp(S.app.id, true);
+      closeSheet();
+      renderAccount();
+      toast('نسخهٔ نمایشی روی پلن حرفه‌ای است');
+      return;
+    }
+    openBot('plans');
+  }
+  function plansSheet() {
+    openSheet(sh => {
+      sheetHead(sh, 'brand', 'star', 'پلن‌ها', 'پرداخت با ستارهٔ تلگرام، داخل ربات');
+      const box = h('div', 'plans in-sheet');
+      (S.me.plans || [S.me.plan]).forEach(p => {
+        const cur = p.key === S.me.plan.key;
+        const card = h('article', 'plan plan-' + p.key + (cur ? ' cur' : ''));
+        const vol = h('span', 'plan-v');
+        vol.append(h('b', 'n', faN(p.max_apps)), h('span', '', 'مینی‌اپ'));
+        const tx = h('span', 'grow');
+        const nm = h('span', 'plan-n');
+        nm.appendChild(h('b', '', p.title));
+        if (cur) nm.appendChild(h('span', 'plan-tag', 'پلن فعلی'));
+        tx.append(nm, h('span', 'plan-s', `${faN(p.max_pages)} صفحه · ${p.premium_blocks ? 'همهٔ قالب‌ها' : 'قالب‌های پایه'}${p.branding ? ' · با نشان ایزی‌ساز' : ''}`),
+          h('b', 'plan-p', p.price_stars ? `${faN(p.price_stars)} ستاره در ماه` : 'رایگان'));
+        card.append(vol, tx);
+        if (!cur && p.price_stars) {
+          const buy = h('button', 'plan-buy', 'خرید');
+          buy.type = 'button';
+          buy.addEventListener('click', () => { haptic(); buyPlan(p).catch(failed); });
+          card.appendChild(buy);
+        }
+        box.appendChild(card);
+      });
+      sh.appendChild(box);
+    });
+  }
   function renderAccount() {
     const u = S.me.user || {};
-    const me = $('acc-me');
-    me.textContent = '';
-    const top = h('div', 'me-top');
+    const g = $('acc-body');
+    g.textContent = '';
+    const plans = S.me.plans || [S.me.plan];
+    const i = plans.findIndex(p => p.key === S.me.plan.key);
+    const next = i >= 0 ? plans[i + 1] : null;
+    const used = S.me.apps.length, max = S.me.plan.max_apps;
+
+    const pf = tile('wide t-prof');
     const av = h('span', 'av');
     av.textContent = (u.first_name || '؟').trim().charAt(0);
-    const nm = h('span', 'grow');
-    nm.append(h('b', '', u.first_name || 'کاربر'), h('span', '', 'پلن ' + S.me.plan.title));
-    top.append(av, nm);
-    const use = h('div', 'me-use');
-    [[`${faN(S.me.apps.length)}/${faN(S.me.plan.max_apps)}`, 'مینی‌اپ'],
-     [S.doc ? `${faN(totalBlocks())}/${faN(S.me.plan.max_blocks)}` : '—', 'کامپوننت'],
-     [S.doc ? `${faN(S.doc.pages.length)}/${faN(S.me.plan.max_pages)}` : '—', 'صفحه']].forEach(([n, l]) => {
-      const c = h('span');
-      c.append(h('b', 'n', n), h('span', '', l));
-      use.appendChild(c);
-    });
-    me.append(top, use);
+    const ptx = h('span', 't-tx grow');
+    ptx.append(h('b', '', u.first_name || 'کاربر'), h('span', '', `سازندهٔ ${faN(used)} مینی‌اپ`));
+    pf.append(av, ptx);
+    g.appendChild(pf);
 
-    const box = $('acc-plans');
-    box.textContent = '';
-    (S.me.plans || [S.me.plan]).forEach(p => {
-      const cur = p.key === S.me.plan.key;
-      const card = h('article', 'plan plan-' + p.key + (cur ? ' cur' : ''));
-      const vol = h('span', 'plan-v');
-      vol.append(h('b', 'n', faN(p.max_blocks)), h('span', '', 'کامپوننت'));
-      const tx = h('span', 'grow');
-      const nm = h('span', 'plan-n');
-      nm.appendChild(h('b', '', p.title));
-      if (cur || p.key === 'pro') nm.appendChild(h('span', 'plan-tag', cur ? 'پلن فعلی' : 'پیشنهادی'));
-      tx.append(nm, h('span', 'plan-s', `${faN(p.max_apps)} مینی‌اپ · ${faN(p.max_pages)} صفحه · ${p.premium_blocks ? 'همهٔ قالب‌ها' : 'کامپوننت‌های پایه'}`),
-        h('b', 'plan-p', p.price_stars ? `${faN(p.price_stars)} ستاره در ماه` : 'رایگان'));
-      card.append(vol, tx);
-      if (!cur && p.price_stars) {
-        const buy = h('button', 'plan-buy', 'خرید');
-        buy.type = 'button';
-        buy.addEventListener('click', async () => {
-          haptic();
-          if (DEMO && p.key === 'pro') {
-            await api('demo/plan', { key: 'pro' });
-            S.me = await api('me');
-            if (S.app) await openApp(S.app.id, true);
-            renderAccount();
-            toast('نسخهٔ نمایشی روی پلن حرفه‌ای است');
-            return;
-          }
-          openBot('plans');
-        });
-        card.appendChild(buy);
-      }
-      box.appendChild(card);
-    });
+    const pl = tile('t-plan', 'button');
+    const pic = h('span', 't-ic');
+    pic.appendChild(ico('star'));
+    const until = S.me.plan_until ? new Date(S.me.plan_until * 1000).toLocaleDateString('fa-IR', { month: 'long', day: 'numeric' }) : '';
+    const pt = h('span', 't-tx');
+    pt.append(h('span', '', 'پلن تو'), h('b', '', S.me.plan.title), h('span', '', until ? `تا ${until}` : 'رایگان، برای همیشه'));
+    pl.append(pic, pt);
+    pl.addEventListener('click', () => { haptic(); plansSheet(); });
+    g.appendChild(pl);
 
-    const apps = $('acc-apps');
-    apps.textContent = '';
-    $('acc-apps-e').textContent = `${faN(S.me.apps.length)} از ${faN(S.me.plan.max_apps)}`;
-    S.me.apps.forEach(a => {
-      const cur = S.app && String(a.id) === String(S.app.id);
-      const entry = storeOfKit(cur ? S.doc.kit : a.kit);
-      const sub = a.bot_username ? '@' + a.bot_username : appStatus(cur ? S.app : a)[0];
-      const r = grow('', 'layers', a.name, (entry ? entry.title + ' · ' : '') + sub, null, async () => { try { await openDash(a.id); } catch (err) { failed(err); } });
-      r.querySelector('.ic').replaceWith(tq(entry));
-      apps.appendChild(r);
-    });
-    apps.appendChild(grow('brand', 'plus', 'مینی‌اپ تازه', 'اسم، رنگ و اولین قالب', null, () => newApp()));
+    const us = tile('t-use', 'button');
+    const glyphs = h('span', 't-glyphs');
+    for (let k = 0; k < Math.min(max, 10); k++) glyphs.appendChild(h('i', k < used ? 'on' : ''));
+    const big = h('span', 't-big');
+    big.append(h('b', '', faN(used)), h('span', '', `از ${faN(max)}`));
+    us.append(tLbl('layers', 'مینی‌اپ‌ها'), big, glyphs,
+      h('span', 't-foot', used < max ? `${faN(max - used)} جای خالی داری` : 'جای خالی نداری'));
+    us.addEventListener('click', () => { haptic(); tab('home'); });
+    g.appendChild(us);
 
-    const botG = $('acc-bot');
-    botG.textContent = '';
-    const botName = S.me.bot || 'EasySazBot';
-    botG.appendChild(grow('act', 'bot', '@' + botName, 'اتصال ربات، پرداخت و پشتیبانی', null, () => openBot('')));
-    botG.appendChild(grow('media', 'star', 'پلن‌ها و پرداخت', 'با ستارهٔ تلگرام، بدون درگاه', null, () => openBot('plans')));
+    if (next) {
+      const up = tile('wide t-up');
+      const ic = h('span', 't-ic gold');
+      ic.appendChild(ico('crown'));
+      const tx = h('span', 't-tx grow');
+      tx.append(h('b', '', next.title),
+        h('span', '', `${faN(next.max_apps)} مینی‌اپ${next.premium_blocks && !S.me.plan.premium_blocks ? '، همهٔ قالب‌ها' : ''}${!next.branding && S.me.plan.branding ? '، بدون نشان' : ''} · ${faN(next.price_stars)} ستاره در ماه`));
+      up.append(ic, tx, tBtn('', 'ارتقا', 'ink', () => buyPlan(next).catch(failed)));
+      g.appendChild(up);
+    }
+
+    const row3 = h('div', 't-row3');
+    const small = (icon, title, fn) => {
+      const t = tile('t-small', 'button');
+      const ic = h('span', 't-ic plain');
+      ic.appendChild(ico(icon));
+      t.append(ic, h('b', 't-name', title));
+      t.addEventListener('click', () => { haptic(); fn(); });
+      return t;
+    };
+    row3.append(small('grid', 'همهٔ پلن‌ها', plansSheet), small('bot', 'ربات ایزی‌ساز', () => openBot('')), small('help', 'راهنما', () => openBot('help')));
+    g.appendChild(row3);
   }
 
   const allBlocks = () => S.doc.pages.reduce((a, p) => a.concat(p.blocks.map(b => ({ page: p, block: b }))), []);
@@ -4337,10 +4890,7 @@
     });
     $('store-q').addEventListener('input', debounce(renderStore, 150));
     $('ad-back').addEventListener('click', () => { haptic(); tab('home'); });
-    $('ad-preview').addEventListener('click', () => { haptic(); if (S.doc.kit === 'shab') S.pageId = storyHome().id; previewPage(); });
     $('ad-more').addEventListener('click', () => { haptic(); settingsPage(); });
-    $('ad-edit').addEventListener('click', () => { haptic(); openEditor(); });
-    $('ad-publish').addEventListener('click', () => { haptic(); publishSheet(); });
     $('st-back').addEventListener('click', () => { haptic(); showApp(); });
     $('ed-back').addEventListener('click', () => { haptic(); leaveEditor(); });
     $('bar-undo').addEventListener('click', () => { haptic(); undo(); });

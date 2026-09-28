@@ -17,7 +17,7 @@ import time
 from app import blocks, kits, secure
 from app.config import config
 from app.db import Database, effective_plan, load_doc
-from app.plans import PLANS, Plan
+from app.plans import DEFAULT_PLAN, PLANS, Plan
 
 from .auth import AuthError, WebAppUser, verify
 
@@ -158,10 +158,14 @@ class Api:
     async def me(self, init_data: str) -> dict:
         user, plan = await self._owner(init_data)
         apps = await self.db.list_apps(user.id)
+        row = await self.db.get_user(user.id)
         return {
             "user": {"id": user.id, "first_name": user.first_name},
             "plan": _plan_json(plan),
-            "apps": [_app_json(a) for a in apps],
+            # پایان پلن پولی (unix)؛ برای «تمدید …» در صفحهٔ حساب
+            "plan_until": row["plan_until"] if row and plan.key != DEFAULT_PLAN else None,
+            # آمار هر مینی‌اپ برای ویترین خانه (آدم‌های این هفته و نمودار)
+            "apps": [dict(_app_json(a), stats=await self.db.app_stats(a["id"])) for a in apps],
             "can_create": len(apps) < plan.max_apps,
             "bot": await self.db.get_setting("bot_username", ""),
             # برای بلیت‌های پلن در صفحهٔ حساب؛ خرید همیشه در خود ربات است
@@ -177,6 +181,12 @@ class Api:
             "stats": await self.db.app_stats(app["id"]),
             "plan": _plan_json(plan),
         }
+
+    async def previews(self, init_data: str) -> dict:
+        """پیش‌نمایش همهٔ مینی‌اپ‌ها برای ویترین خانهٔ پنل: پیش‌نویس هر کدام، بدون
+        متن کامل قسمت‌ها (فقط چند خط اول، مثل صفحهٔ خواننده) تا سبک بماند."""
+        user, _ = await self._owner(init_data)
+        return {"docs": {str(a["id"]): kits.public_view(load_doc(a["draft"])) for a in await self.db.list_apps(user.id)}}
 
     async def create(self, init_data: str, body: dict) -> dict:
         user, plan = await self._owner(init_data, write=True)

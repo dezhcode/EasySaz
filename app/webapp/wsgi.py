@@ -6,6 +6,7 @@
   GET  /api/schema               کامپوننت ها و تم (عمومی)
   GET  /api/me                   کاربر، پلن و اپ ها          (initData ربات اصلی)
   GET  /api/app?id=              سند پیش نویس یک اپ          (initData ربات اصلی)
+  GET  /api/previews             پیش‌نمایش سبک همهٔ اپ‌ها (خانهٔ پنل)
   POST /api/app/create|rename|save|publish                  (initData ربات اصلی)
   GET  /api/templates            قالب‌های آماده (عمومی)
   POST /api/app/welcome          پیام خوش‌آمد ربات مشتری          (initData ربات اصلی)
@@ -213,6 +214,8 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
             coro = api.me(init_data)
         elif method == "GET" and path == "/api/app":
             coro = api.app(init_data, query.get("id"))
+        elif method == "GET" and path == "/api/previews":
+            coro = api.previews(init_data)
         elif method == "POST" and path in ("/api/app/create", "/api/app/rename", "/api/app/save",
                                            "/api/app/publish", "/api/app/welcome", "/api/app/status",
                                            "/api/app/remove_kit"):

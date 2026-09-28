@@ -97,6 +97,15 @@ def _plan_json(plan: Plan) -> dict:
     }
 
 
+def _kit_of(draft: str | None) -> str:
+    """قالب سوار بر مینی‌اپ (برای رنگ و آیکن کارتش در پنل)، بی‌آنکه کل سند را پاک‌سازی کنیم."""
+    try:
+        kit = json.loads(draft or "{}").get("kit")
+    except (ValueError, AttributeError):
+        return "base"
+    return kit if isinstance(kit, str) and kit else "base"
+
+
 def _app_json(app) -> dict:  # noqa: ANN001
     return {
         "id": app["id"],
@@ -110,6 +119,7 @@ def _app_json(app) -> dict:  # noqa: ANN001
         "updated_at": app["updated_at"],
         "dirty": (app["draft"] or "") != (app["published"] or ""),
         "welcome": app["welcome"] or "",
+        "kit": _kit_of(app["draft"]),
         "channel": ({"id": app["channel_id"], "username": app["channel_username"] or "", "title": app["channel_title"] or ""}
                     if app["channel_id"] else None),
     }

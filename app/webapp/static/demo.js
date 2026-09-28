@@ -55,6 +55,7 @@
       published_at: a.published ? a.published_at : null, updated_at: a.updated_at,
       dirty: JSON.stringify(a.draft) !== JSON.stringify(a.published),
       welcome: a.welcome || '',
+      kit: (a.draft && a.draft.kit) || 'base',
     };
   }
   function fail(status, message) {

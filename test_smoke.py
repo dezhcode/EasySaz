@@ -13,6 +13,7 @@ import hmac
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 import time
@@ -238,6 +239,13 @@ def test_blocks() -> None:
         assert again["pages"] and t["category"] in templates.CATEGORIES, t["id"]
     ok([t["id"] for t in templates.TEMPLATES] == ["shab"] and templates.TEMPLATES[0]["kit"] == "shab",
        "فقط قالب شب‌نوشت عرضه می‌شود و معتبر است")
+    doms = {d["id"] for d in templates.DOMAINS}
+    hexok = lambda c: bool(re.fullmatch(r"#[0-9A-Fa-f]{6}", c or ""))
+    ok(all(e["domain"] in doms and hexok(e["color"]) and hexok(e["tint"]) and e["status"] in ("ready", "soon")
+           and (e["status"] != "ready" or e.get("template") in templates.BY_ID) for e in templates.STORE)
+       and len({e["id"] for e in templates.STORE}) == len(templates.STORE)
+       and "store" in templates.public() and "domains" in templates.public(),
+       "فروشگاه قالب: حوزه، رنگ و قالب آماده‌ها معتبر است")
     ok(blocks.empty_page()["kit"] == "shab" and blocks.upgrade({"blocks": [{"type": "text"}]})["kit"] == "base",
        "مینی‌اپ تازه روی شب‌نوشت است؛ سند قدیمی روی قالب پایه می‌ماند")
     ok(set(blocks.CATALOG_ORDER) == set(blocks.SCHEMA) and all(b["cat"] in blocks.CATEGORIES for b in blocks.SCHEMA.values()), "هر کامپوننت دسته و جای کاتالوگ دارد")
@@ -317,7 +325,7 @@ def test_web() -> None:
     st, res = jcall("POST", "/api/app/create", {"name": " "})
     ok(st == 400, "اسم خالی رد می شود")
     st, res = jcall("POST", "/api/app/create", {"name": "کافه نارنج"})
-    ok(st == 200 and res["doc"]["pages"][0]["blocks"] == [], "ساخت اپ با صفحه خالی")
+    ok(st == 200 and res["doc"]["pages"][0]["blocks"] == [] and res["app"]["kit"] == "shab", "ساخت اپ با صفحه خالی روی قالب شب‌نوشت")
     app_id, slug = res["app"]["id"], res["app"]["slug"]
     st, res = jcall("POST", "/api/app/create", {"name": "دومی"})
     ok(st == 402, "پلن رایگان: فقط یک مینی اپ")

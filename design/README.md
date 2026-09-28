@@ -4,7 +4,8 @@
 
 | کجا | چه چیزی | لینک |
 |---|---|---|
-| سیستم طراحی «ایزی‌ساز — کاشی» | توکن‌ها، قانون‌ها (README) و ۴۸ کامپوننت در دو خانوادهٔ «پنل» و «مینی‌اپ»، به سبک عبور | https://claude.ai/artifact/DcMRsX24qArMZLS6S5wXXk |
+| طرح «منشور» (نسخهٔ ۲) | پوستهٔ فعلی پنل: خانه، فروشگاه قالب، جزئیات قالب، داشبورد مینی‌اپ، آمار، حساب و ناوبری پایین آتلیه | https://claude.ai/artifact/SUeMn9kHvPeUtGVT4h6phb |
+| سیستم طراحی «ایزی‌ساز — کاشی» (قدیمی) | کامپوننت‌های مینی‌اپ و قانون‌ها؛ رنگ‌های پنل حالا از «منشور» در `design/tokens.json` می‌آید | https://claude.ai/artifact/DcMRsX24qArMZLS6S5wXXk |
 | نسخهٔ نمایشی زنده | همین کد، بدون سرور: `python scripts/build_demo.py <پوشه>` | https://claude.ai/artifact/Cv9BPxqLAAU4QEvZxqFsCd |
 | بوم ایزی‌ساز | اکتشاف اولیه: پنل ساخت، گفتگوی ربات و مینی‌اپ منتشرشده (پیش از نوار ابزار و صفحه‌ها) | https://claude.ai/artifact/R5DhRcKQXPPT5xeySVCyMs |
 | همین مخزن | `design/tokens.json` (کپی توکن‌های سیستم) → `app/webapp/static/tokens.css` | — |

@@ -190,6 +190,48 @@
   }
 
   /* ---------- API ---------- */
+  /* بعد از انتشار: فصل‌های تازه را به کانال و خواننده‌ها اعلام کن (app/kits/shab/api.py) */
+  function announceCard(fresh) {
+    const card = h('div', 'ann');
+    const head = h('div', 'ann-h');
+    head.append(catTile('story', 'notice'), h('b', '', fresh.length > 1 ? `${faN(fresh.length)} فصل تازه منتشر شد` : 'یک فصل تازه منتشر شد'));
+    card.appendChild(head);
+    const list = h('ul', 'ann-l');
+    fresh.slice(0, 5).forEach(c => list.appendChild(h('li', '', `${c.title} — «${c.story}»`)));
+    if (fresh.length > 5) list.appendChild(h('li', 'caption', `و ${faN(fresh.length - 5)} فصل دیگر`));
+    card.appendChild(list);
+    if (!S.app.bot_username) {
+      card.appendChild(h('p', 'caption', 'برای خبر دادن به خواننده‌ها اول ربات مینی‌اپ را وصل کن.'));
+      return card;
+    }
+    const opts = { readers: true, channel: !!S.app.channel };
+    const sw = (key, label, sub, disabled) => {
+      const row = switchControl({ label }, opts[key], v => { opts[key] = v; });
+      if (sub) row.appendChild(h('span', 'caption ann-sub', sub));
+      if (disabled) { row.classList.add('off'); row.querySelector('.switch').disabled = true; }
+      card.appendChild(row);
+    };
+    sw('readers', 'پیام به خواننده‌ها', 'کسانی که «خبرم کن» را روشن دارند، از @' + S.app.bot_username);
+    sw('channel', 'پست در کانال', S.app.channel ? (S.app.channel.title || '@' + S.app.channel.username) : 'اول کانال را در «تنظیمات» ثبت کن', !S.app.channel);
+    const go = h('button', 'btn btn-p btn-block');
+    go.type = 'button';
+    go.append(ico('send'), document.createTextNode('اعلام کن'));
+    go.addEventListener('click', async () => {
+      if (!opts.readers && !opts.channel) { toast('یکی را روشن کن', true); return; }
+      go.disabled = true;
+      try {
+        const res = await api('kit/shab/announce', { id: S.app.id, chapters: fresh.map(c => c.id), readers: opts.readers, channel: opts.channel });
+        notify('success');
+        card.textContent = '';
+        card.appendChild(h('b', '', res.readers || res.channel
+          ? `در حال فرستادن${res.channel ? ' به کانال' : ''}${res.readers ? `${res.channel ? ' و ' : ' به '}${faN(res.readers)} خواننده` : ''}`
+          : 'اعلام ثبت شد؛ هنوز خواننده‌ای «خبرم کن» ندارد'));
+      } catch (err) { failed(err); go.disabled = false; }
+    });
+    card.appendChild(go);
+    return card;
+  }
+
   async function api(path, body) {
     if (DEMO) return window.EasySazDemo.api(path, body);
     const opts = { headers: { 'X-Init-Data': (tg && tg.initData) || '' }, cache: 'no-store' };
@@ -483,12 +525,29 @@
   }
 
   /* ===== ادیتور ===== */
+  /* شناسهٔ پایدار فصل‌ها (جای خواندن، نشان و آمار خواننده‌ها به آن بسته است).
+     سرور هم خالی/تکراری را پر می‌کند، ولی پنل خودش می‌گذارد تا پیش‌نویس
+     و سند منتشرشده یک شناسه داشته باشند. */
+  const newChId = () => 'c' + Array.from(crypto.getRandomValues(new Uint8Array(5)), b => b.toString(16).padStart(2, '0')).join('');
+  function ensureIds(doc) {
+    const seen = new Set();
+    (doc.pages || []).forEach(p => p.blocks.forEach(b => {
+      if (b.type !== 'story') return;
+      (b.props.chapters || []).forEach(c => {
+        if (!c.id || !/^c[a-z0-9]{5,15}$/.test(c.id) || seen.has(c.id)) c.id = newChId();
+        seen.add(c.id);
+      });
+    }));
+    return doc;
+  }
+
   async function openApp(id, quiet) {
     const res = await api('app?id=' + encodeURIComponent(id));
     S.app = res.app;
-    S.doc = ES.normalize(res.doc);
+    S.doc = ensureIds(ES.normalize(res.doc));
     resetHistory();
     S.stats = res.stats;
+    S.shabStats = null;
     S.plan = res.plan;
     S.pageId = S.doc.pages[0].id;
     S.selected = null;
@@ -812,7 +871,7 @@
     if (S.saving) { S.pendingSave = true; return; }
     S.saving = true;
     try {
-      const res = await api('app/save', { id: S.app.id, doc: S.doc });
+      const res = await api('app/save', { id: S.app.id, doc: ensureIds(S.doc) });
       S.app = res.app;
       setSave('');
     } catch (err) {
@@ -2227,6 +2286,7 @@
       conn.append(botRow(), linkRow());
       body.appendChild(conn);
       body.appendChild(welcomeSection());
+      if (S.doc.kit === 'shab') body.appendChild(channelSection());
 
       const planSec = h('div', 'sh-sec');
       const plan = h('div', 'plan current');
@@ -2292,12 +2352,11 @@
       : { st: 'warn', t: 'سربرگ ندارد', s: 'مشتری اول باید بفهمد کجا آمده', fix: framePage, fixL: 'روشن کن' });
     out.push(S.app.bot_username ? { st: 'ok', t: 'ربات وصل است', s: '@' + S.app.bot_username, ltr: true }
       : { st: 'warn', t: 'ربات وصل نیست', s: 'بعد از اتصال، مینی‌اپ روی ربات خودت باز می‌شود', fix: () => openBot('connect'), fixL: 'اتصال' });
-    const lockNoLink = allBlocks().filter(({ block }) => block.type === 'story' && emptyUrl(block.props.url)
-      && (block.props.chapters || []).some(c => c.lock && emptyUrl(c.url)));
+    const lockNoLink = S.app.channel ? [] : allBlocks().filter(({ block }) => block.type === 'story'
+      && (block.props.chapters || []).some(c => c.lock && !c.draft));
     if (lockNoLink.length) {
-      const f = lockNoLink[0];
-      out.push({ st: 'warn', t: 'فصل قفل بدون لینک کانال', s: `«${f.block.props.title || 'داستان'}»: خواننده باید بداند کجا بخواند`,
-        fix: () => { popAll(); goPage(f.page.id); editPage(f.block.id); }, fixL: 'درست کن' });
+      out.push({ st: 'warn', t: 'فصل «فقط اعضا» بدون کانال', s: 'کانال را در تنظیمات ثبت کن تا عضوها بتوانند بخوانند',
+        fix: () => { popAll(); settingsPage(); }, fixL: 'ثبت کانال' });
     }
     const links = emptyLinks();
     links.slice(0, 3).forEach(e => out.push({ st: 'warn', t: 'یک لینک خالی است', s: e.path, fix: e.fix, fixL: 'درست کن' }));
@@ -2346,7 +2405,7 @@
     btn.disabled = true;
     clearTimeout(S.saveTimer);
     try {
-      const res = await api('app/publish', { id: S.app.id, doc: S.doc });
+      const res = await api('app/publish', { id: S.app.id, doc: ensureIds(S.doc) });
       S.app = res.app;
       S.doc = ES.normalize(res.doc);
       H.base = JSON.stringify(S.doc);
@@ -2354,7 +2413,8 @@
       setSave('');
       renderAll();
       notify('success');
-      publishedSheet();
+      S.shabStats = null;
+      publishedSheet(res.kit || {});
     } catch (err) {
       failed(err);
     } finally {
@@ -2394,8 +2454,11 @@
     return row;
   }
 
-  function publishedSheet() {
+  function publishedSheet(kit) {
+    kit = kit || {};
     openSheet(sheet => {
+      const fresh = kit.new_chapters || [];
+      if (fresh.length && S.doc.kit === 'shab') sheet.appendChild(announceCard(fresh));
       const d = h('div', 'done');
       d.appendChild(catTile('success', 'check'));
       d.append(h('div', 'title-2', 'منتشر شد!'),
@@ -2488,6 +2551,62 @@
     nameSec.appendChild(row);
     return nameSec;
   }
+  /* کانال شب‌نوشت: قفل «فقط اعضا» و پست فصل تازه. ربات مینی‌اپ باید ادمین کانال باشد. */
+  function channelSection() {
+    const sec = h('div', 'sh-sec stack');
+    sec.appendChild(h('span', 'label', 'کانال داستان‌ها'));
+    const box = h('div', 'chn');
+    sec.appendChild(box);
+    const draw = () => {
+      box.textContent = '';
+      const ch = S.app.channel;
+      if (!S.app.bot_username) {
+        box.appendChild(h('p', 'caption', 'اول ربات مینی‌اپ را وصل کن؛ همان ربات باید ادمین کانال باشد تا عضویت خواننده‌ها را ببیند و فصل تازه را پست کند.'));
+        const c = h('button', 'btn btn-s btn-block', 'اتصال ربات');
+        c.type = 'button';
+        c.addEventListener('click', () => openBot('connect'));
+        box.appendChild(c);
+        return;
+      }
+      if (ch) {
+        const row = h('div', 'row');
+        const g = h('span', 'grow');
+        g.append(h('b', 'body-strong', ch.title || 'کانال'), h('span', 'caption ltr', ch.username ? '@' + ch.username : String(ch.id)));
+        const rm = h('button', 'btn btn-s btn-sm', 'برداشتن');
+        rm.type = 'button';
+        rm.addEventListener('click', () => confirmBox('کانال برداشته شود؟ فصل‌های «فقط اعضا» تا کانال تازه ثبت نشود برای کسی باز نمی‌شوند.', async () => {
+          try { await api('kit/shab/channel', { id: S.app.id, channel: '' }); S.app.channel = null; draw(); toast('کانال برداشته شد'); } catch (err) { failed(err); }
+        }));
+        row.append(catTile('act', 'send'), g, rm);
+        box.appendChild(row);
+        box.appendChild(h('p', 'caption', 'فصل‌های «فقط اعضا» فقط برای عضوهای این کانال باز می‌شوند.'));
+        return;
+      }
+      box.appendChild(h('p', 'caption', `@${S.app.bot_username} را ادمین کانالت کن، بعد آیدی کانال را این‌جا بنویس.`));
+      const inp = h('input', 'ltr');
+      inp.placeholder = '@my_channel';
+      inp.setAttribute('aria-label', 'آیدی کانال');
+      const f = h('div', 'field');
+      f.appendChild(inp);
+      box.appendChild(f);
+      const save = h('button', 'btn btn-p btn-block', 'ثبت کانال');
+      save.type = 'button';
+      save.addEventListener('click', async () => {
+        save.disabled = true;
+        try {
+          const res = await api('kit/shab/channel', { id: S.app.id, channel: inp.value.trim() });
+          S.app.channel = res.channel;
+          notify('success');
+          toast('کانال ثبت شد');
+          draw();
+        } catch (err) { failed(err); save.disabled = false; }
+      });
+      box.appendChild(save);
+    };
+    draw();
+    return sec;
+  }
+
   function welcomeSection() {
     const wel = h('div', 'sh-sec');
     wel.appendChild(h('span', 'label', 'پیام خوش‌آمد ربات'));
@@ -2828,6 +2947,21 @@
     storiesQueued = true;
     requestAnimationFrame(() => { storiesQueued = false; renderStories(); });
   }
+  /* آمار خواندن از سرور؛ ۳۰ ثانیه نگه داشته می‌شود */
+  function shabStats() {
+    const st = S.shabStats;
+    if (st && (st.data || st.busy) && Date.now() - st.at < 30000) return st.data;
+    if (!S.app || S.doc.kit !== 'shab') return null;
+    S.shabStats = { at: Date.now(), busy: true, data: st && st.data };
+    api('kit/shab/stats?id=' + S.app.id).then(data => {
+      S.shabStats = { at: Date.now(), data };
+      if (S.screen === 'stories') renderStoriesQ();
+      const top = S.stack[S.stack.length - 1];
+      if (top) queueRefresh(top);
+    }).catch(() => { S.shabStats = { at: Date.now(), data: st && st.data }; });
+    return st && st.data;
+  }
+
   function renderStories() {
     if (!S.doc || S.screen !== 'stories') return;
     $('st-app').textContent = S.app.name;
@@ -2849,9 +2983,10 @@
     const all = list.reduce((a, { block }) => a.concat(chaps(block)), []);
     const drafts = all.filter(c => c.draft).length;
     const stats = h('div', 'st-stats');
-    [[list.length, 'داستان'], [all.length - drafts, 'فصل منتشرشده'], [drafts, 'پیش‌نویس']].forEach(([n, l]) => {
+    const stats0 = shabStats();
+    [[list.length, 'داستان'], [all.length - drafts, 'فصل منتشر'], [drafts, 'پیش‌نویس'], [stats0 ? stats0.readers : '…', 'خواننده']].forEach(([n, l]) => {
       const s = h('div', 'st-stat');
-      s.append(h('b', '', faN(n)), h('span', '', l));
+      s.append(h('b', '', typeof n === 'number' ? faN(n) : n), h('span', '', l));
       stats.appendChild(s);
     });
     body.appendChild(stats);
@@ -2910,6 +3045,8 @@
     if (p.genre) meta.appendChild(h('span', 'st-badge', p.genre));
     meta.appendChild(h('span', 'st-badge', `${faN(list.length)} فصل`));
     if (drafts) meta.appendChild(h('span', 'st-badge draft', `${faN(drafts)} پیش‌نویس`));
+    const sst = (shabStats() || { stories: {} }).stories[b.id];
+    if (sst) meta.appendChild(h('span', 'st-badge readers', `${faN(sst.readers)} خواننده`));
     meta.appendChild(h('span', 'st-badge ' + (p.status === 'done' ? 'done' : ''), p.status === 'done' ? 'تمام شده' : 'ادامه دارد'));
     info.appendChild(meta);
     main.append(info, ico('arrow', 'chev'));
@@ -2961,7 +3098,7 @@
       go.addEventListener('click', () => {
         if (!d.title.trim()) return;
         const b = defaultBlock('story', Object.assign({}, d, { title: d.title.trim(),
-          chapters: [{ title: 'فصل اول', body: '', note: '', lock: false, url: '', draft: true }] }));
+          chapters: [{ id: newChId(), title: 'فصل اول', body: '', note: '', lock: false, url: '', draft: true }] }));
         storyHome().blocks.push(b);
         notify('success');
         closeSheet();
@@ -2977,7 +3114,7 @@
     if (!f) return;
     const list = chaps(f.block);
     if (list.length >= 60) { toast('هر داستان حداکثر ۶۰ فصل دارد', true); return; }
-    const ch = { title: `فصل ${faN(list.length + 1)}`, body: '', note: '', lock: false, url: '', draft: true };
+    const ch = { id: newChId(), title: `فصل ${faN(list.length + 1)}`, body: '', note: '', lock: false, url: '', draft: true };
     list.push(ch);
     changed();
     chapterPage(id, ch);
@@ -3014,7 +3151,8 @@
           txt.type = 'button';
           const t = h('span', 'st-ch-t');
           t.append(h('b', 'body-strong', c.title || `فصل ${faN(i + 1)}`),
-            h('span', 'caption', c.body ? `${faN(ES.words(c.body))} کلمه، ${faN(ES.minutes(c.body))} دقیقه` : 'هنوز متنی ندارد'));
+            h('span', 'caption', (c.body ? `${faN(ES.words(c.body))} کلمه، ${faN(ES.minutes(c.body))} دقیقه` : 'هنوز متنی ندارد')
+              + (((shabStats() || { chapters: {} }).chapters[c.id]) ? ` · ${faN(shabStats().chapters[c.id].readers)} خواننده، ${faN(shabStats().chapters[c.id].finished || 0)} تا آخر` : '')));
           const badges = h('span', 'st-badges');
           if (c.draft) badges.appendChild(h('span', 'st-badge draft', 'پیش‌نویس'));
           if (c.lock) badges.appendChild(h('span', 'st-badge lock', 'در کانال'));
@@ -3269,7 +3407,7 @@
 
       const more = h('details', 'more-sec');
       const sum = h('summary');
-      sum.append(ico('lock'), h('span', 'grow', 'قفل، برچسب و لینک کانال'), ico('chev', 'more-chev'));
+      sum.append(ico('lock'), h('span', 'grow', 'فقط اعضا، برچسب و لینک'), ico('chev', 'more-chev'));
       const mb = h('div', 'more-body');
       const chSpec = S.schema.blocks.story.fields.find(x => x.key === 'chapters').fields;
       const cf = k => chSpec.find(x => x.key === k);

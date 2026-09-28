@@ -112,8 +112,15 @@
       d.apps.push(a); save(d);
       return Promise.resolve({ app: appJson(a), doc: a.draft });
     }
+    // شب‌نوشت (app/kits/shab/api.py): در نسخهٔ نمایشی خواننده‌ای نیست
+    if (path.indexOf('kit/shab/stats') === 0) return Promise.resolve({ readers: 0, followers: 0, stories: {}, chapters: {} });
     const a = find(body && body.id);
     if (!a) return fail(404, 'مینی‌اپ پیدا نشد');
+    if (path === 'kit/shab/channel') return fail(400, 'در نسخهٔ نمایشی کانال وصل نمی‌شود؛ در ربات واقعی ربات را ادمین کانال کن و آیدی‌اش را بنویس.');
+    if (path === 'kit/shab/announce') {
+      a.announced = (a.announced || []).concat(body.chapters || []); save(d);
+      return Promise.resolve({ ok: true, readers: 0, channel: false, chapters: (body.chapters || []).length });
+    }
     if (path === 'app/rename') {
       const name = String(body.name || '').trim();
       if (name.length < 2) return fail(400, 'اسم مینی‌اپ حداقل ۲ حرف باشد');
@@ -130,9 +137,21 @@
       const err = check(doc, P);
       if (err) return fail(402, err);
       a.draft = doc; a.updated_at = now();
-      if (path === 'app/publish') { a.published = JSON.parse(JSON.stringify(doc)); a.published_at = now(); }
+      let kit = {};
+      if (path === 'app/publish') {
+        a.published = JSON.parse(JSON.stringify(doc)); a.published_at = now();
+        // مثل kits.shab.on_publish: فصل‌هایی که تا حالا منتشر نشده بودند
+        const seen = new Set((a.pubCh || []).concat(a.announced || []));
+        const fresh = [];
+        (doc.pages || []).forEach(pg => (pg.blocks || []).forEach(b => {
+          if (b.type !== 'story') return;
+          (b.props.chapters || []).forEach(c => { if (!c.draft && c.id && !seen.has(c.id)) fresh.push({ id: c.id, story: b.props.title || '', title: c.title || '' }); });
+        }));
+        a.pubCh = (a.pubCh || []).concat(fresh.map(c => c.id));
+        kit = { new_chapters: fresh };
+      }
       save(d);
-      return Promise.resolve({ doc: doc, app: appJson(a) });
+      return Promise.resolve({ doc: doc, app: appJson(a), kit: kit });
     }
     return fail(404, 'پیدا نشد');
   }

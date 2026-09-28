@@ -14,7 +14,7 @@ import os
 import re
 import time
 
-from app import blocks, secure
+from app import blocks, kits, secure
 from app.config import config
 from app.db import Database, effective_plan, load_doc
 from app.plans import PLANS, Plan
@@ -110,6 +110,8 @@ def _app_json(app) -> dict:  # noqa: ANN001
         "updated_at": app["updated_at"],
         "dirty": (app["draft"] or "") != (app["published"] or ""),
         "welcome": app["welcome"] or "",
+        "channel": ({"id": app["channel_id"], "username": app["channel_username"] or "", "title": app["channel_title"] or ""}
+                    if app["channel_id"] else None),
     }
 
 
@@ -206,7 +208,9 @@ class Api:
         doc = self._clean(body, plan)
         await self.db.publish(app["id"], doc)
         app = await self.db.get_app(app["id"])
-        return {"doc": doc, "app": _app_json(app)}
+        # کار سمت سرورِ قالب (شب‌نوشت: متن فصل‌ها به جدول، فصل‌های تازه برای اعلام)
+        kit = await kits.on_publish(self.db, app, doc)
+        return {"doc": doc, "app": _app_json(app), "kit": kit}
 
     async def welcome(self, init_data: str, body: dict) -> dict:
         """پیام خوش‌آمد ربات مشتری در حالت کنترل کامل (خالی = متن پیش‌فرض)."""
@@ -257,6 +261,7 @@ class Api:
             pages.append(dict(pg, blocks=visible))
         doc["pages"] = pages
         blocks.reader_view(doc)
+        kits.public_view(doc)
         return {
             "name": app["name"],
             "doc": doc,

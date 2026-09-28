@@ -6,6 +6,8 @@
 """
 from __future__ import annotations
 
+import html
+import time
 from typing import Any, Awaitable, Callable
 
 from aiogram import BaseMiddleware, Bot, F, Router
@@ -46,11 +48,45 @@ def _open_kb(app) -> InlineKeyboardMarkup:  # noqa: ANN001
     )
 
 
+async def _reader(db: Database, app, message: Message) -> None:  # noqa: ANN001
+    """کسی که ربات را شروع کرده، خوانندهٔ شب‌نوشت است و پیام فصل تازه می‌گیرد."""
+    u = message.from_user
+    if u is None:
+        return
+    t = int(time.time())
+    await db.execute(
+        "INSERT INTO shab_readers(app_id, tg_id, first_name, username, first_seen, last_seen) VALUES (?,?,?,?,?,?) "
+        "ON CONFLICT(app_id, tg_id) DO UPDATE SET first_name=excluded.first_name, username=excluded.username, last_seen=excluded.last_seen",
+        (app["id"], u.id, (u.first_name or "")[:64], (u.username or "")[:64], t, t),
+    )
+
+
+@router.message(F.chat.type == "private", F.text.regexp(r"^/start c_(c[a-z0-9]{5,15})$").as_("m"))
+async def open_chapter(message: Message, app, db: Database, m) -> None:  # noqa: ANN001
+    """لینک پست کانال (t.me/<ربات>?start=c_<فصل>): همان فصل در مینی‌اپ باز می‌شود."""
+    if app["status"] != "active":
+        await message.answer("این ربات موقتاً در دسترس نیست.")
+        return
+    await _reader(db, app, message)
+    row = await db.fetchone(
+        "SELECT title, story_title FROM shab_chapters WHERE app_id = ? AND chapter_id = ?", (app["id"], m.group(1)))
+    if row is None:
+        await message.answer(app["welcome"] or texts.default_welcome(app["name"]), reply_markup=_open_kb(app))
+        return
+    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+        text="📖 خواندن", web_app=WebAppInfo(url=config.page_url(app["slug"]) + "#read=" + m.group(1)))]])
+    title = html.escape(row["title"] or "")
+    story = html.escape(row["story_title"] or "")
+    await message.answer(f"<b>{title}</b>\nاز «{story}»", reply_markup=kb)
+
+
 @router.message(F.chat.type == "private")
-async def any_private(message: Message, app) -> None:  # noqa: ANN001
+async def any_private(message: Message, app, db: Database) -> None:  # noqa: ANN001
     """/start و هر پیام دیگر: خوش آمد + دکمه ورود به مینی اپ."""
     if app["status"] != "active":
         await message.answer("این ربات موقتاً در دسترس نیست.")
         return
+    if (message.text or "").startswith("/start"):
+        await _reader(db, app, message)
     text = app["welcome"] or texts.default_welcome(app["name"])
     await message.answer(text, reply_markup=_open_kb(app))

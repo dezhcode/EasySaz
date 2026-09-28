@@ -463,9 +463,11 @@ SCHEMA: dict[str, dict[str, Any]] = {
                  {"key": "title", "label": "اسم فصل", "type": "text", "max": 80, "default": "فصل تازه"},
                  {"key": "body", "label": "متن فصل", "type": "textarea", "max": 8000, "default": "", "story": True},
                  {"key": "note", "label": "برچسب کوچک (مثلاً «امروز»)", "type": "text", "max": 24, "default": ""},
-                 {"key": "lock", "label": "فقط در کانال (اینجا فقط چند خط اولش)", "type": "bool", "default": False},
-                 {"key": "url", "label": "لینک این فصل در کانال (اختیاری)", "type": "url", "default": ""},
+                 {"key": "lock", "label": "فقط اعضای کانال (بقیه چند خط اولش را می‌بینند)", "type": "bool", "default": False},
+                 {"key": "url", "label": "لینک این فصل در کانال (اگر کانال در تنظیمات ثبت نشده)", "type": "url", "default": ""},
                  {"key": "draft", "label": "پیش‌نویس (خواننده‌ها نمی‌بینند)", "type": "bool", "default": False},
+                 # شناسهٔ پایدار فصل (جای خواندن، نشان‌ها و آمار به آن بسته است)
+                 {"key": "id", "label": "", "type": "id", "default": ""},
              ],
              "default": [
                  {"title": "فصل اول", "body": "اولین جملهٔ داستانت را این‌جا بنویس.", "note": "", "lock": False, "url": "", "draft": False},
@@ -541,6 +543,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f‪-‮⁦-⁩]")
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 _ID = re.compile(r"^[a-z0-9_-]{3,24}$")
+_ITEM_ID = re.compile(r"^c[a-z0-9]{5,15}$")
 _TG_USER = re.compile(r"^@?[A-Za-z][A-Za-z0-9_]{3,31}$")
 
 
@@ -843,6 +846,8 @@ def _clean_field(field: dict, value: Any) -> Any:
         return value if value in keys else field.get("default", keys[0])
     if ftype == "bool":
         return value if isinstance(value, bool) else field.get("default", False)
+    if ftype == "id":
+        return value if isinstance(value, str) and _ITEM_ID.match(value) else ""
     if ftype == "int":
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             return field.get("default")
@@ -964,6 +969,15 @@ def clean_page(doc: Any, *, max_blocks: int, premium: bool, max_pages: int = 1) 
         icon = raw.get("icon") if raw.get("icon") in _PAGE_ICON_KEYS else ("home" if i == 0 else "star")
         pages.append({"id": pid, "title": title, "icon": icon,
                       "blocks": _clean_blocks(raw.get("blocks"), premium, seen_blocks, kit)})
+
+    # شناسهٔ فصل‌ها: خالی یا تکراری (مثلاً داستانِ تکثیرشده) شناسهٔ تازه می‌گیرد
+    seen_ch: set[str] = set()
+    for pg in pages:
+        for b in pg["blocks"]:
+            for ch in b["props"].get("chapters") or [] if b["type"] == "story" else []:
+                if not ch.get("id") or ch["id"] in seen_ch:
+                    ch["id"] = "c" + secrets.token_hex(5)
+                seen_ch.add(ch["id"])
 
     total = sum(len(p["blocks"]) for p in pages)
     if total > max_blocks:

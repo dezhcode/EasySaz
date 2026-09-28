@@ -760,7 +760,7 @@ body.has-sub{overflow:hidden}
 .st-k{font-size:12px; font-weight:700; color:var(--ink-3)}
 .st-t{font-size:24px; line-height:1.3; font-weight:800; letter-spacing:-.3px}
 .st-top .status{margin-top:2px}
-.st-stats{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); margin:4px var(--pad) 0; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden}
+.st-stats{display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); margin:4px var(--pad) 0; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden}
 .st-stat{display:flex; flex-direction:column; align-items:center; gap:2px; padding:12px 6px}
 .st-stat + .st-stat{border-inline-start:1px solid var(--line)}
 .st-stat b{font-size:20px; font-weight:800; font-variant-numeric:tabular-nums}
@@ -890,3 +890,21 @@ body.has-sub{overflow:hidden}
 .ch-ic .ico{width:18px; height:18px}
 .ch-chip:disabled{opacity:.35}
 .danger-t{color:var(--danger); font-weight:700}
+.st-stat b{font-size:18px}
+.st-badge.readers{background:var(--brand-tint); color:var(--brand)}
+
+/* اعلام فصل تازه (بعد از انتشار) و کانال */
+.ann{margin:4px 0 14px; padding:14px; border-radius:var(--radius-lg); background:var(--surface); border:1.5px solid var(--line)}
+.ann-h{display:flex; align-items:center; gap:10px}
+.ann-h b{font-size:15px; font-weight:800}
+.ann-h .cat-tile{width:36px; height:36px; border-radius:11px}
+.ann-l{margin:10px 0 4px; padding:0 18px 0 0; font-size:13px; line-height:1.9; color:var(--ink-2)}
+.ann .switch-row{flex-wrap:wrap; margin-top:10px}
+.ann-sub{flex-basis:100%; margin-top:-2px}
+.ann .switch-row.off{opacity:.55}
+.ann .btn{margin-top:14px}
+.chn .row{display:flex; align-items:center; gap:12px; padding:12px; border-radius:var(--radius-lg); background:var(--surface); border:1px solid var(--line)}
+.chn .row .grow{display:flex; flex-direction:column; min-width:0}
+.chn .caption{margin:8px 4px 0; line-height:1.8}
+.chn .field{margin-top:8px}
+.chn .btn{margin-top:10px}

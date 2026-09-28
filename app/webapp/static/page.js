@@ -43,6 +43,47 @@
     return { ok: res.ok, data: await res.json() };
   }
 
+  /* ---------- سرور شب‌نوشت: متن فصل، جای خواندن، نشان‌ها ----------
+     هویت خواننده initData ربات همین مینی‌اپ است (سرور امضا را می‌سنجد).
+     بیرون از تلگرام فقط متن فصل‌های آزاد گرفته می‌شود و بقیه در گوشی می‌ماند. */
+  const initData = (!demo && tg && tg.initData) || '';
+  function shabRemote() {
+    if (demo) return null;
+    const url = tail => BASE + 'api/page/' + encodeURIComponent(slug) + '/' + tail;
+    const headers = extra => Object.assign({ 'X-Init-Data': initData }, extra || {});
+    const post = (tail, body) => initData
+      ? fetch(url(tail), { method: 'POST', headers: headers({ 'Content-Type': 'application/json' }), body: JSON.stringify(body), keepalive: true }).catch(() => {})
+      : Promise.resolve();
+    // جای خواندن هر چند ثانیه یک بار فرستاده می‌شود، نه با هر اسکرول
+    let pending = null, timer = 0;
+    const flush = () => { clearTimeout(timer); timer = 0; if (pending) { const b = pending; pending = null; post('progress', b); } };
+    return {
+      canSync: !!initData,
+      async chapter(id, fresh) {
+        const res = await fetch(url('chapter?id=' + encodeURIComponent(id) + (fresh ? '&fresh=1' : '')), { headers: headers(), cache: 'no-store' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'error');
+        return data;
+      },
+      progress(s, k, p) {
+        if (!initData) return;
+        if (pending && pending.k !== k) flush();
+        pending = { s, k, p: Math.round(p * 1000) / 1000 };
+        if (!timer) timer = setTimeout(flush, 4000);
+      },
+      flush,
+      mark(s, k, on) { post('mark', { s, k, on: !!on }); },
+      notify(on) { post('notify', { on: !!on }); },
+      async me() {
+        if (!initData) return null;
+        const res = await fetch(url('me'), { headers: headers(), cache: 'no-store' });
+        return res.ok ? res.json() : null;
+      },
+    };
+  }
+  const remote = shabRemote();
+  document.addEventListener('visibilitychange', () => { if (document.hidden && remote) remote.flush(); });
+
   async function load() {
     let r;
     try { r = await fetchPage(); } catch (e) {
@@ -55,12 +96,17 @@
     const doc = ES.normalize(data.doc);
     const empty = doc.pages.every(pg => !(pg.blocks || []).length);
     if (empty) { state('spark', data.name, 'به‌زودی اینجا چیزهای خوبی می‌بینی.', doc.theme, doc.kit); return; }
-    let current = decodeURIComponent(location.hash.slice(1)) || null;
+    // #read=<فصل> یا startapp=c_<فصل>: همان فصل مستقیم باز می‌شود
+    const hash = decodeURIComponent(location.hash.slice(1));
+    const startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '';
+    let readId = /^read=/.test(hash) ? hash.slice(5) : (/^c_/.test(startParam) ? startParam.slice(2) : '');
+    let current = hash && !/^read=/.test(hash) ? hash : null;
     const draw = () => {
       const pal = ES.render(root, doc, {
         page: current,
         appName: data.name,
         appKey: slug,
+        remote: doc.kit === 'shab' ? remote : null,
         fixedChrome: true,
         branding: data.branding ? { bot: data.brand_bot } : null,
         onNavigate: id => {
@@ -74,6 +120,19 @@
       paint(pal.bg);
     };
     draw();
+    if (doc.kit === 'shab' && remote && remote.canSync) {
+      // وضعیت خواندن این خواننده از سرور؛ اگر لایهٔ خواندن باز نیست، صفحه تازه می‌شود
+      remote.me().then(me => {
+        if (!me) return;
+        ES.shabSeed(slug, me);
+        if (!(root.__shab && root.__shab.length)) draw();
+      }).catch(() => {});
+    }
+    if (readId) {
+      const opened = ES.shabOpen && ES.shabOpen(root, readId);
+      readId = '';
+      if (opened) try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    }
   }
 
   function view() {

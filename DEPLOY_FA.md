@@ -24,7 +24,7 @@ source /home/USERNAME/virtualenv/easysaz_app/3.11/bin/activate && cd /home/USERN
 
 ## ۲. کد و کتابخانه‌ها
 
-فایل‌ها را در `easysaz_app` قرار بده (با git clone یا آپلود zip). اگر سی‌پنل خودش `passenger_wsgi.py` ساخته، با نسخه پروژه جایگزینش کن. بعد:
+کد را از گیت‌هاب در `easysaz_app` بگیر (بخش «گرفتن کد از گیت‌هاب» پایین همین راهنما؛ به‌روزرسانی‌های بعدی هم با همان روش و `./deploy.sh` است). اگر سی‌پنل خودش `passenger_wsgi.py` ساخته، نسخهٔ پروژه جایش می‌نشیند. بعد:
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
@@ -47,7 +47,7 @@ python -c "from cryptography.fernet import Fernet; print('TOKEN_KEY=' + Fernet.g
 
 ```bash
 python check_setup.py        # همه خطوط باید «درست» باشند
-python test_smoke.py         # اختیاری: ۶۰ تست بدون شبکه
+python test_smoke.py         # اختیاری: ۱۱۰ تست بدون شبکه
 chmod 700 data logs
 ./restart.sh
 ```
@@ -90,6 +90,61 @@ curl -s https://dezhcode.pyho.ir/easysaz/health >/dev/null 2>&1
 6. شب‌نوشت: ربات تست را ادمین یک کانال تست کن (با اجازهٔ پست)، در پنل «تنظیمات ← کانال داستان‌ها» آیدی کانال را ثبت کن. یک فصل را «فقط اعضا» کن و منتشر کن؛ با یک حساب که عضو کانال نیست باید فقط پاراگراف اول و دکمهٔ عضویت را ببینی، و بعد از عضویت با «عضو شدم» متن کامل باز شود.
 7. بعد از انتشار فصل تازه، در کارت «فصل تازه منتشر شد» دکمهٔ «اعلام کن» را بزن؛ پست کانال و پیام ربات به خواننده‌ها باید برسد. برای این‌که لینک پست کانال همان فصل را باز کند، ربات در حالت «کنترل کامل» باشد.
 
+## گرفتن کد از گیت‌هاب و به‌روزرسانی
+
+همهٔ دستورها در **Terminal** سی‌پنل (یا `ssh USERNAME@HOST`) اجرا می‌شوند.
+
+### یک بار: کلید دسترسی فقط‌خواندنی (Deploy key)
+
+اگر مخزن خصوصی است، هاست با یک کلید SSH مخصوص خودش از گیت‌هاب می‌خواند (اگر عمومی است، این قسمت را رد کن و در دستورهای بعدی به‌جای `git@github-easysaz:` بنویس `https://github.com/`).
+```bash
+ssh-keygen -t ed25519 -C "easysaz-deploy" -f ~/.ssh/easysaz_deploy -N ""
+cat ~/.ssh/easysaz_deploy.pub
+```
+خروجی را در گیت‌هاب بگذار: مخزن `dezhcode/EasySaz` ← **Settings** ← **Deploy keys** ← **Add deploy key** (تیک «Allow write access» را نزن).
+بعد به SSH بگو برای این مخزن از همین کلید استفاده کند:
+```bash
+cat >> ~/.ssh/config <<'CFG'
+Host github-easysaz
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/easysaz_deploy
+  IdentitiesOnly yes
+CFG
+chmod 600 ~/.ssh/config
+ssh -T github-easysaz        # باید بگوید: successfully authenticated
+```
+
+### یک بار: وصل کردن پوشهٔ اپ به مخزن
+
+پوشهٔ `easysaz_app` را Setup Python App ساخته (و شاید قبلاً فایل‌ها را با zip آپلود کرده‌ای)، پس به‌جای clone همین پوشه را به گیت وصل می‌کنیم:
+```bash
+cp -a ~/easysaz_app ~/easysaz_app.bak-$(date +%F)     # پشتیبان، برای احتیاط
+cd ~/easysaz_app
+git init -b main
+git remote add origin git@github-easysaz:dezhcode/EasySaz.git
+git fetch origin main
+git reset --hard origin/main
+chmod +x deploy.sh restart.sh
+```
+`reset --hard` فقط فایل‌های پروژه را با نسخهٔ گیت‌هاب یکی می‌کند؛ `.env`، `data/` (دیتابیس)، `logs/` و `uploads/` در گیت نیستند و دست نمی‌خورند. بعد مرحله‌های ۲ تا ۵ همین راهنما (کتابخانه‌ها، `.env`، بررسی و وبهوک) را اگر قبلاً انجام نداده‌ای، انجام بده.
+
+### هر بار: فرستادن نسخهٔ تازه روی هاست
+
+وقتی تغییری روی شاخهٔ `main` گیت‌هاب رفت:
+```bash
+source /home/USERNAME/virtualenv/easysaz_app/3.11/bin/activate && cd /home/USERNAME/easysaz_app
+./deploy.sh              # یا ./deploy.sh --test تا قبل از ری‌استارت تست‌ها هم اجرا شوند
+```
+`deploy.sh` آخرین `main` را می‌گیرد، اگر `requirements.txt` عوض شده کتابخانه‌ها را نصب می‌کند و اپ را ری‌استارت می‌کند. بعد `…/easysaz/health` را باز کن. وبهوک لازم نیست دوباره ثبت شود، مگر `BASE_URL` یا `WEBHOOK_PATH` عوض شده باشد.
+
+برگشت به نسخهٔ قبل (اگر نسخهٔ تازه مشکل داشت):
+```bash
+git log --oneline -5                 # شناسهٔ نسخهٔ سالم را پیدا کن
+git reset --hard <شناسه> && ./restart.sh
+```
+دفعهٔ بعد `./deploy.sh` دوباره روی آخرین `main` می‌رود.
+
 ## رفع مشکل
 
 - **ثبت کانال «پیدا نشد یا ربات عضوش نیست» می‌دهد:** ربات مینی‌اپ (نه @EasySazBot) باید ادمین همان کانال باشد. کانال خصوصی را با آیدی عددی (‎-100…‎) بنویس.
@@ -97,5 +152,6 @@ curl -s https://dezhcode.pyho.ir/easysaz/health >/dev/null 2>&1
 - **۵۰۰ روی /health:** `tail -50 logs/easysaz.log` و error log دامنه را ببین. معمولاً یعنی کتابخانه‌ها نصب نیستند یا `.env` ناقص است.
 - **پنل «امضای initData معتبر نیست» می‌دهد:** `BOT_TOKEN` در `.env` با ربات اصلی یکی نیست.
 - **ربات مشتری در حالت کنترل کامل جواب نمی‌دهد:** وبهوکش را با `getWebhookInfo` بررسی کن. آدرس باید `BASE_URL/hook/<bot_id>` باشد. اگر توکن را در BotFather عوض کرده، باید دوباره وصلش کند.
-- **تغییر کد اعمال نمی‌شود:** `./restart.sh` را بزن.
+- **تغییر کد اعمال نمی‌شود:** `./restart.sh` را بزن. پنل را در تلگرام یک بار ببند و باز کن (فایل‌های JS/CSS تا ۵ دقیقه کش می‌شوند).
+- **`./deploy.sh` می‌گوید تغییری روی هاست هست:** یعنی فایلی دستی روی هاست ویرایش شده. `git status` نشانش می‌دهد؛ اگر لازم نیست `git reset --hard origin/main` و دوباره `./deploy.sh`.
 - **database is locked:** اپ را ری‌استارت کن. اگر ادامه داشت، از پشتیبانی هاست بخواه `passenger_max_pool_size` را ۱ کند.

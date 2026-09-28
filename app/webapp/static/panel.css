@@ -1070,3 +1070,88 @@ body.has-sub .nav{transform:translateY(160%)}
 .ql-ta-lg{width:100%; min-height:110px; margin:12px 0 4px; border-radius:16px}
 .ql-read{padding:0}
 .ql-l{display:block; margin:14px 4px 8px}
+
+/* ===== داستان‌ها: ساده برای کسی که فقط می‌خواهد بنویسد ===== */
+.st-badge.live{background:#DDF3EA; color:var(--success)}
+.sp-body{padding-top:4px}
+.sp-hero{display:flex; gap:14px; align-items:flex-start; padding:14px; margin-top:6px; border-radius:24px; background:var(--surface); box-shadow:0 1px 0 var(--line)}
+.sp-hero-t{flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; line-height:1.5}
+.sp-title{font-size:19px; font-weight:800; line-height:1.4}
+.sp-blurb{margin:2px 0 0; font-size:12.5px; line-height:1.8; color:var(--ink-2); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.sp-hero-a{display:flex; flex-wrap:wrap; gap:6px; margin-top:auto; padding-top:8px}
+.sp-hero-a .btn{gap:6px}
+.sp-hero-a .ico{width:16px; height:16px}
+.sp-write{margin-top:12px; height:54px; font-size:15.5px; gap:8px}
+.sp-write .ico{width:20px; height:20px}
+.sp-look{display:flex; align-items:center; gap:12px; width:100%; padding:12px 14px; border-radius:var(--radius-lg); background:var(--surface); box-shadow:0 1px 0 var(--line); text-align:right}
+.sp-look .grow{display:flex; flex-direction:column; line-height:1.55; min-width:0}
+.sp-look .chev{width:18px; height:18px; color:var(--ink-3)}
+.sp-look-art{width:46px; height:46px; border-radius:14px; background:#F6F1EB; padding:9px 7px; display:flex; flex-direction:column; gap:5px; flex:none}
+.sp-look-art i{display:block; height:9px; border-radius:5px; background:#FFFFFF; width:80%}
+.sp-look-art i:last-child{align-self:flex-end; background:#D0452B; width:60%}
+.sp-look-art.dark{background:#100E0F}
+.sp-look-art.dark i:first-child{background:#2A2426}
+
+/* شخصیت‌ها: ردیف عکس‌ها */
+.qc-strip{display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; padding:4px 2px 2px}
+.qc-strip::-webkit-scrollbar{display:none}
+.qc-person{width:72px; flex:none; display:flex; flex-direction:column; align-items:center; gap:4px; padding:6px 0; border-radius:16px; text-align:center}
+.qc-person:active{background:var(--surface-sunk)}
+.qc-person .q-av,.qc-person .qc-plus{width:56px; height:56px; font-size:22px}
+.qc-person b{font-size:12.5px; font-weight:800; max-width:68px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.qc-person > span:last-child{font-size:10.5px; color:var(--ink-3); min-height:15px}
+.qc-add .qc-plus{border:2px dashed #C9C6DA; background:transparent}
+
+/* انتخاب با تصویر (ظاهر خواندن، نوع شخصیت) */
+.lk-opts{display:grid; gap:8px}
+.lk-opts.two{grid-template-columns:1fr 1fr}
+.lk-opts.three{grid-template-columns:repeat(3, minmax(0, 1fr))}
+.lk-opt{display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 8px 12px; border-radius:18px; background:var(--ground); text-align:center; box-shadow:inset 0 0 0 1px var(--line)}
+.lk-opt.on{background:var(--brand-tint); box-shadow:inset 0 0 0 2px var(--brand)}
+.lk-opt b{font-size:13.5px; font-weight:800}
+.lk-opt > span:last-child:not(.lk-art){font-size:11px; line-height:1.6; color:var(--ink-3)}
+.lk-art{width:100%; max-width:120px; height:64px; border-radius:12px; background:#F6F1EB; padding:8px; display:flex; flex-direction:column; gap:5px; margin-bottom:4px}
+.lk-art i{display:block; height:10px; border-radius:6px; background:#FFFFFF; width:70%; box-shadow:0 1px 1px rgba(0,0,0,.06)}
+.lk-art i:nth-child(2){align-self:flex-end; background:#D0452B; width:55%}
+.lk-art i:nth-child(3){width:45%}
+.lk-chat.dark{background:#100E0F}
+.lk-chat.dark i:not(:nth-child(2)){background:#2A2426; box-shadow:none}
+.lk-mode{height:78px}
+.lk-tap i:nth-child(3){opacity:.25}
+.lk-scroll i:nth-child(3){opacity:.45}
+.lk-notif{background:linear-gradient(165deg, #EADBCB, #D9CFE0)}
+.lk-notif i{width:100% !important; height:14px; align-self:stretch !important; background:rgba(255,255,255,.9) !important; border-radius:6px}
+.qc-side-art{height:54px}
+.qc-side-art i:first-child{width:50%}
+.qc-side-art.me i:nth-child(1){align-self:flex-end; background:var(--brand); width:62%}
+.qc-side-art.me i:nth-child(2){opacity:.35; align-self:flex-start; background:#FFFFFF; width:48%}
+.qc-side-art.them i:nth-child(1){align-self:flex-start; background:#FFFFFF; width:62%; box-shadow:inset 0 0 0 1px #E5DBD0}
+.qc-side-art.them i:nth-child(2){opacity:.35; align-self:flex-end; background:var(--brand); width:48%}
+.lk-done{margin-top:18px}
+
+/* قسمت: نوار وضعیت و انتشار */
+.ch-pub{display:flex; flex-wrap:wrap; align-items:center; gap:10px 12px; margin-top:12px; padding:12px 14px; border-radius:var(--radius-lg); background:#FFF6E6; box-shadow:inset 0 0 0 1px #F2DDB5}
+.ch-pub.live{background:#E8F6EF; box-shadow:inset 0 0 0 1px #BFE4D1}
+.ch-pub-ic{width:36px; height:36px; border-radius:12px; background:#FFFFFF; color:#9A6412; display:grid; place-items:center; flex:none}
+.ch-pub.live .ch-pub-ic{color:var(--success)}
+.ch-pub-ic .ico{width:18px; height:18px}
+.ch-pub .grow{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.55}
+.ch-pub .grow b{font-size:14px; font-weight:800}
+.ch-pub .grow span{font-size:11.5px; color:var(--ink-2)}
+.ch-pub .btn{gap:6px}
+.ch-pub .btn .ico{width:15px; height:15px}
+.ch-pub-back{width:100%; font-size:12px; font-weight:700; color:var(--ink-3); text-align:center}
+.ql-step{display:flex; align-items:center; gap:10px; text-align:right; font-size:13px; color:var(--pg-ink-2)}
+.ql-step i{width:26px; height:26px; border-radius:50%; background:var(--pg-accent); color:#FFFFFF; font-style:normal; font-weight:800; font-size:13px; display:grid; place-items:center; flex:none}
+.ql-empty{align-items:stretch; gap:10px}
+.ql-spk-l{flex:none; align-self:center; font-size:11.5px; font-weight:800; color:var(--ink-3); padding-inline-start:2px}
+.ql-spk-w{display:flex; align-items:center; gap:8px; overflow-x:auto; scrollbar-width:none}
+.ql-spk-w::-webkit-scrollbar{display:none}
+.ql-img-row{display:flex; align-items:center; gap:8px; margin:6px 0 14px}
+.ql-img-row .btn{gap:6px}
+.ql-acts{display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:6px; margin-top:14px}
+.ql-act{display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 2px; border-radius:14px; background:var(--ground); font-size:11.5px; font-weight:700; color:var(--ink-2)}
+.ql-act .ico{width:20px; height:20px}
+.ql-act.danger{color:var(--danger)}
+.ql-act:disabled{opacity:.35}
+.ql-spk-w .ql-spk{overflow:visible; padding:0}

@@ -58,6 +58,8 @@ class Config:
     db_path: str = _abs_path(os.getenv("DB_PATH", "").strip() or "data/easysaz.db")
     log_path: str = _abs_path(os.getenv("LOG_PATH", "").strip() or "logs/easysaz.log")
     log_level: str = os.getenv("LOG_LEVEL", "INFO").strip().upper()
+    # تصویرهای آپلودشدهٔ صاحبان مینی‌اپ (بیرون از public_html)؛ از /u/<نام> سرو می‌شوند
+    upload_dir: str = _abs_path(os.getenv("UPLOAD_DIR", "").strip() or "data/uploads")
 
     # عمر مجاز initData مینی اپ (ثانیه)
     webapp_max_age: int = int(os.getenv("WEBAPP_MAX_AGE", "21600") or 21600)

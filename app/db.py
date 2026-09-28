@@ -76,6 +76,14 @@ CREATE TABLE IF NOT EXISTS payments (
   created_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS uploads (
+  name TEXT PRIMARY KEY,          -- <sha256[:24]>.<ext>؛ فایل در UPLOAD_DIR
+  owner_id INTEGER NOT NULL,
+  size INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_uploads_owner ON uploads(owner_id);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -363,6 +371,19 @@ class Database:
         except aiosqlite.IntegrityError:
             return False
 
+    # ---------- آپلود ----------
+    async def record_upload(self, name: str, owner_id: int, size: int) -> None:
+        await self.execute(
+            "INSERT OR IGNORE INTO uploads(name, owner_id, size, created_at) VALUES (?, ?, ?, ?)",
+            (name, owner_id, size, now()),
+        )
+
+    async def upload_usage(self, owner_id: int) -> tuple[int, int]:
+        row = await self.fetchone(
+            "SELECT COUNT(*) AS n, COALESCE(SUM(size), 0) AS b FROM uploads WHERE owner_id = ?", (owner_id,)
+        )
+        return (int(row["n"]), int(row["b"])) if row else (0, 0)
+
     # ---------- تنظیمات ----------
     async def get_setting(self, key: str, default: str | None = None) -> str | None:
         row = await self.fetchone("SELECT value FROM settings WHERE key = ?", (key,))
@@ -383,4 +404,4 @@ def load_doc(raw: str | None) -> dict:
         doc = json.loads(raw)
     except (ValueError, TypeError):
         return blocks.empty_page()
-    return doc if isinstance(doc, dict) else blocks.empty_page()
+    return blocks.upgrade(doc) if isinstance(doc, dict) else blocks.empty_page()

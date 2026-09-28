@@ -7,6 +7,10 @@
   GET  /api/me                   کاربر، پلن و اپ ها          (initData ربات اصلی)
   GET  /api/app?id=              سند پیش نویس یک اپ          (initData ربات اصلی)
   POST /api/app/create|rename|save|publish                  (initData ربات اصلی)
+  GET  /api/templates            قالب‌های آماده (عمومی)
+  POST /api/app/welcome          پیام خوش‌آمد ربات مشتری          (initData ربات اصلی)
+  POST /api/upload               آپلود تصویر (data URL)          (initData ربات اصلی)
+  GET  /u/<name>                 تصویرهای آپلودشده
   GET  /api/page/<slug>          سند منتشر شده (عمومی)
   POST /api/page/<slug>/view     ثبت بازدید                  (initData ربات مشتری)
 """
@@ -29,6 +33,7 @@ log = logging.getLogger("easysaz.web")
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 _SLUG = re.compile(r"^[a-z0-9]{6,16}$")
+_UPLOAD = re.compile(r"^[a-f0-9]{24}\.(jpg|png|webp)$")
 _STATIC_EXT = {".js", ".css", ".woff2", ".png", ".webp", ".svg", ".ico"}
 
 CSP = (
@@ -49,6 +54,7 @@ def is_webapp_path(path: str) -> bool:
         or path.startswith("/a/")
         or path.startswith("/static/")
         or path.startswith("/api/")
+        or path.startswith("/u/")
     )
 
 
@@ -130,11 +136,24 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
     if path.startswith("/static/") and method == "GET":
         return _static(start_response, path[len("/static/"):])
 
+    if path.startswith("/u/") and method == "GET":
+        name = path[3:]
+        full = os.path.join(config.upload_dir, name)
+        if not _UPLOAD.match(name) or not os.path.isfile(full):
+            return _send(start_response, "404 Not Found", b"not found", "text/plain")
+        with open(full, "rb") as fh:
+            data = fh.read()
+        ctype = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp"}[name.rsplit(".", 1)[1]]
+        # نام فایل از محتواست، پس هرگز عوض نمی‌شود
+        return _send(start_response, "200 OK", data, ctype, [("Cache-Control", "public, max-age=31536000, immutable")])
+
     if path == "/panel" and method == "GET":
         return _send(start_response, "200 OK", _html("panel.html", "EasySaz"), "text/html; charset=utf-8", page_headers)
 
     if path.startswith("/a/") and method == "GET":
         slug = path[3:].strip("/")
+        if slug == "demo":  # حالت نمایشی فرانت‌اند؛ داده از localStorage مرورگر (demo.js)
+            return _send(start_response, "200 OK", _html("page.html", "کافه نارنج"), "text/html; charset=utf-8", page_headers)
         if not _SLUG.match(slug):
             return _send(start_response, "404 Not Found", b"not found", "text/plain")
         title = "EasySaz"
@@ -153,6 +172,10 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
     # ---------- API ----------
     if path == "/api/schema" and method == "GET":
         return _json(start_response, 200, blocks.public_schema())
+    if path == "/api/templates" and method == "GET":
+        from app import templates
+
+        return _json(start_response, 200, templates.public())
 
     try:
         runtime.ensure_started()
@@ -163,9 +186,12 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
             coro = api.me(init_data)
         elif method == "GET" and path == "/api/app":
             coro = api.app(init_data, query.get("id"))
-        elif method == "POST" and path in ("/api/app/create", "/api/app/rename", "/api/app/save", "/api/app/publish"):
+        elif method == "POST" and path in ("/api/app/create", "/api/app/rename", "/api/app/save",
+                                           "/api/app/publish", "/api/app/welcome"):
             action = path.rsplit("/", 1)[1]
-            coro = getattr(api, action)(init_data, _body(environ))
+            coro = getattr(api, action)(init_data, _body(environ, limit=1_000_000 if action in ("save", "publish") else 262_144))
+        elif method == "POST" and path == "/api/upload":
+            coro = api.upload(init_data, _body(environ, limit=2_200_000))
         elif path.startswith("/api/page/"):
             rest = path[len("/api/page/"):].strip("/")
             slug, _, tail = rest.partition("/")

@@ -1,13 +1,18 @@
-html,body{margin:0; min-height:100%; background:var(--es-bg,#F4F6FA)}
+/* صفحهٔ منتشرشده: فقط پوستهٔ بارگذاری و حالت‌های خالی. ظاهر کامپوننت‌ها در render.css است. */
+html,body{margin:0; min-height:100%; background:var(--pg-bg)}
 body{overscroll-behavior-y:none}
 #root{min-height:100vh; min-height:var(--tg-viewport-stable-height,100vh)}
-.pg-skel{display:flex; flex-direction:column; gap:14px; max-width:560px; margin:0 auto}
-.pg-sk{display:block; height:84px; border-radius:18px; background:linear-gradient(90deg, rgba(127,137,160,.10), rgba(127,137,160,.20), rgba(127,137,160,.10)) 0 0/200% 100%; animation:pg-sh 1.3s linear infinite}
-.pg-sk-hero{height:190px; border-radius:24px}
-.pg-sk-s{height:54px}
-@keyframes pg-sh{to{background-position:-200% 0}}
-.pg-state{max-width:340px; margin:18vh auto 0; text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px}
-.pg-state-ico{width:72px; height:72px; border-radius:24px; display:grid; place-items:center; background:var(--es-soft,rgba(47,107,255,.1)); color:var(--es-accent-ink,#2F6BFF); margin-bottom:8px}
-.pg-state-ico .es-ico{width:34px; height:34px}
-.pg-state h1{margin:0; font-size:20px; font-weight:800}
-.pg-state p{margin:0; color:var(--es-ink-3,#7A8397); font-size:14px}
+
+.skel{display:flex; flex-direction:column; gap:var(--space-3); max-width:560px; margin:0 auto}
+.sk{display:block; height:84px; border-radius:var(--pg-radius); background:var(--pg-soft); animation:sk 1.2s ease-in-out infinite alternate}
+.sk-hero{height:190px; border-radius:calc(var(--pg-radius) + 6px)}
+.sk-s{height:54px}
+@keyframes sk{to{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}
+
+/* EmptyCanvas برای صفحهٔ کاربر: پیدا نشد، متوقف، هنوز خالی */
+.state{max-width:320px; margin:18vh auto 0; text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px}
+.state-tile{width:64px; height:64px; border-radius:20px; display:grid; place-items:center; background:var(--pg-soft); color:var(--pg-accent-ink); margin-bottom:6px}
+.state-tile .pg-ico{width:30px; height:30px}
+.state h1{margin:0; font-size:20px; line-height:28px; font-weight:800}
+.state p{margin:0; color:var(--pg-ink-3); font-size:14px; line-height:22px}

@@ -2269,24 +2269,19 @@
   }
 
   /* ---------- تنظیمات مینی‌اپ و ربات (زیرصفحه) ---------- */
+  /* تنظیمات همین مینی‌اپ: هویت و لینک، قالب، اسم، ربات، پیام خوش‌آمد، کانال و مصرف پلن.
+     آمار در داشبورد و فهرست مینی‌اپ‌ها در «حساب» است. */
   function settingsPage() {
-    push((el, pg) => {
+    push((el) => {
       subTop(el, S.app.name, 'تنظیمات');
       const body = h('div', 'sbody');
       el.appendChild(body);
-      const kitRow = h('button', 'row go-row');
-      kitRow.type = 'button';
-      const kg = h('span', 'grow');
-      const onShab = S.doc.kit === 'shab';
-      kg.append(h('b', 'body-strong', onShab ? 'قالب شب‌نوشت' : 'نصب قالب شب‌نوشت'),
-        h('span', 'caption', onShab ? 'نصب دوباره از اول (همه‌چیز جایگزین می‌شود)' : 'کتابخانهٔ داستان برای کانال‌ها'));
-      kitRow.append(catTile('story', 'book'), kg, ico('arrow', 'chev'));
-      kitRow.addEventListener('click', () => { haptic(); installShab(); });
-      body.appendChild(kitRow);
-      const card = h('div', 'appcard');
+      const entry = storeOfKit(S.doc.kit);
+
+      const card = tint(h('div', 'appcard'), entry);
       const logo = S.doc.header && ES.safeUrl(S.doc.header.logo, true);
-      const tile = h('span', 'appbar-tile');
-      if (logo) { const i = h('img'); i.alt = ''; i.src = logo; tile.appendChild(i); } else tile.textContent = (S.app.name || '?').charAt(0);
+      const tile = tq(entry, 'lg');
+      if (logo) { const i = h('img'); i.alt = ''; i.src = logo; tile.replaceChildren(i); tile.classList.add('has-logo'); }
       const g = h('span', 'grow');
       g.append(h('b', 'title-2', S.app.name), h('span', 'caption ltr', S.app.url.replace(/^https?:\/\//, '')));
       const cp = h('button', 'btn btn-s btn-sm');
@@ -2296,13 +2291,14 @@
       card.append(tile, g, cp);
       body.appendChild(card);
 
-      const stats = h('div', 'stats card');
-      [['visitors', 'بازدیدکننده'], ['views_today', 'بازدید امروز'], ['views_week', 'هفت روز']].forEach(([k, label]) => {
-        const s = h('div', 'stat');
-        s.append(h('div', 'num-lg', ((S.stats && S.stats[k]) || 0).toLocaleString('en-US')), h('div', 'label', label));
-        stats.appendChild(s);
-      });
-      body.appendChild(stats);
+      const kitRow = h('button', 'row go-row');
+      kitRow.type = 'button';
+      const kg = h('span', 'grow');
+      kg.append(h('b', 'body-strong', entry ? 'قالب ' + entry.title : 'قالب پایه'),
+        h('span', 'caption', entry ? 'دیدن در فروشگاه، نصب دوباره از اول' : 'یک قالب از فروشگاه نصب کن'));
+      kitRow.append(tq(entry, 'sm'), kg, ico('arrow', 'chev'));
+      kitRow.addEventListener('click', () => { haptic(); if (entry) templateDetail(entry); else { popAll(); tab('store'); } });
+      body.appendChild(kitRow);
 
       body.appendChild(nameSection());
       const conn = h('div', 'sh-sec stack');
@@ -2312,44 +2308,23 @@
       body.appendChild(welcomeSection());
       if (S.doc.kit === 'shab') body.appendChild(channelSection());
 
-      const planSec = h('div', 'sh-sec');
-      const plan = h('div', 'plan current');
-      const head = h('div', 'plan-head');
-      head.append(h('b', 'title-2', 'پلن ' + S.plan.title), h('span', 'pill label', 'پلن فعلی تو'));
-      const ul = h('ul', 'body');
-      [`${totalBlocks()} از ${S.plan.max_blocks} کامپوننت`, `${S.doc.pages.length} از ${S.plan.max_pages} صفحه`, `${S.me.apps.length} از ${S.plan.max_apps} مینی‌اپ`].forEach(t => {
-        const li = h('li'); li.append(ico('check'), document.createTextNode(t)); ul.appendChild(li);
+      const planSec = h('div', 'sh-sec stack');
+      planSec.appendChild(h('span', 'label', 'پلن ' + S.plan.title));
+      const use = h('div', 'me-use');
+      [[`${faN(totalBlocks())}/${faN(S.plan.max_blocks)}`, 'کامپوننت'], [`${faN(S.doc.pages.length)}/${faN(S.plan.max_pages)}`, 'صفحه'],
+       [`${faN(S.me.apps.length)}/${faN(S.plan.max_apps)}`, 'مینی‌اپ']].forEach(([n, l]) => {
+        const c = h('span');
+        c.append(h('b', 'n', n), h('span', '', l));
+        use.appendChild(c);
       });
-      plan.append(head, ul);
+      planSec.appendChild(use);
       if (!S.plan.premium_blocks) {
-        const up = h('button', 'btn primary block', 'ارتقا');
+        const up = h('button', 'btn btn-p btn-block', 'ارتقا به حرفه‌ای');
+        up.type = 'button';
         up.addEventListener('click', () => upsellSheet(''));
-        plan.appendChild(up);
+        planSec.appendChild(up);
       }
-      planSec.appendChild(plan);
       body.appendChild(planSec);
-
-      const appsSec = h('div', 'sh-sec stack');
-      appsSec.appendChild(h('span', 'label', 'مینی‌اپ‌های من'));
-      S.me.apps.forEach(a => {
-        const r = h('button', 'row');
-        r.type = 'button';
-        const t = h('span', 'appbar-tile', (a.name || '?').charAt(0));
-        const gg = h('span', 'grow');
-        gg.append(h('b', 'body-strong', a.name), h('span', 'caption', a.id === S.app.id ? 'در حال ویرایش' : (a.bot_username ? '@' + a.bot_username : 'بدون ربات')));
-        r.append(t, gg);
-        if (a.id !== S.app.id) r.addEventListener('click', async () => { popAll(); await saveNow(); openApp(a.id).catch(failed); });
-        appsSec.appendChild(r);
-      });
-      const more = h('button', 'add-item', '+ مینی‌اپ جدید');
-      more.type = 'button';
-      more.addEventListener('click', () => {
-        if (S.me.apps.length >= S.me.plan.max_apps) { upsellSheet(`پلن ${S.me.plan.title} فقط ${S.me.plan.max_apps} مینی‌اپ دارد.`); return; }
-        popAll();
-        onboard();
-      });
-      appsSec.appendChild(more);
-      body.appendChild(appsSec);
     });
   }
 
@@ -2514,18 +2489,20 @@
     notify('warning');
     openSheet(sheet => {
       sheetHead(sheet, 'media', 'star', 'این کار مال پلن حرفه‌ایه', reason || '');
-      const card = h('div', 'plan sh-sec');
-      const head = h('div', 'plan-head');
-      const price = h('span', 'plan-price');
-      price.append(ico('star'), h('b', 'num-lg', '250'), h('span', 'caption', 'ستاره در ماه'));
-      head.append(h('b', 'title-2', 'حرفه‌ای'), price);
-      const ul = h('ul', 'body');
-      ['۳ مینی‌اپ، تا ۴۰ کامپوننت در ۶ صفحه', 'کارت محصول، پلن‌ها، گالری و ویژگی‌ها', 'قالب‌های حرفه‌ای', 'بدون نشان «ساخته شده با ایزی‌ساز»'].forEach(t => {
+      const pro = (S.me.plans || []).find(p => p.key === 'pro') || { title: 'حرفه‌ای', price_stars: 250, features: [] };
+      const card = h('div', 'upcard');
+      const head = h('div', 'upcard-h');
+      const price = h('span', 'upcard-p');
+      price.append(h('b', 'n', faN(pro.price_stars)), h('span', '', 'ستاره در ماه'));
+      head.append(h('b', '', pro.title), price);
+      const ul = h('ul');
+      (pro.features || []).forEach(t => {
         const li = h('li');
-        li.append(ico('check'), document.createTextNode(t));
+        li.append(ico('check'), h('span', '', t));
         ul.appendChild(li);
       });
-      const buy = h('button', 'btn primary block', 'دیدن پلن‌ها در ربات');
+      const buy = h('button', 'btn btn-p btn-block', 'دیدن پلن‌ها در ربات');
+      buy.type = 'button';
       buy.addEventListener('click', () => openBot('plans'));
       card.append(head, ul, buy);
       sheet.appendChild(card);

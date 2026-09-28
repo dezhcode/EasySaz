@@ -1,10 +1,10 @@
-"""شب‌نوشت: کتابخانهٔ داستان برای کانال‌ها — بخش سرور.
+"""قسمت: کتابخانهٔ داستان برای کانال‌ها — بخش سرور.
 
 ویرایش همان سند پیش‌نویس است (پنل، app/blocks.py). با «انتشار»:
-- متن فصل‌های منتشرشده در جدول shab_chapters می‌نشیند و از سندِ عمومی
-  برداشته می‌شود. صفحهٔ مینی‌اپ سبک می‌ماند و متن هر فصل وقتی باز شد
-  جدا گرفته می‌شود؛ فصل «فقط اعضا» فقط به عضو کانال داده می‌شود.
-- فصل‌های تازه (که قبلاً منتشر نشده بودند) به پنل برمی‌گردند تا صاحب
+- متن قسمت‌های منتشرشده در جدول shab_chapters می‌نشیند و از سندِ عمومی
+  برداشته می‌شود. صفحهٔ مینی‌اپ سبک می‌ماند و متن هر قسمت وقتی باز شد
+  جدا گرفته می‌شود؛ قسمت «فقط اعضا» فقط به عضو کانال داده می‌شود.
+- قسمت‌های تازه (که قبلاً منتشر نشده بودند) به پنل برمی‌گردند تا صاحب
   کانال اگر خواست به خواننده‌ها و کانال اعلامشان کند.
 
 جای خواندن، نشان‌ها و «خبرم کن» هر خواننده (با initData ربات همان مینی‌اپ)
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS shab_readers (
   tg_id INTEGER NOT NULL,
   first_name TEXT,
   username TEXT,
-  notify INTEGER NOT NULL DEFAULT 1,       -- «خبرم کن» فصل تازه
+  notify INTEGER NOT NULL DEFAULT 1,       -- «خبرم کن» قسمت تازه
   last_story TEXT,
   last_chapter TEXT,
   last_pct REAL NOT NULL DEFAULT 0,
@@ -74,10 +74,31 @@ CREATE TABLE IF NOT EXISTS shab_announces (
 _MARKS = re.compile(r"\*\*|!!|~~|\(\(|\)\)")
 _PREFIX = re.compile(r"^(#|[—–-]|~|!|>|\^)\s+|^✉\s*")
 _WORD = re.compile(r"[^\s#~!>^✉—*-]\S*")
+# خط‌های یک قسمت (قالب «قسمت»): بلوک‌ها با خط خالی جدا می‌شوند.
+#   «@<شناسهٔ شخصیت>: متن»  خط گفت‌وگو (حباب)   ·   «!img(<نشانی>) زیرنویس»  تصویر
+#   بقیه: متن راوی، با همان نشانه‌های قدیمی قسمت. متن قدیمی یعنی همه راوی.
+_WHO = re.compile(r"^@(c[a-z0-9]{5,15}):[ \t]?")
+_IMG = re.compile(r"^!img\((\S+?)\)[ \t]*")
+
+
+def blocks_of(body: str) -> list[str]:
+    return [b.strip() for b in re.split(r"\n\s*\n", body or "") if b.strip()]
+
+
+def line(block: str) -> tuple[str, str, str]:
+    """(گوینده، متن، تصویر) یک بلوک؛ گویندهٔ خالی یعنی راوی."""
+    who, img = "", ""
+    m = _WHO.match(block)
+    if m:
+        who, block = m.group(1), block[m.end():]
+    m = _IMG.match(block)
+    if m:
+        img, block = m.group(1), block[m.end():]
+    return who, block.strip(), img
 
 
 def plain(body: str) -> str:
-    return _MARKS.sub("", body or "")
+    return _MARKS.sub("", "\n\n".join(line(b)[1] for b in blocks_of(body)))
 
 
 def words(body: str) -> int:
@@ -85,13 +106,41 @@ def words(body: str) -> int:
 
 
 def teaser(body: str, limit: int = 280) -> str:
-    """پاراگراف اول بدون نشانه‌ها؛ برای فصل قفل."""
-    for para in re.split(r"\n\s*\n", body or ""):
-        para = para.strip()
-        if para and not re.fullmatch(r"(\*\s*){3}", para):
-            text = _PREFIX.sub("", plain(para)).strip()
+    """خط اول متنی بدون نشانه‌ها؛ برای پیام اعلام و متن کوتاه."""
+    for b in blocks_of(body):
+        text = line(b)[1]
+        if text and not re.fullmatch(r"(\*\s*){3}", text):
+            text = _PREFIX.sub("", _MARKS.sub("", text)).strip()
             return text[:limit] + ("…" if len(text) > limit else "")
     return ""
+
+
+def teaser_lines(body: str, count: int = 2, limit: int = 240) -> str:
+    """چند خط اول قسمت قفل، با گوینده (تا خواننده حباب‌ها را ببیند)، بی‌تصویر."""
+    out = []
+    for b in blocks_of(body):
+        who, text, _img = line(b)
+        if not text or re.fullmatch(r"(\*\s*){3}", text):
+            continue
+        text = text[:limit] + ("…" if len(text) > limit else "")
+        out.append((f"@{who}: " if who else "") + text)
+        if len(out) >= count:
+            break
+    return "\n\n".join(out)
+
+
+def lead(body: str, count: int = 3) -> list[dict]:
+    """سه خط اول برای کارت فید (متن کامل قسمت در سند خواننده نیست)."""
+    out = []
+    for b in blocks_of(body):
+        who, text, img = line(b)
+        if re.fullmatch(r"(\*\s*){3}", text):
+            continue
+        text = _PREFIX.sub("", _MARKS.sub("", text)).strip()
+        out.append({"w": who, "t": text[:160] + ("…" if len(text) > 160 else ""), "i": bool(img)})
+        if len(out) >= count:
+            break
+    return out
 
 
 def stories(doc: dict):  # noqa: ANN201
@@ -103,7 +152,7 @@ def stories(doc: dict):  # noqa: ANN201
 
 
 def public_view(doc: dict) -> dict:
-    """سند خواننده: متن فصل‌ها برداشته می‌شود و فقط تعداد کلمه‌اش می‌ماند.
+    """سند خواننده: متن قسمت‌ها برداشته می‌شود و فقط تعداد کلمه‌اش می‌ماند.
 
     پیش‌نویس‌ها را blocks.reader_view قبلاً برداشته است."""
     for b in stories(doc):
@@ -113,13 +162,15 @@ def public_view(doc: dict) -> dict:
                 continue
             c = {k: v for k, v in ch.items() if k != "body"}
             c["words"] = words(ch.get("body") or "")
+            c["lead"] = lead(ch.get("body") or "", 2 if ch.get("lock") else 3)
+            c["chat"] = any(line(x)[0] for x in blocks_of(ch.get("body") or ""))
             out.append(c)
         b["props"]["chapters"] = out
     return doc
 
 
 async def on_publish(db, app, doc: dict) -> dict:  # noqa: ANN001
-    """متن فصل‌های منتشرشده را در جدول می‌گذارد؛ فصل‌های تازه را برمی‌گرداند."""
+    """متن قسمت‌های منتشرشده را در جدول می‌گذارد؛ قسمت‌های تازه را برمی‌گرداند."""
     t = int(time.time())
     rows = []
     for b in stories(doc):

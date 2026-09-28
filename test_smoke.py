@@ -238,7 +238,7 @@ def test_blocks() -> None:
         again = blocks.clean_page(t["doc"], max_blocks=100, premium=True, max_pages=12)
         assert again["pages"] and t["category"] in templates.CATEGORIES, t["id"]
     ok([t["id"] for t in templates.TEMPLATES] == ["shab"] and templates.TEMPLATES[0]["kit"] == "shab",
-       "فقط قالب شب‌نوشت عرضه می‌شود و معتبر است")
+       "فقط قالب قسمت عرضه می‌شود و معتبر است")
     doms = {d["id"] for d in templates.DOMAINS}
     hexok = lambda c: bool(re.fullmatch(r"#[0-9A-Fa-f]{6}", c or ""))
     ok(all(e["domain"] in doms and hexok(e["color"]) and hexok(e["tint"]) and e["status"] in ("ready", "soon")
@@ -250,8 +250,22 @@ def test_blocks() -> None:
     ok(len(covers) == 2 and all(c.startswith(blocks.sample_prefix()) and blocks.clean_url(c, images=True) == c
                                 and os.path.isfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "app/webapp/static/samples", c.rsplit("/", 1)[1])) for c in covers),
        "جلد داستان‌های نمونه از static/samples می‌آید")
+    from app.kits import shab as shab_kit
+    body = "راوی **گفت**.\n\n@cmen001: سلام\n\n@cbongah: !img(https://x.test/a.jpg) عکس\n\n!img(https://x.test/b.jpg)"
+    ok(shab_kit.line("@cmen001: سلام") == ("cmen001", "سلام", "")
+       and shab_kit.line("@cbongah: !img(https://x.test/a.jpg) عکس") == ("cbongah", "عکس", "https://x.test/a.jpg")
+       and shab_kit.line("متن ساده") == ("", "متن ساده", "")
+       and shab_kit.words(body) == 4
+       and shab_kit.teaser_lines(body) == "راوی **گفت**.\n\n@cmen001: سلام"
+       and [x["w"] for x in shab_kit.lead(body)] == ["", "cmen001", "cbongah"] and shab_kit.lead(body)[2]["i"],
+       "خط‌های قسمت: گوینده، تصویر، شمارش کلمه و چند خط اول")
+    pv = shab_kit.public_view({"pages": [{"blocks": [{"type": "story", "props": {"chapters": [
+        {"id": "caaaaa1", "body": body}, {"id": "caaaaa2", "body": body, "lock": True}]}}]}]})
+    pch = pv["pages"][0]["blocks"][0]["props"]["chapters"]
+    ok(all("body" not in c and c["chat"] for c in pch) and len(pch[0]["lead"]) == 3 and len(pch[1]["lead"]) == 2,
+       "سند خواننده: بی‌متن، با نوع گفت‌وگو و سه خط اول (قسمت قفل دو خط)")
     ok(blocks.empty_page()["kit"] == "shab" and blocks.upgrade({"blocks": [{"type": "text"}]})["kit"] == "base",
-       "مینی‌اپ تازه روی شب‌نوشت است؛ سند قدیمی روی قالب پایه می‌ماند")
+       "مینی‌اپ تازه روی قسمت است؛ سند قدیمی روی قالب پایه می‌ماند")
     ok(set(blocks.CATALOG_ORDER) == set(blocks.SCHEMA) and all(b["cat"] in blocks.CATEGORIES for b in blocks.SCHEMA.values()), "هر کامپوننت دسته و جای کاتالوگ دارد")
     # سبک‌های آماده: هر کدام باید دست‌نخورده از پاکسازی سرور رد شود و فقط فیلدهای ظاهری را عوض کند
     for btype, variants in blocks.VARIANTS.items():
@@ -269,12 +283,12 @@ def test_blocks() -> None:
     ok(set(blocks.VARIANTS) >= {k for k, b in blocks.SCHEMA.items() if not b.get("kit")},
        "همهٔ سبک‌های آماده معتبرند و هر کامپوننت عمومی سبک دارد")
 
-    # قالب شب‌نوشت: کامپوننت‌های اختصاصی فقط در قالب خودشان
+    # قالب قسمت: کامپوننت‌های اختصاصی فقط در قالب خودشان
     story = {"type": "story", "props": {"title": "x", "chapters": [{"title": "۱", "body": "متن", "lock": "yes"}]}}
     shab = blocks.clean_page({"kit": "shab", "pages": [{"blocks": [story, {"type": "text"}]}]}, max_blocks=8, premium=False)
     ch = shab["pages"][0]["blocks"][0]["props"]["chapters"][0]
     ok(shab["kit"] == "shab" and len(shab["pages"][0]["blocks"]) == 2 and ch["lock"] is False and ch["url"] == "",
-       "کامپوننت داستان در قالب شب‌نوشت ذخیره و پاکسازی می‌شود")
+       "کامپوننت داستان در قالب قسمت ذخیره و پاکسازی می‌شود")
     base = blocks.clean_page({"kit": "nope", "pages": [{"blocks": [story, {"type": "text"}]}]}, max_blocks=8, premium=False)
     ok(base["kit"] == "base" and [b["type"] for b in base["pages"][0]["blocks"]] == ["text"],
        "قالب ناشناخته پایه می‌شود و کامپوننت داستان بیرون قالبش حذف می‌شود")
@@ -329,7 +343,7 @@ def test_web() -> None:
     st, res = jcall("POST", "/api/app/create", {"name": " "})
     ok(st == 400, "اسم خالی رد می شود")
     st, res = jcall("POST", "/api/app/create", {"name": "کافه نارنج"})
-    ok(st == 200 and res["doc"]["pages"][0]["blocks"] == [] and res["app"]["kit"] == "shab", "ساخت اپ با صفحه خالی روی قالب شب‌نوشت")
+    ok(st == 200 and res["doc"]["pages"][0]["blocks"] == [] and res["app"]["kit"] == "shab", "ساخت اپ با صفحه خالی روی قالب قسمت")
     app_id, slug = res["app"]["id"], res["app"]["slug"]
     st, res = jcall("POST", "/api/app/create", {"name": "دومی"})
     ok(st == 402, "پلن رایگان: فقط یک مینی اپ")
@@ -361,9 +375,9 @@ def test_web() -> None:
     cut = dict(shab_tpl["doc"], pages=shab_tpl["doc"]["pages"][:2])
     st, res = jcall("POST", "/api/app/save", {"id": app_id, "doc": cut})
     ok(st == 200 and res["doc"]["kit"] == "shab" and res["doc"]["pages"][1]["blocks"][0]["type"] == "story",
-       "نسخهٔ رایگان قالب شب‌نوشت (دو صفحه) ذخیره می‌شود")
+       "قالب «قسمت» ذخیره می‌شود")
     st, _ = jcall("POST", "/api/app/save", {"id": app_id, "doc": shab_tpl["doc"]})
-    ok(st == 402, "قالب کامل (۴ صفحه) از سقف صفحه‌های پلن رایگان می‌گذرد")
+    ok(st == 200 and len(shab_tpl["doc"]["pages"]) == 2, "قالب کامل «قسمت» (دو صفحه) در پلن رایگان جا می‌شود")
     import copy
     drafty = copy.deepcopy(cut)
     drafty["pages"][1]["blocks"][0]["props"]["chapters"][0]["draft"] = True
@@ -465,8 +479,8 @@ def test_bot() -> None:
 
 
 def test_shab(slug: str, app_id: int) -> None:
-    """شب‌نوشت سمت سرور: فصل‌ها در جدول، قفل عضویت، وضعیت خواندن، آمار و اعلام."""
-    print("شب‌نوشت (سرور)")
+    """قسمت سمت سرور: فصل‌ها در جدول، قفل عضویت، وضعیت خواندن، آمار و اعلام."""
+    print("قسمت (سرور)")
     st, tp = jcall("GET", "/api/templates", uid=None)
     doc = dict(tp["templates"][0]["doc"], pages=tp["templates"][0]["doc"]["pages"][:2])
     story = doc["pages"][1]["blocks"][0]

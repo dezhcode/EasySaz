@@ -95,20 +95,22 @@
   const RADIUS = { soft: 18, round: 26, sharp: 8 };
   /* پوستهٔ قالب‌ها: زمینه، سطح و متن ثابتِ خود قالب؛ رنگ اصلی از صاحب مینی‌اپ */
   const KITS = {
-    shab: { dark: true, radius: 6, accent: '#C8192F',
-      base: { bg: '#0B090C', surface: '#141015', sunk: '#221B21', ink: '#EDE4D6', ink2: '#CFC3B5', ink3: '#A89A8E', line: '#33282F', nav: '#141015' } },
+    // «قسمت»: کاغذ گرم روشن؛ اگر صاحب مینی‌اپ حالت تیره بخواهد، شب گرم
+    shab: { radius: 16, accent: '#D0452B',
+      day: { bg: '#F6F1EB', surface: '#FFFFFF', sunk: '#EDE5DC', ink: '#1C1512', ink2: '#4A3F38', ink3: '#76695F', line: '#E5DBD0', nav: '#1C1512' },
+      night: { bg: '#131012', surface: '#1D191B', sunk: '#2A2427', ink: '#F3EDE7', ink2: '#D0C6BE', ink3: '#9C9089', line: '#342D30', nav: '#241F22' } },
   };
 
   function palette(theme, kitName) {
     theme = theme || {};
     const kit = KITS[kitName] || null;
-    const dark = kit ? kit.dark : isDark(theme.mode);
+    const dark = kit && kit.base ? !!kit.dark : isDark(theme.mode || (kit ? 'light' : ''));
     let accent = /^#[0-9a-f]{6}$/i.test(theme.accent || '') ? theme.accent : (kit ? kit.accent : '#1D55F0');
     let [h, s, l] = rgbToHsl(...hexToRgb(accent));
     if (!kit && dark && l < 52) accent = hslToHex(h, s, Math.min(64, l + 14));
     if (!kit && !dark && l > 62) accent = hslToHex(h, s, 52);
     [h, s, l] = rgbToHsl(...hexToRgb(accent));
-    const base = kit ? kit.base : (dark ? BASE.dark : BASE.light);
+    const base = kit ? (kit.base || (dark ? kit.night : kit.day)) : (dark ? BASE.dark : BASE.light);
     const bg = kit || theme.bg === 'plain' ? base.bg : mix(base.bg, accent, dark ? 0.06 : 0.05);
     const onAccent = contrast(accent, '#FFFFFF') >= contrast(accent, '#0A1633') ? '#FFFFFF' : '#0A1633';
     const radius = kit ? kit.radius : theme.radius === 'custom'
@@ -204,7 +206,7 @@
     info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v6M12 7.5v.01',
     chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.3A8 8 0 1 1 21 12z',
     user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1',
-    // قالب شب‌نوشت
+    // قالب قسمت
     book: 'M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 1 2-2h13',
     list: 'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01',
     bookmark: 'M6 3h12v18l-6-4-6 4z',
@@ -214,6 +216,12 @@
     flame: 'M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-3 2-4 2-6 1 1 1.5 2 1.5 3 1-2 1.5-4 1.5-7z',
     quote: 'M10 7H6a2 2 0 0 0-2 2v3h5v5H4M20 7h-4a2 2 0 0 0-2 2v3h5v5h-5',
     shelf: 'M4 4v16M9 4v16M14 5l4 15M3 20h18',
+    // قالب قسمت: تم گفت‌وگو و حالت‌های خواندن
+    sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2.5v2M12 19.5v2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M2.5 12h2M19.5 12h2M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4',
+    moon: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z',
+    scroll: 'M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4',
+    tap: 'M10 13V5.5a1.5 1.5 0 0 1 3 0V11l4.6 1a2 2 0 0 1 1.5 2.3L18.2 20H11l-4.4-4.6a1.4 1.4 0 0 1 2-2L10 15',
+    bell: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21a2 2 0 0 0 4 0',
   };
   function icon(name, cls, size) {
     const s = document.createElementNS(SVG_NS, 'svg');
@@ -752,14 +760,20 @@
     return e;
   };
 
-  /* ===================== قالب «شب‌نوشت» =====================
-     کتابخانهٔ داستان برای کانال‌ها. کامپوننت‌ها فقط دادهٔ خود مینی‌اپ را
-     می‌خوانند (ctx.lib: همهٔ داستان‌های همهٔ صفحه‌ها) و وضعیت خواندن هر
-     خواننده (کجا ماند، نشان‌ها، اندازهٔ متن) فقط در مرورگر خودش می‌ماند. */
+  /* ===================== قالب «قسمت» (کیت shab) =====================
+     داستان قسمت‌به‌قسمت برای کانال‌ها. متن هر قسمت چند «خط» است که با یک
+     خط خالی جدا می‌شوند (همان قاعدهٔ سرور، app/kits/shab):
+       «@<شناسهٔ شخصیت>: متن»   حباب گفت‌وگوی آن شخصیت
+       «!img(<نشانی>) زیرنویس»  تصویر؛ بعد از «@…:» یعنی تصویر داخل حباب
+       هر چیز دیگر               متن راوی (با سبک‌های نوشتاری پایین)
+     کامپوننت‌ها فقط دادهٔ خود مینی‌اپ را می‌خوانند (ctx.lib: همهٔ داستان‌های
+     همهٔ صفحه‌ها) و وضعیت خواندن هر خواننده (کجا ماند، نشان‌ها، اندازهٔ متن،
+     حالت خواندن و تم گفت‌وگو) در مرورگر خودش می‌ماند. */
   const faNum = n => Number(n).toLocaleString('fa-IR');
   const SH_TONES = ['blood', 'night', 'ash', 'moss', 'candle'];
+  const reduced = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-  /* ed: در ادیتور فصل‌های پیش‌نویس هم دیده می‌شوند (با برچسب)؛ برای خواننده نه.
+  /* ed: در ادیتور قسمت‌های پیش‌نویس هم دیده می‌شوند (با برچسب)؛ برای خواننده نه.
      در مینی‌اپ منتشرشده سرور خودش پیش‌نویس‌ها را برداشته است. */
   function shabStories(lib, ed) {
     const out = [];
@@ -770,12 +784,11 @@
   }
   const chapters = st => st.chs || (st.chs = (st.p.chapters || []).filter(c => c && (c.title || c.body || c.lock) && (!c.draft || st.ed)));
 
-  /* ---------- سبک‌های متن داستان ----------
-     متن فصل متن ساده است با چند نشانهٔ کوچک (ادیتور پنل با دکمه می‌گذاردشان):
-     پاراگراف‌ها با یک خط خالی جدا می‌شوند و اولشان می‌تواند سبک بگیرد:
+  /* ---------- سبک‌های متن راوی ----------
+     پاراگراف راوی می‌تواند سبک بگیرد:
        «# » میان‌تیتر · «— » گفت‌وگو · «~ » زمزمه · «! » فریاد · «✉ » نامه
        «> » نقل‌قول · «^ » وسط‌چین · «***» جداکننده
-     داخل متن: **پررنگ** · !!خونی!! · ~~خط‌خورده~~ · ((کم‌رنگ))
+     داخل متن (راوی و حباب): **پررنگ** · !!تأکید!! · ~~خط‌خورده~~ · ((کم‌رنگ))
      همه با textContent ساخته می‌شوند؛ هیچ HTML از کاربر خوانده نمی‌شود. */
   const PARA_KINDS = [[/^#\s+/, 'h'], [/^[—–-]\s+/, 'talk'], [/^~\s+/, 'whisper'], [/^!\s+/, 'scream'],
     [/^✉\s*/, 'note'], [/^>\s+/, 'quote'], [/^\^\s+/, 'center']];
@@ -806,7 +819,7 @@
   }
   const plainText = t => paraKind(t)[1].replace(/\*\*|!!|~~|\(\(|\)\)/g, '');
   const paragraphs = body => String(body || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
-  /* یک پاراگراف با سبکش. drop: حرف اول درشت (فقط پاراگراف عادی) */
+  /* یک پاراگراف راوی با سبکش. drop: حرف اول درشت (فقط پاراگراف عادی) */
   function storyPara(t, drop) {
     const [kind, text] = paraKind(t);
     if (kind === 'hr') { const o = h('div', 'sh-orn'); o.append(h('i'), h('i'), h('i')); return o; }
@@ -818,22 +831,135 @@
     if (m) { p.appendChild(h('span', 'sh-drop', m[1])); inlineText(p, m[2] || ''); } else inlineText(p, text);
     return p;
   }
-  /* کل متن یک فصل؛ برای صفحهٔ خواندن و پیش‌نمایش پنل */
+
+  /* ---------- خط‌های یک قسمت ---------- */
+  const LINE_WHO = /^@(c[a-z0-9]{5,15}):[ \t]?/;
+  const LINE_IMG = /^!img\((\S+?)\)[ \t]*/;
+  function parseLine(block) {
+    let t = String(block || ''), who = '', img = '';
+    let m = LINE_WHO.exec(t);
+    if (m) { who = m[1]; t = t.slice(m[0].length); }
+    m = LINE_IMG.exec(t);
+    if (m) { img = m[1]; t = t.slice(m[0].length); }
+    return { who, img, text: t.trim() };
+  }
+  const parseLines = body => paragraphs(body).map(parseLine);
+  // خط خالی داخل یک خط، آن را دو تکه می‌کرد؛ پس یکی می‌شود
+  const lineText = l => (l.who ? `@${l.who}: ` : '') + (l.img ? `!img(${l.img})` + (l.text ? ' ' : '') : '')
+    + String(l.text || '').replace(/\n\s*\n+/g, '\n').trim();
+  const joinLines = lines => lines.map(l => lineText(l).trim()).filter(t => t && !/^@c[a-z0-9]{5,15}:$/.test(t)).join('\n\n');
+  const bareText = text => String(text || '').replace(/^@c[a-z0-9]{5,15}:/gm, '').replace(/!img\(\S+?\)/g, '').replace(/\*\*|!!|~~|\(\(|\)\)/g, '');
+
+  /* کل متن یک قسمت به شکل ساده (پیش‌نمایش قدیمی پنل) */
   function storyText(body, opts) {
     opts = opts || {};
     const frag = document.createDocumentFragment();
-    let paras = paragraphs(body);
+    let paras = parseLines(body).map(l => l.text).filter(Boolean);
     if (opts.teaser) paras = paras.slice(0, 1).map(t => { const x = plainText(t); return x.slice(0, 280) + (x.length > 280 ? '…' : ''); });
     paras.forEach((t, i) => frag.appendChild(storyPara(t, opts.drop !== false && i === 0)));
     return frag;
   }
-  const words = text => (String(text || '').replace(/\*\*|!!|~~|\(\(|\)\)/g, '').match(/[^\s#~!>^✉—*-]\S*/g) || []).length;
+  const words = text => (bareText(text).match(/[^\s#~!>^✉—*-]\S*/g) || []).length;
   const minutes = text => Math.max(1, Math.round(words(text) / 180));
-  // در مینی‌اپ منتشرشده متن فصل در سند نیست (سرور فقط تعداد کلمه را می‌دهد)
+  // در مینی‌اپ منتشرشده متن قسمت در سند نیست (سرور تعداد کلمه و سه خط اول را می‌دهد)
   const chMin = ch => (ch.body == null && typeof ch.words === 'number' ? Math.max(1, Math.round(ch.words / 180)) : minutes(ch.body));
-  // کلید فصل در وضعیت خواندن: شناسهٔ پایدار فصل (سند قدیمی: داستان:شماره)
+  function leadOf(ch) {
+    if (ch.body != null) {
+      return parseLines(ch.body).filter(l => !/^(\*\s*){3}$/.test(l.text) || l.img).slice(0, ch.lock ? 2 : 3)
+        .map(l => ({ w: l.who, t: plainText(l.text), i: !!l.img }));
+    }
+    return Array.isArray(ch.lead) ? ch.lead : [];
+  }
+  const isChat = ch => (ch.body != null ? parseLines(ch.body).some(l => l.who) : !!ch.chat);
+  // کلید قسمت در وضعیت خواندن: شناسهٔ پایدار قسمت (سند قدیمی: داستان:شماره)
   const ckey = (st, i) => { const c = chapters(st)[i]; return (c && c.id) || st.id + ':' + i; };
   const idxOf = (st, k) => chapters(st).findIndex((c, i) => (c.id || st.id + ':' + i) === k);
+
+  /* ---------- شخصیت‌ها ---------- */
+  const Q_COLORS = ['#B8391F', '#2C6E8F', '#6A3FC8', '#1F6E5C', '#9A5B00', '#B8315A'];
+  function castOf(p) {
+    const out = {};
+    (Array.isArray(p && p.cast) ? p.cast : []).forEach((c, i) => {
+      if (!c || !c.id) return;
+      out[c.id] = { id: c.id, name: c.name || '', avatar: safeUrl(c.avatar, true), me: c.side === 'me',
+        color: /^#[0-9a-f]{6}$/i.test(c.color || '') ? c.color : Q_COLORS[i % Q_COLORS.length] };
+    });
+    return out;
+  }
+  // شخصیتی که از فهرست پاک شده: حباب خاکستری بی‌نام
+  const whoOf = (cast, id) => cast[id] || { id, name: '', avatar: '', me: false, color: '#8A7F77' };
+  function avatarEl(c, ctx, cls, noImg) {
+    if (c.avatar && !noImg) return imageEl(c.avatar, 'q-av ' + (cls || ''), ctx || { editing: false });
+    const a = h('span', 'q-av ' + (cls || ''), (c.name || '؟').trim().charAt(0) || '؟');
+    a.style.setProperty('--q-c', c.color);
+    return a;
+  }
+
+  /* هر خط یک گره (برای ظاهر شدن تک‌تک). حباب‌های پشت‌سرهمِ یک نفر یک
+     دسته‌اند: نام روی اولی، عکس پروفایل کنار آخری (اگر روشن باشد).
+     «من» سمت چپ، بقیه سمت راست (صفحه راست‌به‌چپ است). */
+  function lineNodes(lines, cast, opts) {
+    const ctx = opts.ctx || { editing: false };
+    return lines.map((l, i) => {
+      if (!l.who) {
+        if (l.img) {
+          const f = h('figure', 'q-fig');
+          f.appendChild(imageEl(l.img, 'q-fig-img', ctx));
+          if (l.text) f.appendChild(inlineText(h('figcaption', ''), l.text));
+          return f;
+        }
+        const n = h('div', 'q-nar');
+        n.appendChild(storyPara(l.text, false));
+        return n;
+      }
+      const c = whoOf(cast, l.who);
+      const prev = lines[i - 1], next = lines[i + 1];
+      const first = !prev || prev.who !== l.who, last = !next || next.who !== l.who;
+      const row = h('div', `q-row ${c.me ? 'q-me' : 'q-them'}${first ? ' q-first' : ''}${last ? ' q-last' : ''}`);
+      row.style.setProperty('--q-c', c.color);
+      if (opts.avatars && !c.me) row.appendChild(last ? avatarEl(c, ctx) : h('span', 'q-av q-av--gap'));
+      const b = h('div', 'q-b' + (l.img ? ' q-b--img' : '') + (l.img && !l.text ? ' q-b--only' : ''));
+      if (!c.me && first && c.name) b.appendChild(h('b', 'q-name', c.name));
+      if (l.img) b.appendChild(imageEl(l.img, 'q-bimg', ctx));
+      if (l.text) b.appendChild(inlineText(h('p', 'q-bt'), l.text));
+      row.appendChild(b);
+      return row;
+    });
+  }
+  /* همان خط‌ها مثل اعلان گوشی: گوینده، «اکنون»، متن و تصویر کوچک */
+  function notifNodes(lines, cast, st, opts) {
+    const ctx = opts.ctx || { editing: false };
+    return lines.map(l => {
+      const c = l.who ? whoOf(cast, l.who) : null;
+      const n = h('div', 'q-nt' + (c && c.me ? ' q-nt--me' : '') + (c ? '' : ' q-nt--nar'));
+      if (c) {
+        n.style.setProperty('--q-c', c.color);
+        n.appendChild(avatarEl(c, ctx, 'q-nt-ic', !opts.avatars));
+      } else {
+        const ic = h('span', 'q-av q-nt-ic q-nt-app');
+        ic.appendChild(icon('book'));
+        n.appendChild(ic);
+      }
+      const main = h('div', 'q-nt-m');
+      const hd = h('div', 'q-nt-h');
+      hd.append(h('b', '', c ? (c.me ? 'تو' : c.name || 'ناشناس') : (st.p.title || 'راوی')), n.__age = h('small', '', 'اکنون'));
+      main.appendChild(hd);
+      if (l.text) main.appendChild(inlineText(h('p', ''), l.text));
+      else if (l.img) { const p = h('p', 'q-nt-pic'); p.append(icon('image'), document.createTextNode('تصویر')); main.appendChild(p); }
+      n.appendChild(main);
+      if (l.img) n.appendChild(imageEl(l.img, 'q-nt-img', ctx));
+      return n;
+    });
+  }
+  /* نمای کامل یک قسمت برای پیش‌نمایش پنل (همهٔ خط‌ها، بی‌حرکت) */
+  function episodeView(body, p, opts) {
+    opts = opts || {};
+    p = p || {};
+    const box = h('div', 'q-body q-static');
+    lineNodes(parseLines(body), castOf(p), { avatars: p.avatars !== false, ctx: { editing: false } })
+      .forEach(n => box.appendChild(n));
+    return box;
+  }
 
   /* وضعیت خواندن: در ادیتور فقط در حافظه (هر بار تازه) */
   const memStore = {};
@@ -843,6 +969,8 @@
     if (k) { try { data = JSON.parse(localStorage.getItem(k)); } catch (e) {} }
     if (!data || typeof data !== 'object') data = k ? {} : (memStore.x = memStore.x || {});
     data.read = data.read || {};
+    data.modes = data.modes && typeof data.modes === 'object' ? data.modes : {};
+    data.qtheme = data.qtheme && typeof data.qtheme === 'object' ? data.qtheme : {};
     data.marks = (Array.isArray(data.marks) ? data.marks : []).filter(m => m && m.k);
     if (data.last && !data.last.k) data.last = null; // دادهٔ نسخهٔ قبل (شماره به جای شناسه)
     return {
@@ -862,7 +990,7 @@
     if (typeof me.notify === 'boolean') d.notify = me.notify;
     store.save();
   }
-  /* باز کردن مستقیم یک فصل (لینک پست کانال، پیام «فصل تازه») */
+  /* باز کردن مستقیم یک قسمت (لینک پست کانال، پیام «قسمت تازه») */
   function shabOpen(root, chapterId) {
     const ctx = root && root.__ctx;
     if (!ctx || !ctx.lib) return false;
@@ -876,8 +1004,7 @@
     const tone = SH_TONES.indexOf(p.tone) >= 0 ? p.tone : 'blood';
     const c = h('div', `sh-cover sh-tone-${tone} ${cls || ''}`);
     if (safeUrl(p.cover, true)) c.appendChild(imageEl(p.cover, 'sh-cover-img', ctx));
-    else c.appendChild(h('i', 'sh-motif'));
-    c.appendChild(h('b', '', p.title || ''));
+    else { c.appendChild(h('i', 'sh-motif')); c.appendChild(h('b', '', p.title || '')); }
     return c;
   }
   function shabBtn(label, cls) {
@@ -899,27 +1026,30 @@
     const d = ctx.store.data;
     const k = ckey(st, i);
     if (ch.draft) return ['draft', 'پیش‌نویس'];
-    if (ch.lock) return ['lock', 'در کانال'];
-    if (d.last && d.last.k === k) return ['now', 'در حال خواندن'];
+    if (ch.lock) return ['lock', 'فقط اعضا'];
+    if (d.last && d.last.k === k && (d.last.p || 0) < 0.95) return ['now', 'در حال خواندن'];
     if ((d.read[k] || 0) >= 0.9) return ['done', 'خوانده شد'];
     return ['', ch.note || ''];
   }
+  function stateEl(state, label) {
+    const s = h('span', 'sh-ch-s' + (state ? ' is-' + state : ''));
+    if (state === 'lock') s.appendChild(icon('lock'));
+    if (state === 'done') s.appendChild(icon('check'));
+    s.appendChild(document.createTextNode(label));
+    return s;
+  }
+  const kindLabel = ch => (isChat(ch) ? 'گفت‌وگو' : 'روایت');
   function chapterRow(ctx, st, i, meta) {
     const ch = chapters(st)[i];
     const row = h('button', 'sh-ch');
     row.type = 'button';
     row.appendChild(h('span', 'sh-ch-n', faNum(i + 1)));
     const t = h('span', 'sh-ch-t');
-    t.append(h('b', '', ch.title || 'فصل ' + faNum(i + 1)), h('small', '', meta || (ch.lock ? 'فقط اعضا' : `${faNum(chMin(ch))} دقیقه`)));
+    t.append(h('b', '', ch.title || 'قسمت ' + faNum(i + 1)),
+      h('small', '', meta || `${kindLabel(ch)} · ${faNum(chMin(ch))} دقیقه`));
     row.appendChild(t);
     const [state, label] = chapterState(ctx, st, i, ch);
-    if (label) {
-      const s = h('span', 'sh-ch-s' + (state ? ' is-' + state : ''));
-      if (state === 'lock') s.appendChild(icon('lock'));
-      if (state === 'done') s.appendChild(icon('check'));
-      s.appendChild(document.createTextNode(label));
-      row.appendChild(s);
-    }
+    if (label) row.appendChild(stateEl(state, label));
     tapped(row, ctx, () => ctx.read(st.id, i));
     return row;
   }
@@ -930,8 +1060,32 @@
     return e;
   }
   function emptyNote(text) { return h('p', 'sh-empty', text); }
+  function resumeIdx(ctx, st) {
+    const last = ctx.store.data.last;
+    let i = last && last.s === st.id ? idxOf(st, last.k) : -1;
+    if (i >= 0 && (last.p || 0) >= 0.95 && chapters(st)[i + 1]) i += 1;
+    return i;
+  }
 
-  /* داستان: جلد و مشخصات، بعد فهرست فصل‌ها */
+  /* شخصیت‌های یک داستان: عکس (یا حرف اول) و نام */
+  function castStrip(p, ctx) {
+    const list = (Array.isArray(p.cast) ? p.cast : []).filter(c => c && c.id && c.name);
+    if (!list.length) return null;
+    const cast = castOf(p);
+    const e = h('div', 'q-cast');
+    list.forEach(c0 => {
+      const c = cast[c0.id];
+      const it = h('span', 'q-cast-i' + (c.me ? ' is-me' : ''));
+      it.style.setProperty('--q-c', c.color);
+      if (p.avatars !== false) it.appendChild(avatarEl(c, ctx));
+      else it.appendChild(h('i', 'q-dot'));
+      it.appendChild(h('span', '', c.name));
+      e.appendChild(it);
+    });
+    return e;
+  }
+
+  /* داستان: جلد و مشخصات، شخصیت‌ها، بعد فهرست قسمت‌ها */
   R.story = (p, ctx, b) => {
     const st = { id: b ? b.id : 'x', p, ed: ctx.editing };
     const list = chapters(st);
@@ -942,20 +1096,21 @@
     if (p.genre) info.appendChild(h('span', 'sh-tag', p.genre));
     info.appendChild(h('h2', 'sh-story-t', p.title || 'داستان'));
     if (p.subtitle) info.appendChild(h('span', 'sh-story-s', p.subtitle));
-    info.appendChild(h('small', 'sh-story-m', `${faNum(list.length)} فصل · ${p.status === 'done' ? 'تمام شده' : 'ادامه دارد'}`));
-    if (p.blurb) info.appendChild(h('p', 'sh-story-b', p.blurb));
-    const last = ctx.store.data.last;
-    const resume = last && last.s === st.id ? idxOf(st, last.k) : -1;
-    if (list.length) {
-      const go = shabBtn(resume >= 0 ? `ادامه از فصل ${faNum(resume + 1)}` : 'شروع خواندن');
-      tapped(go, ctx, () => ctx.read(st.id, Math.max(0, resume)));
-      info.appendChild(go);
-    }
+    info.appendChild(h('small', 'sh-story-m', `${faNum(list.length)} قسمت · ${p.status === 'done' ? 'تمام شده' : 'ادامه دارد'}`));
     top.appendChild(info);
     e.appendChild(top);
+    if (p.blurb) e.appendChild(h('p', 'sh-story-b', p.blurb));
+    const cs = castStrip(p, ctx);
+    if (cs) e.appendChild(cs);
+    const resume = resumeIdx(ctx, st);
+    if (list.length) {
+      const go = shabBtn(resume >= 0 ? `ادامه از قسمت ${faNum(resume + 1)}` : 'شروع از قسمت اول', 'sh-btn--wide');
+      tapped(go, ctx, () => ctx.read(st.id, Math.max(0, resume)));
+      e.appendChild(go);
+    }
     const chs = h('div', 'sh-chs');
     list.forEach((_, i) => chs.appendChild(chapterRow(ctx, st, i)));
-    if (!list.length) chs.appendChild(emptyNote('هنوز فصلی اضافه نشده.'));
+    if (!list.length) chs.appendChild(emptyNote('هنوز قسمتی اضافه نشده.'));
     e.appendChild(chs);
     return e;
   };
@@ -971,15 +1126,15 @@
     let pct = idx >= 0 ? (last.p || 0) : 0;
     if (idx < 0) idx = 0;
     if (!st) { st = all[0]; idx = 0; pct = 0; }
-    // فصل تمام شده و فصل بعدی هست: ادامه یعنی فصل بعد
-    if (pct >= 0.95 && chapters(st)[idx + 1]) { idx += 1; pct = 0; }
     if (!st) { e.appendChild(emptyNote(ctx.editing ? 'اول یک «داستان» اضافه کن؛ این‌جا خودکار پر می‌شود.' : 'به‌زودی…')); return e; }
+    // قسمت تمام شده و قسمت بعدی هست: ادامه یعنی قسمت بعد
+    if (pct >= 0.95 && chapters(st)[idx + 1]) { idx += 1; pct = 0; }
     const ch = chapters(st)[idx];
     const card = h('div', 'sh-cont');
     card.appendChild(coverEl(st.p, '', ctx));
     const info = h('div', 'sh-cont-i');
     info.append(h('b', 'sh-cont-t', st.p.title || 'داستان'),
-      h('small', '', `فصل ${faNum(idx + 1)}، ${ch.title || ''}`));
+      h('small', '', `قسمت ${faNum(idx + 1)}، ${ch.title || ''}`));
     const rail = h('div', 'sh-rail');
     const fill = h('i');
     fill.style.width = Math.round(pct * 100) + '%';
@@ -1008,8 +1163,8 @@
       const book = h('button', 'sh-book');
       book.type = 'button';
       book.appendChild(coverEl(st.p, '', ctx));
-      if (st.p.genre) book.appendChild(h('span', 'sh-tag', st.p.genre));
-      book.appendChild(h('small', '', `${faNum(chapters(st).length)} فصل · ${st.p.status === 'done' ? 'تمام شده' : 'ادامه دارد'}`));
+      book.appendChild(h('b', '', st.p.title || 'داستان'));
+      book.appendChild(h('small', '', `${faNum(chapters(st).length)} قسمت · ${st.p.status === 'done' ? 'تمام شده' : 'ادامه دارد'}`));
       tapped(book, ctx, () => ctx.book(st.id));
       row.appendChild(book);
     });
@@ -1018,32 +1173,116 @@
     return e;
   };
 
-  /* فصل‌های تازه: آخرین فصل هر داستان، به نوبت */
+  /* کارت یک قسمت در فید: منبع (جلد و نام داستان)، عنوان، سه خط اول
+     (حباب کوچک اگر گفت‌وگوست، وگرنه متن)، نوع و زمان خواندن */
+  function episodeCard(ctx, st, i) {
+    const ch = chapters(st)[i];
+    const cast = castOf(st.p);
+    const card = h('article', 'q-card');
+    const top = h('div', 'q-card-top');
+    top.appendChild(coverEl(st.p, 'q-thumb', ctx));
+    const src = h('div', 'q-card-src');
+    src.append(h('b', '', st.p.title || 'داستان'), h('small', '', `قسمت ${faNum(i + 1)}` + (ch.note ? ' · ' + ch.note : '')));
+    top.appendChild(src);
+    const [state, label] = chapterState(ctx, st, i, ch);
+    if (state && label) top.appendChild(stateEl(state, label));
+    card.appendChild(top);
+    card.appendChild(h('h3', 'q-card-t', ch.title || `قسمت ${faNum(i + 1)}`));
+    const lead = leadOf(ch);
+    const chat = isChat(ch);
+    if (chat) {
+      const mini = h('div', 'q-mini');
+      lead.forEach(l => {
+        if (!l.w) { if (l.t) mini.appendChild(h('p', 'q-mini-n', l.t)); return; }
+        const c = whoOf(cast, l.w);
+        const r = h('div', 'q-mini-b ' + (c.me ? 'q-me' : 'q-them'));
+        r.style.setProperty('--q-c', c.color);
+        if (!c.me && c.name) r.appendChild(h('b', '', c.name));
+        const t = h('span', '');
+        if (l.i) t.appendChild(icon('image'));
+        t.appendChild(document.createTextNode(l.t || (l.i ? 'تصویر' : '')));
+        r.appendChild(t);
+        mini.appendChild(r);
+      });
+      if (mini.childElementCount) card.appendChild(mini);
+    } else {
+      const x = lead.map(l => l.t).filter(Boolean).join(' ');
+      if (x) card.appendChild(h('p', 'q-card-x', x));
+    }
+    const foot = h('div', 'q-card-f');
+    const kind = h('span', 'q-kind' + (chat ? ' is-chat' : ''));
+    kind.append(icon(chat ? 'chat' : 'book'), document.createTextNode(kindLabel(ch)));
+    foot.append(kind, h('small', '', `${faNum(chMin(ch))} دقیقه`));
+    const go = h('span', 'q-go');
+    go.append(h('span', '', state === 'now' ? 'ادامه' : 'بخوان'), icon('arrow'));
+    foot.appendChild(go);
+    card.appendChild(foot);
+    tapped(card, ctx, () => ctx.read(st.id, i));
+    return card;
+  }
+  /* دکمهٔ «خبرم کن» (فید و آخر قسمت) */
+  function notifyBtn(ctx, cls, long) {
+    const d = ctx.store.data, remote = ctx.remote;
+    const nb = h('button', 'sh-notify ' + (cls || ''));
+    nb.type = 'button';
+    const sync = () => {
+      const on = d.notify !== false;
+      nb.classList.toggle('on', on);
+      nb.textContent = '';
+      nb.append(icon(on ? 'check' : 'bell'), document.createTextNode(on
+        ? (long ? 'قسمت تازه که آمد، در ربات خبرت می‌کنیم' : 'خبرت می‌کنیم')
+        : (long ? 'خبرم کن وقتی قسمت تازه آمد' : 'خبرم کن')));
+    };
+    tapped(nb, ctx, () => { d.notify = d.notify === false; ctx.store.save(); if (remote) remote.notify(d.notify); sync(); });
+    sync();
+    return nb;
+  }
+
+  /* قسمت‌های تازه: آخرین قسمت هر داستان به نوبت، با فیلتر داستان */
   R.shab_latest = (p, ctx) => {
     const all = shabStories(ctx.lib, ctx.editing);
-    const e = h('section', 'sh-latest');
-    e.appendChild(secHead(p.title));
-    const picks = [];
-    const max = Math.max(2, Math.min(10, Number(p.count) || 4));
-    for (let d = 0; picks.length < max; d++) {
-      let any = false;
-      all.forEach(st => {
-        const n = chapters(st).length - 1 - d;
-        if (n >= 0 && picks.length < max) { picks.push([st, n]); any = true; }
-      });
-      if (!any) break;
+    const e = h('section', 'q-feed');
+    const head = secHead(p.title || 'قسمت‌های تازه');
+    if (ctx.editing || (ctx.remote && ctx.remote.canSync)) head.appendChild(notifyBtn(ctx, 'sh-notify--sm'));
+    e.appendChild(head);
+    const max = Math.max(2, Math.min(12, Number(p.count) || 6));
+    const box = h('div', 'q-cards');
+    const fill = only => {
+      box.textContent = '';
+      const pool = only ? all.filter(s => s.id === only) : all;
+      const picks = [];
+      for (let d = 0; picks.length < max; d++) {
+        let any = false;
+        pool.forEach(st => {
+          const n = chapters(st).length - 1 - d;
+          if (n >= 0 && picks.length < max) { picks.push([st, n]); any = true; }
+        });
+        if (!any) break;
+      }
+      picks.forEach(([st, i]) => box.appendChild(episodeCard(ctx, st, i)));
+      if (!picks.length) box.appendChild(emptyNote(ctx.editing ? 'یک «داستان» با چند قسمت اضافه کن؛ قسمت‌ها این‌جا می‌آیند.' : 'هنوز قسمتی نیامده.'));
+    };
+    if (all.length > 1) {
+      const chips = h('div', 'q-chips');
+      const mk = (label, id) => {
+        const c = h('button', 'q-chip' + (id ? '' : ' on'), label);
+        c.type = 'button';
+        tapped(c, ctx, () => {
+          chips.querySelectorAll('.q-chip').forEach(x => x.classList.toggle('on', x === c));
+          fill(id);
+        });
+        chips.appendChild(c);
+      };
+      mk('همه', '');
+      all.forEach(st => mk(st.p.title || 'داستان', st.id));
+      e.appendChild(chips);
     }
-    const box = h('div', 'sh-chs');
-    picks.forEach(([st, i]) => {
-      const ch = chapters(st)[i];
-      box.appendChild(chapterRow(ctx, st, i, (st.p.title || '') + (ch.note ? ' · ' + ch.note : '')));
-    });
-    if (!picks.length) box.appendChild(emptyNote('هنوز فصلی نیامده.'));
+    fill('');
     e.appendChild(box);
     return e;
   };
 
-  /* نشان‌ها: فصل‌هایی که همین خواننده نشان گذاشته */
+  /* نشان‌ها: قسمت‌هایی که همین خواننده نشان گذاشته */
   R.shab_marks = (p, ctx) => {
     const all = shabStories(ctx.lib, ctx.editing);
     const e = h('section', 'sh-marks');
@@ -1071,10 +1310,11 @@
     return e;
   };
 
-  /* ---------- لایهٔ خواندن (کتاب و فصل) ----------
+  /* ---------- لایهٔ خواندن (داستان و قسمت) ----------
      روی خود صفحه باز می‌شود؛ در مینی‌اپ منتشرشده ثابت روی پنجره و با
      دکمهٔ برگشت تلگرام، در پیش‌نمایش پنل داخل همان قاب. */
-  const FS = [16, 18, 20.5];
+  const FS = [15, 16.5, 18.5];
+  const MODES = [['scroll', 'اسکرول', 'scroll'], ['tap', 'لمس', 'tap'], ['notif', 'اعلان', 'bell']];
   function shabLayer(ctx, kind) {
     const root = ctx.root;
     const layer = h('div', 'sh-layer sh-layer--' + kind + (ctx.fixed ? ' sh-layer--fixed' : ''));
@@ -1134,6 +1374,14 @@
     layer.appendChild(body);
   }
 
+  const readMode = (d, st) => { const m = d.modes[st.id] || st.p.read_mode; return MODES.some(x => x[0] === m) ? m : 'scroll'; };
+  const chatDark = (d, st) => (d.qtheme[st.id] || st.p.chat_theme) === 'dark';
+
+  /* خواندن یک قسمت، به یکی از سه حالت:
+       scroll  همهٔ خط‌ها هست و هر کدام وقتی به صفحه می‌رسد «تازه می‌آید»
+       tap     با هر لمس خط بعدی (پیش از حباب دیگران «در حال نوشتن…»)
+       notif   مثل صفحهٔ قفل گوشی: هر لمس یک اعلان تازه بالای بقیه
+     تم گفت‌وگو (روشن/تیره) از داستان است و خواننده می‌تواند عوضش کند. */
   function openReader(ctx, sid, idx, replace) {
     const st = shabStories(ctx.lib, ctx.editing).find(s => s.id === sid);
     const list = st ? chapters(st) : [];
@@ -1141,18 +1389,42 @@
     if (!ch) return;
     if (replace) closeLayerQuiet(ctx);
     const store = ctx.store, d = store.data;
+    const mode = readMode(d, st);
+    const cast = castOf(st.p), avatars = st.p.avatars !== false;
     const layer = shabLayer(ctx, 'read');
+    layer.classList.add('q-read', 'q-mode-' + mode);
+    let dark = chatDark(d, st);
+    layer.classList.toggle('q-dark', dark);
     const size = FS[d.size] ? d.size : 1;
     layer.style.setProperty('--sh-fs', FS[size] + 'px');
-    layer.classList.toggle('sh-candle', !!d.candle);
+    const key = ckey(st, idx);
+    const remote = ctx.remote || null;
 
+    // نوار بالا: برگشت، عنوان، تم، اندازهٔ متن، نشان
     const c = h('div', 'sh-r-c');
-    c.append(h('b', '', `فصل ${faNum(idx + 1)}، ${ch.title || ''}`), h('small', '', st.p.title || ''));
+    c.append(h('b', '', `قسمت ${faNum(idx + 1)}، ${ch.title || ''}`), h('small', '', st.p.title || ''));
+    const th = h('button', 'sh-ib q-th');
+    th.type = 'button';
+    th.setAttribute('aria-label', 'تم گفت‌وگو');
+    const syncTh = () => { th.textContent = ''; th.appendChild(icon(dark ? 'sun' : 'moon')); };
+    syncTh();
+    th.addEventListener('click', () => {
+      dark = !dark;
+      d.qtheme[sid] = dark ? 'dark' : 'light';
+      store.save();
+      layer.classList.toggle('q-dark', dark);
+      syncTh();
+    });
     const aa = h('button', 'sh-ib sh-aa', 'Aa');
     aa.type = 'button';
     aa.setAttribute('aria-label', 'اندازهٔ متن');
-    const key = ckey(st, idx);
-    const remote = ctx.remote || null;
+    let fsIdx = size;
+    aa.addEventListener('click', () => {
+      fsIdx = (fsIdx + 1) % FS.length;
+      d.size = fsIdx;
+      store.save();
+      layer.style.setProperty('--sh-fs', FS[fsIdx] + 'px');
+    });
     const markOn = () => d.marks.some(m => m.k === key);
     const mark = h('button', 'sh-ib sh-mark');
     mark.type = 'button';
@@ -1168,44 +1440,246 @@
       syncMark();
       try { tg && tg.HapticFeedback.impactOccurred('light'); } catch (e) {}
     });
-    let fsIdx = size;
-    aa.addEventListener('click', () => {
-      fsIdx = (fsIdx + 1) % FS.length;
-      d.size = fsIdx;
-      store.save();
-      layer.style.setProperty('--sh-fs', FS[fsIdx] + 'px');
+    layer.appendChild(layerTop(ctx, c, [th, aa, mark]));
+
+    // حالت خواندن
+    const modes = h('div', 'q-modes');
+    modes.setAttribute('role', 'tablist');
+    MODES.forEach(([m, label, ic]) => {
+      const b = h('button', 'q-mode' + (m === mode ? ' on' : ''));
+      b.type = 'button';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', m === mode ? 'true' : 'false');
+      b.append(icon(ic), h('span', '', label));
+      b.addEventListener('click', () => {
+        if (m === mode) return;
+        d.modes[sid] = m;
+        store.save();
+        openReader(ctx, sid, idx, true);
+      });
+      modes.appendChild(b);
     });
-    layer.appendChild(layerTop(ctx, c, [aa, mark]));
+    layer.appendChild(modes);
     const prog = h('div', 'sh-r-prog');
     const bar = h('i');
     prog.appendChild(bar);
     layer.appendChild(prog);
 
-    const art = h('article', 'sh-r-art');
-    art.appendChild(h('span', 'sh-r-k', `فصل ${faNum(idx + 1)}`));
-    art.appendChild(h('h1', 'sh-r-h', ch.title || ''));
-    const bodyBox = h('div', 'sh-r-body');
+    // صفحهٔ قفل (حالت اعلان): تصویر جلد محو پشت همه‌چیز، ساعت و تاریخ
+    const art = h('article', 'sh-r-art q-art');
+    if (mode === 'notif') {
+      const wall = h('div', 'q-wall');
+      if (safeUrl(st.p.cover, true)) wall.appendChild(imageEl(st.p.cover, 'q-wall-img', ctx));
+      layer.insertBefore(wall, layer.firstChild);
+      const now = new Date();
+      const lock = h('div', 'q-lock');
+      let clock = '', date = '';
+      try {
+        clock = now.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', hour12: false });
+        date = now.toLocaleDateString('fa-IR', { weekday: 'long', day: 'numeric', month: 'long' });
+      } catch (e) {}
+      lock.append(h('small', '', date), h('div', 'q-clock', clock), h('span', 'q-lock-t', `قسمت ${faNum(idx + 1)} · ${ch.title || ''}`));
+      art.appendChild(lock);
+    } else {
+      art.appendChild(h('span', 'sh-r-k', `قسمت ${faNum(idx + 1)}`));
+      art.appendChild(h('h1', 'sh-r-h', ch.title || ''));
+    }
+    const bodyBox = h('div', 'q-body');
     art.appendChild(bodyBox);
-    let afterBody = () => {};
-    /* متن فصل: از سند (ادیتور، پیش‌نمایش) یا از سرور (مینی‌اپ منتشرشده).
-       فصل قفل: سرور به عضو کانال متن کامل و به بقیه چند خط اول را می‌دهد. */
-    let lockedView = false;
+
+    // پایان قسمت: قسمت بعد، یا «ادامه دارد» و خبرم کن
+    const next = list[idx + 1];
+    const end = h('div', 'sh-r-end');
+    if (next) {
+      const n = h('button', 'sh-next');
+      n.type = 'button';
+      n.append(h('small', '', 'قسمت بعد'), h('b', '', next.title || 'قسمت ' + faNum(idx + 2)), icon('arrow'));
+      n.addEventListener('click', ev => { ev.stopPropagation(); openReader(ctx, sid, idx + 1, true); });
+      end.appendChild(n);
+    } else {
+      end.appendChild(h('span', 'sh-fin', st.p.status === 'done' ? 'پایان' : 'ادامه دارد…'));
+      if (remote && remote.canSync && st.p.status !== 'done') end.appendChild(notifyBtn(ctx, '', true));
+    }
+    art.appendChild(end);
+    layer.scroll.appendChild(art);
+    layer.appendChild(layer.scroll);
+
+    // نوار پایین: پیشرفت و قسمت بعد؛ در حالت لمس و اعلان راهنما و «یک‌جا»
+    const dock = h('div', 'sh-dock');
+    const meter = h('span', 'sh-meter');
+    const all = h('button', 'sh-btn sh-btn--ghost q-all', 'یک‌جا بخوان');
+    all.type = 'button';
+    const nextBtn = next ? shabBtn('قسمت بعد') : null;
+    if (nextBtn) nextBtn.addEventListener('click', () => openReader(ctx, sid, idx + 1, true));
+    dock.appendChild(meter);
+    layer.appendChild(dock);
+
+    const total = chMin(ch);
+    const scroller = layer.scroll;
+    let saveT = 0, ready = false, lockedView = false;
+    const resume = d.last && d.last.k === key ? d.last.p || 0 : 0;
+    const record = pct => {
+      bar.style.width = Math.round(pct * 100) + '%';
+      if (!ready || lockedView) return; // تا متن نرسیده (یا فقط چند خط قسمت قفل)، «کجا ماند» عوض نشود
+      d.last = { s: sid, k: key, p: Math.round(pct * 1000) / 1000 };
+      d.read[key] = Math.max(d.read[key] || 0, pct);
+      clearTimeout(saveT);
+      saveT = setTimeout(() => store.save(), 400);
+      if (remote && ch.id) remote.progress(sid, ch.id, pct);
+    };
+    const offs = [];
+    layer.__off = () => { clearTimeout(saveT); offs.forEach(f => f()); store.save(); if (remote) remote.flush(); };
+    const dockDone = () => {
+      dock.textContent = '';
+      meter.textContent = next ? 'تمام شد' : (st.p.status === 'done' ? 'پایان داستان' : 'تمام شد؛ ادامه دارد');
+      dock.appendChild(meter);
+      if (nextBtn) dock.appendChild(nextBtn);
+    };
+
+    /* حالت اسکرول: خط‌ها وقتی به صفحه می‌رسند یکی‌یکی می‌آیند */
+    const playScroll = nodes => {
+      nodes.forEach(n => { n.classList.add('q-rv'); bodyBox.appendChild(n); });
+      const onScroll = () => {
+        const max = scroller.scrollHeight - scroller.clientHeight;
+        const pct = max > 4 ? Math.min(1, Math.max(0, scroller.scrollTop / max)) : 1;
+        meter.textContent = `٪${faNum(Math.round(pct * 100))}، ${faNum(Math.max(0, Math.round(total * (1 - pct))))} دقیقه`;
+        record(pct);
+      };
+      dock.textContent = '';
+      dock.appendChild(meter);
+      if (nextBtn) dock.appendChild(nextBtn);
+      scroller.addEventListener('scroll', onScroll, { passive: true });
+      requestAnimationFrame(() => {
+        if (resume > 0.02 && resume < 0.98) scroller.scrollTop = resume * (scroller.scrollHeight - scroller.clientHeight);
+        ready = true;
+        onScroll();
+        if (reduced() || !('IntersectionObserver' in window)) { nodes.forEach(n => n.classList.add('q-in')); return; }
+        let upto = -1, batch = 0, batchT = 0;
+        const io = new IntersectionObserver(ents => {
+          const vis = new Set(ents.filter(en => en.isIntersecting).map(en => en.target));
+          let hi = upto;
+          vis.forEach(n => { hi = Math.max(hi, nodes.indexOf(n)); });
+          for (let j = upto + 1; j <= hi; j++) {
+            const n = nodes[j];
+            // خط‌های بالاتر که از رویشان رد شده: بی‌حرکت؛ خط‌های روی صفحه: پشت‌سرهم
+            n.style.setProperty('--d', vis.has(n) ? Math.min(batch++, 6) * 110 + 'ms' : '0ms');
+            n.classList.add('q-in');
+            io.unobserve(n);
+          }
+          upto = Math.max(upto, hi);
+          clearTimeout(batchT);
+          batchT = setTimeout(() => { batch = 0; }, 160);
+        }, { root: scroller, rootMargin: '0px 0px -7% 0px', threshold: 0.12 });
+        nodes.forEach(n => io.observe(n));
+        offs.push(() => { io.disconnect(); clearTimeout(batchT); });
+      });
+    };
+
+    /* حالت لمس و اعلان: هر لمس یک خط */
+    const playStep = (nodes, lines) => {
+      const count = nodes.length;
+      const notif = mode === 'notif';
+      const stack = notif ? h('div', 'q-stack') : bodyBox;
+      if (notif) bodyBox.appendChild(stack);
+      end.hidden = true;
+      let shown = 0, typing = null, timer = 0;
+      const hint = h('span', 'q-hint');
+      const sync = () => {
+        hint.textContent = shown < count
+          ? `${notif ? 'بزن تا اعلان بعدی بیاید' : 'بزن تا پیام بعدی بیاید'} · ${faNum(shown)} از ${faNum(count)}`
+          : '';
+        record(count ? shown / count : 1);
+      };
+      const ageAll = () => {
+        if (!notif) return;
+        [...stack.children].forEach((n, k) => { if (n.__age) n.__age.textContent = k ? `${faNum(k)} دقیقه پیش` : 'اکنون'; });
+      };
+      const place = (i, anim) => {
+        const n = nodes[i];
+        if (anim && !reduced()) n.classList.add(notif ? 'q-drop' : 'q-pop');
+        if (notif) stack.insertBefore(n, stack.firstChild); else bodyBox.appendChild(n);
+      };
+      const finish = () => {
+        if (notif) bodyBox.insertBefore(end, stack);
+        end.hidden = false;
+        dockDone();
+      };
+      const follow = () => {
+        if (notif) { scroller.scrollTo({ top: 0, behavior: reduced() ? 'auto' : 'smooth' }); return; }
+        requestAnimationFrame(() => scroller.scrollTo({ top: scroller.scrollHeight, behavior: reduced() ? 'auto' : 'smooth' }));
+      };
+      const show = () => {
+        place(shown++, true);
+        ageAll();
+        sync();
+        if (shown >= count) finish();
+        follow();
+      };
+      const clearTyping = () => { clearTimeout(timer); if (typing) { typing.remove(); typing = null; } };
+      const step = () => {
+        if (typing) { clearTyping(); show(); return; }
+        if (shown >= count) return;
+        const l = lines[shown];
+        const c = l.who ? whoOf(cast, l.who) : null;
+        if (!notif && c && !c.me && !reduced()) {
+          typing = h('div', 'q-row q-them q-typing q-last');
+          typing.style.setProperty('--q-c', c.color);
+          if (avatars) typing.appendChild(avatarEl(c, ctx));
+          const b = h('div', 'q-b');
+          b.append(h('i'), h('i'), h('i'));
+          typing.appendChild(b);
+          bodyBox.appendChild(typing);
+          follow();
+          timer = setTimeout(() => { clearTyping(); show(); }, 560);
+          return;
+        }
+        show();
+        try { tg && tg.HapticFeedback.selectionChanged(); } catch (e) {}
+      };
+      const rest = () => {
+        clearTyping();
+        while (shown < count) place(shown++, false);
+        ageAll();
+        sync();
+        finish();
+      };
+      all.addEventListener('click', rest);
+      scroller.addEventListener('click', ev => {
+        if (ev.target.closest('button, a, [role=link]')) return;
+        step();
+      });
+      offs.push(clearTyping);
+      dock.textContent = '';
+      dock.append(hint, all);
+      // از همان‌جا که مانده بود؛ دست‌کم خط اول
+      // (قسمت تمام‌شده از اول پخش می‌شود)
+      const start = resume >= 0.98 ? 1 : Math.min(count, Math.max(1, Math.round(resume * count)));
+      for (let i = 0; i < start - 1; i++) place(shown++, false);
+      ready = true;
+      if (shown < count) show(); else { sync(); finish(); }
+    };
+
+    /* متن قسمت: از سند (ادیتور، پیش‌نمایش) یا از سرور (مینی‌اپ منتشرشده).
+       قسمت قفل: سرور به عضو کانال متن کامل و به بقیه چند خط اول را می‌دهد. */
     const fill = res => {
       bodyBox.textContent = '';
       art.classList.toggle('sh-r-locked', !!res.locked);
       lockedView = !!res.locked;
       if (!res.locked) {
-        bodyBox.appendChild(storyText(res.body));
-        afterBody();
+        const lines = parseLines(res.body);
+        const opts = { avatars, ctx };
+        if (mode === 'scroll') playScroll(lineNodes(lines, cast, opts));
+        else playStep(mode === 'notif' ? notifNodes(lines, cast, st, opts) : lineNodes(lines, cast, opts), lines);
         return;
       }
-      if (res.teaserNode) bodyBox.appendChild(res.teaserNode);
-      else if (res.teaser) bodyBox.appendChild(storyText(res.teaser, { drop: true }));
+      const teaser = h('div', 'q-teaser');
+      lineNodes(parseLines(res.teaser || ''), cast, { avatars, ctx }).forEach(n => teaser.appendChild(n));
+      bodyBox.appendChild(teaser);
       const box = h('div', 'sh-lockbox');
       box.appendChild(icon('lock'));
       if (res.members_only) {
-        box.appendChild(h('b', '', 'این فصل مخصوص اعضای کانال است'));
-        box.appendChild(h('small', '', res.channel ? `عضو «${res.channel}» شو و برگرد؛ فصل همین‌جا باز می‌شود.` : 'عضو کانال شو و برگرد.'));
+        box.appendChild(h('b', '', 'این قسمت مخصوص اعضای کانال است'));
+        box.appendChild(h('small', '', res.channel ? `عضو «${res.channel}» شو و برگرد؛ قسمت همین‌جا باز می‌شود.` : 'عضو کانال شو و برگرد.'));
         const row = h('div', 'sh-lock-acts');
         if (safeUrl(res.join_url)) {
           const go = shabBtn('عضویت در کانال');
@@ -1221,7 +1695,7 @@
         }
         box.appendChild(row);
       } else {
-        box.appendChild(h('b', '', 'ادامهٔ این فصل در کانال است'));
+        box.appendChild(h('b', '', 'ادامهٔ این قسمت در کانال است'));
         const url = safeUrl(ch.url) || safeUrl(st.p.url) || safeUrl(res.join_url);
         if (url) {
           const go = shabBtn('خواندن در کانال');
@@ -1230,7 +1704,11 @@
         } else box.appendChild(h('small', '', 'به‌زودی'));
       }
       bodyBox.appendChild(box);
-      afterBody();
+      end.hidden = false;
+      dock.textContent = '';
+      meter.textContent = 'فقط چند خط اول';
+      dock.appendChild(meter);
+      if (nextBtn) dock.appendChild(nextBtn);
     };
     const load = fresh => {
       if (!(remote && ch.id)) return;
@@ -1242,98 +1720,16 @@
       }).catch(() => {
         bodyBox.textContent = '';
         const err = h('div', 'sh-lockbox');
-        err.append(h('b', '', 'فصل بارگذاری نشد'), h('small', '', 'اینترنتت را چک کن.'));
+        err.append(h('b', '', 'قسمت بارگذاری نشد'), h('small', '', 'اینترنتت را چک کن.'));
         const again = shabBtn('دوباره');
         again.addEventListener('click', () => load());
         err.appendChild(again);
         bodyBox.appendChild(err);
       });
     };
-    const next = list[idx + 1];
-    const end = h('div', 'sh-r-end');
-    if (next) {
-      const n = h('button', 'sh-next');
-      n.type = 'button';
-      n.append(h('small', '', 'فصل بعد'), h('b', '', next.title || 'فصل ' + faNum(idx + 2)), icon('arrow'));
-      n.addEventListener('click', () => openReader(ctx, sid, idx + 1, true));
-      end.appendChild(n);
-    } else {
-      end.appendChild(h('span', 'sh-fin', st.p.status === 'done' ? 'پایان' : 'ادامه دارد…'));
-      if (remote && remote.canSync && st.p.status !== 'done') {
-        const nb = h('button', 'sh-notify');
-        nb.type = 'button';
-        const sync = () => {
-          const on = d.notify !== false;
-          nb.classList.toggle('on', on);
-          nb.textContent = '';
-          nb.append(icon(on ? 'check' : 'notice'), document.createTextNode(on ? 'فصل تازه که آمد، در ربات خبرت می‌کنیم' : 'خبرم کن وقتی فصل تازه آمد'));
-        };
-        nb.addEventListener('click', () => { d.notify = d.notify === false; store.save(); remote.notify(d.notify); sync(); });
-        sync();
-        end.appendChild(nb);
-      }
-    }
-    art.appendChild(end);
-    layer.scroll.appendChild(art);
-    layer.appendChild(layer.scroll);
-
-    // نوار پایین خواندن: باران، شمع، پیشرفت، فصل بعد
-    const dock = h('div', 'sh-dock');
-    const tog = (key, ic, label, apply) => {
-      const b = h('button', 'sh-tog');
-      b.type = 'button';
-      b.append(icon(ic), h('span', '', label));
-      const sync = () => { b.classList.toggle('on', !!d[key]); b.setAttribute('aria-pressed', d[key] ? 'true' : 'false'); apply(!!d[key]); };
-      b.addEventListener('click', () => { d[key] = !d[key]; store.save(); sync(); });
-      sync();
-      return b;
-    };
-    const rain = h('div', 'sh-rain');
-    rain.setAttribute('aria-hidden', 'true');
-    layer.appendChild(rain);
-    dock.appendChild(tog('rain', 'rain', 'باران', on => { rain.hidden = !on; }));
-    dock.appendChild(tog('candle', 'flame', 'شمع', on => { layer.classList.toggle('sh-candle', on); }));
-    const meter = h('span', 'sh-meter');
-    dock.appendChild(meter);
-    if (next) {
-      const nb = h('button', 'sh-btn');
-      nb.type = 'button';
-      nb.append(h('span', '', 'فصل بعد'), icon('arrow'));
-      nb.addEventListener('click', () => openReader(ctx, sid, idx + 1, true));
-      dock.appendChild(nb);
-    }
-    layer.appendChild(dock);
-
-    // پیشرفت و «کجا ماند»
-    const total = chMin(ch);
-    let saveT = 0;
-    const scroller = layer.scroll;
-    const onScroll = () => {
-      const max = scroller.scrollHeight - scroller.clientHeight;
-      const pct = max > 4 ? Math.min(1, Math.max(0, scroller.scrollTop / max)) : 1;
-      bar.style.width = Math.round(pct * 100) + '%';
-      meter.textContent = `٪${faNum(Math.round(pct * 100))}، ${faNum(Math.max(0, Math.round(total * (1 - pct))))} دقیقه`;
-      if (!ready || lockedView) return; // تا متن نرسیده (یا فقط چند خط فصل قفل)، «کجا ماند» عوض نشود
-      d.last = { s: sid, k: key, p: Math.round(pct * 1000) / 1000 };
-      d.read[key] = Math.max(d.read[key] || 0, pct);
-      clearTimeout(saveT);
-      saveT = setTimeout(() => store.save(), 400);
-      if (remote && ch.id) remote.progress(sid, ch.id, pct);
-    };
-    scroller.addEventListener('scroll', onScroll, { passive: true });
-    layer.__off = () => { clearTimeout(saveT); store.save(); if (remote) remote.flush(); };
-    const resume = d.last && d.last.k === key ? d.last.p || 0 : 0;
-    let ready = false;
-    afterBody = () => requestAnimationFrame(() => {
-      if (!ready && resume > 0.02 && resume < 0.98) scroller.scrollTop = resume * (scroller.scrollHeight - scroller.clientHeight);
-      ready = true;
-      onScroll();
-    });
     if (ch.body != null) {
-      if (ch.lock) {
-        const tnode = storyText(ch.body, { teaser: true });
-        fill({ locked: true, teaserNode: tnode });
-      } else fill({ body: ch.body });
+      if (ch.lock) fill({ locked: true, teaser: paragraphs(ch.body).slice(0, 2).join('\n\n') });
+      else fill({ body: ch.body });
     } else load();
   }
   function toast(text) {
@@ -1359,15 +1755,6 @@
     if (hd.subtitle) { const sb = h('small', '', hd.subtitle); if (ctx.editing) sb.dataset.edit = 'subtitle'; txt.appendChild(sb); }
     inner.appendChild(txt);
     e.appendChild(inner);
-    const s = document.createElementNS(SVG_NS, 'svg');
-    s.setAttribute('viewBox', '0 0 354 10');
-    s.setAttribute('preserveAspectRatio', 'none');
-    s.setAttribute('aria-hidden', 'true');
-    s.setAttribute('class', 'sh-crack');
-    const path = document.createElementNS(SVG_NS, 'path');
-    path.setAttribute('d', 'M0 5 L60 5 L66 2 L72 8 L78 4 L140 5 L146 1 L150 9 L156 5 L354 5');
-    s.appendChild(path);
-    e.appendChild(s);
     return e;
   }
 
@@ -1549,5 +1936,8 @@
   }
 
   window.EasySaz = { render, normalize, applyTheme, palette, accentVars, icon, h, openUrl, safeUrl, isDark, ICONS, KITS: Object.keys(KITS),
-    storyText, storyPara, paragraphs, paraKind, inlineRuns, shabSeed, shabOpen, minutes, words, shabCover: p => coverEl(p || {}, '', { editing: false }) };
+    storyText, storyPara, paragraphs, paraKind, inlineRuns, shabSeed, shabOpen, minutes, words, shabCover: p => coverEl(p || {}, '', { editing: false }),
+    parseLines, parseLine, joinLines, lineText, castOf, episodeView, Q_COLORS,
+    lineNodes: (lines, p) => lineNodes(lines, castOf(p || {}), { avatars: (p || {}).avatars !== false, ctx: { editing: false } }),
+    avatar: (c, color) => avatarEl({ name: c.name || '', avatar: safeUrl(c.avatar, true), color: color || c.color || Q_COLORS[0] }, { editing: false }) };
 })();

@@ -62,15 +62,15 @@ KITS: dict[str, dict[str, Any]] = {
         "desc": "قالب پیش‌فرض ایزی‌ساز؛ روشن و همه‌کاره",
     },
     "shab": {
-        "title": "شب‌نوشت",
-        "desc": "برای کانال‌های داستان و رمان: قفسهٔ کتاب، فصل‌ها، صفحهٔ خواندن و نشان‌گذاری",
-        "tagline": "تاریک و آرام تا چشم شب‌ها خسته نشود؛ قرمز فقط جایی که هیجان هست.",
-        "accent": "#C8192F",
-        "accents": [["خون", "#C8192F"], ["شمع", "#E9A854"], ["مه", "#8FA6B8"], ["زهر", "#7FA35A"]],
+        "title": "قسمت",
+        "desc": "داستان قسمت‌به‌قسمت برای کانال‌ها: روایت، گفت‌وگو با حباب و عکس شخصیت‌ها، سه حالت خواندن",
+        "tagline": "روشن و گرم؛ هر قسمت مثل یک گفت‌وگو یا پست کانال می‌رسد.",
+        "accent": "#D0452B",
+        "accents": [["شفق", "#D0452B"], ["جوهر", "#2C4BC0"], ["زیتون", "#4F7A3A"], ["بنفش", "#6A3FC8"], ["شب", "#2A2226"]],
         "generic": ["text", "notice", "button", "links", "social", "image", "faq", "divider"],
     },
 }
-STORY_TEXT_MAX = 200_000  # مجموع حرف‌های همهٔ فصل‌ها در یک مینی‌اپ
+STORY_TEXT_MAX = 200_000  # مجموع حرف‌های همهٔ قسمت‌ها در یک مینی‌اپ
 
 SOCIAL_KINDS = [
     "telegram", "instagram", "whatsapp", "youtube", "x", "website", "phone", "email",
@@ -439,13 +439,13 @@ SCHEMA: dict[str, dict[str, Any]] = {
              ]},
         ],
     },
-    # ----- قالب شب‌نوشت (فقط در kit=shab) -----
+    # ----- قالب قسمت (فقط در kit=shab) -----
     "story": {
         "cat": "story",
         "kit": "shab",
         "title": "داستان",
         "icon": "book",
-        "desc": "یک داستان یا رمان با جلد و فصل‌ها؛ هر فصل در صفحهٔ خواندن باز می‌شود",
+        "desc": "یک داستان با جلد، شخصیت‌ها و قسمت‌ها؛ هر قسمت روایت است، گفت‌وگو یا هر دو",
         "premium": False,
         "fields": [
             {"key": "title", "label": "اسم داستان", "type": "text", "max": 60, "default": "داستان تازه"},
@@ -457,20 +457,36 @@ SCHEMA: dict[str, dict[str, Any]] = {
             {"key": "cover", "label": "تصویر جلد (اختیاری)", "type": "image", "default": ""},
             {"key": "tone", "label": "رنگ جلد", "type": "select", "look": True, "default": "blood",
              "options": [["blood", "خون"], ["night", "شب"], ["ash", "خاکستر"], ["moss", "خزه"], ["candle", "شمع"]]},
-            {"key": "url", "label": "لینک کانال (برای فصل‌های قفل)", "type": "url", "default": ""},
-            {"key": "chapters", "label": "فصل‌ها", "type": "list", "max_items": 60, "item_label": "فصل",
+            {"key": "url", "label": "لینک کانال (برای قسمت‌های قفل)", "type": "url", "default": ""},
+            # شخصیت‌ها: هر خط گفت‌وگو با «@شناسه:» به یکی از این‌ها وصل است (kits/shab.line)
+            {"key": "cast", "label": "شخصیت‌ها", "type": "list", "max_items": 12, "item_label": "شخصیت",
              "fields": [
-                 {"key": "title", "label": "اسم فصل", "type": "text", "max": 80, "default": "فصل تازه"},
-                 {"key": "body", "label": "متن فصل", "type": "textarea", "max": 8000, "default": "", "story": True},
+                 {"key": "id", "label": "", "type": "id", "default": ""},
+                 {"key": "name", "label": "اسم", "type": "text", "max": 30, "default": "شخصیت"},
+                 {"key": "avatar", "label": "عکس پروفایل", "type": "image", "default": ""},
+                 {"key": "side", "label": "سمت", "type": "select", "default": "them",
+                  "options": [["them", "دیگران (راست)"], ["me", "من (چپ)"]]},
+                 {"key": "color", "label": "رنگ", "type": "color", "default": ""},
+             ],
+             "default": []},
+            {"key": "avatars", "label": "نمایش عکس پروفایل شخصیت‌ها", "type": "bool", "default": True},
+            {"key": "chat_theme", "label": "تم گفت‌وگو", "type": "select", "default": "light",
+             "options": [["light", "روشن"], ["dark", "تیره"]]},
+            {"key": "read_mode", "label": "حالت خواندن", "type": "select", "default": "scroll",
+             "options": [["scroll", "با اسکرول، پیام‌ها تازه می‌آیند"], ["tap", "با لمس، خط به خط"], ["notif", "مثل اعلان گوشی"]]},
+            {"key": "chapters", "label": "قسمت‌ها", "type": "list", "max_items": 60, "item_label": "قسمت",
+             "fields": [
+                 {"key": "title", "label": "اسم قسمت", "type": "text", "max": 80, "default": "قسمت تازه"},
+                 {"key": "body", "label": "متن قسمت", "type": "textarea", "max": 12000, "default": "", "story": True},
                  {"key": "note", "label": "برچسب کوچک (مثلاً «امروز»)", "type": "text", "max": 24, "default": ""},
                  {"key": "lock", "label": "فقط اعضای کانال (بقیه چند خط اولش را می‌بینند)", "type": "bool", "default": False},
-                 {"key": "url", "label": "لینک این فصل در کانال (اگر کانال در تنظیمات ثبت نشده)", "type": "url", "default": ""},
+                 {"key": "url", "label": "لینک این قسمت در کانال (اگر کانال در تنظیمات ثبت نشده)", "type": "url", "default": ""},
                  {"key": "draft", "label": "پیش‌نویس (خواننده‌ها نمی‌بینند)", "type": "bool", "default": False},
-                 # شناسهٔ پایدار فصل (جای خواندن، نشان‌ها و آمار به آن بسته است)
+                 # شناسهٔ پایدار قسمت (جای خواندن، نشان‌ها و آمار به آن بسته است)
                  {"key": "id", "label": "", "type": "id", "default": ""},
              ],
              "default": [
-                 {"title": "فصل اول", "body": "اولین جملهٔ داستانت را این‌جا بنویس.", "note": "", "lock": False, "url": "", "draft": False},
+                 {"title": "قسمت اول", "body": "اولین خط داستانت را این‌جا بنویس.", "note": "", "lock": False, "url": "", "draft": False},
              ]},
         ],
     },
@@ -502,13 +518,13 @@ SCHEMA: dict[str, dict[str, Any]] = {
     "shab_latest": {
         "cat": "story",
         "kit": "shab",
-        "title": "فصل‌های تازه",
+        "title": "قسمت‌های تازه",
         "icon": "list",
-        "desc": "آخرین فصل‌های همهٔ داستان‌ها، خودکار",
+        "desc": "آخرین قسمت‌های همهٔ داستان‌ها مثل پست‌های کانال، با «خبرم کن»",
         "premium": False,
         "fields": [
-            {"key": "title", "label": "عنوان", "type": "text", "max": 40, "default": "فصل‌های تازه"},
-            {"key": "count", "label": "چند فصل", "type": "int", "min": 2, "max": 10, "default": 4},
+            {"key": "title", "label": "عنوان", "type": "text", "max": 40, "default": "قسمت‌های تازه"},
+            {"key": "count", "label": "چند قسمت", "type": "int", "min": 2, "max": 12, "default": 6},
         ],
     },
     "shab_marks": {
@@ -516,7 +532,7 @@ SCHEMA: dict[str, dict[str, Any]] = {
         "kit": "shab",
         "title": "نشان‌ها",
         "icon": "bookmark",
-        "desc": "فصل‌هایی که هر خواننده نشان گذاشته",
+        "desc": "قسمت‌هایی که هر خواننده نشان گذاشته",
         "premium": False,
         "fields": [
             {"key": "title", "label": "عنوان", "type": "text", "max": 40, "default": "نشان‌های من"},
@@ -979,7 +995,7 @@ def clean_page(doc: Any, *, max_blocks: int, premium: bool, max_pages: int = 1) 
         pages.append({"id": pid, "title": title, "icon": icon,
                       "blocks": _clean_blocks(raw.get("blocks"), premium, seen_blocks, kit)})
 
-    # شناسهٔ فصل‌ها: خالی یا تکراری (مثلاً داستانِ تکثیرشده) شناسهٔ تازه می‌گیرد
+    # شناسهٔ قسمت‌ها: خالی یا تکراری (مثلاً داستانِ تکثیرشده) شناسهٔ تازه می‌گیرد
     seen_ch: set[str] = set()
     for pg in pages:
         for b in pg["blocks"]:
@@ -992,7 +1008,7 @@ def clean_page(doc: Any, *, max_blocks: int, premium: bool, max_pages: int = 1) 
     if total > max_blocks:
         raise PageError(f"پلن فعلی تو حداکثر {max_blocks} کامپوننت دارد")
     if story_chars(pages) > STORY_TEXT_MAX:
-        raise PageError(f"متن همهٔ فصل‌ها با هم حداکثر {STORY_TEXT_MAX // 1000} هزار حرف می‌شود")
+        raise PageError(f"متن همهٔ قسمت‌ها با هم حداکثر {STORY_TEXT_MAX // 1000} هزار حرف می‌شود")
 
     theme = doc.get("theme") if isinstance(doc.get("theme"), dict) else {}
     return {
@@ -1006,7 +1022,7 @@ def clean_page(doc: Any, *, max_blocks: int, premium: bool, max_pages: int = 1) 
 
 
 def reader_view(doc: dict) -> dict:
-    """نسخهٔ خواننده: فصل‌های پیش‌نویس از داستان‌ها برداشته می‌شوند (سمت سرور،
+    """نسخهٔ خواننده: قسمت‌های پیش‌نویس از داستان‌ها برداشته می‌شوند (سمت سرور،
     تا متن منتشرنشده به گوشی خواننده نرسد)."""
     for pg in doc.get("pages", []):
         for b in pg.get("blocks", []):
@@ -1037,7 +1053,7 @@ def all_blocks(doc: dict) -> list[dict]:
 
 
 def empty_page(accent: str | None = None, kit: str = "shab") -> dict:
-    """صفحه خالی شروع کار. عمدا هیچ کامپوننتی ندارد. مینی‌اپ تازه روی شب‌نوشت است."""
+    """صفحه خالی شروع کار. عمدا هیچ کامپوننتی ندارد. مینی‌اپ تازه روی قسمت است."""
     kit = clean_kit(kit)
     theme = clean_theme({"accent": accent or KITS[kit].get("accent")} if (accent or KITS[kit].get("accent")) else {})
     return {

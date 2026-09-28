@@ -35,6 +35,14 @@ from app import blocks, templates  # noqa: E402
 
 STATIC = ROOT / "app" / "webapp" / "static"
 TG_SCRIPT = re.compile(r'<script src="https://telegram\.org/[^"]*"></script>\n?')
+ASSET = re.compile(r"(static/([\w.-]+\.(?:css|js)))(?:\?v=\w+)?")
+
+
+def versioned(html: str) -> str:
+    """مثل سرور (wsgi.asset_version): نسخهٔ هر css/js از هش محتوایش، تا نسخهٔ قدیمی از حافظه نیاید."""
+    import hashlib
+
+    return ASSET.sub(lambda m: f"{m.group(1)}?v={hashlib.sha256((STATIC / m.group(2)).read_bytes()).hexdigest()[:10]}", html)
 
 
 def build(out: Path) -> None:
@@ -48,13 +56,13 @@ def build(out: Path) -> None:
     head = TG_SCRIPT.sub("", head).replace("<title>ایزی‌ساز</title>", "<title>پنل ایزی‌ساز</title>")
     boot = ('<script>(function(r){r.lang="fa";r.dir="rtl";'
             'r.dataset.base="./";r.dataset.demo="1";})(document.documentElement);</script>\n')
-    (out / "index.html").write_text((boot + head + body).replace("__BASE__", "./"), encoding="utf-8")
+    (out / "index.html").write_text(versioned((boot + head + body).replace("__BASE__", "./")), encoding="utf-8")
 
     # صفحهٔ منتشرشده: سند کامل، یک پوشه پایین‌تر
     page = (STATIC / "page.html").read_text(encoding="utf-8")
     page = TG_SCRIPT.sub("", page).replace("__BASE__", "../").replace("__TITLE__", "کافه نارنج")
     (out / "a").mkdir(exist_ok=True)
-    (out / "a" / "demo").write_text(page, encoding="utf-8")
+    (out / "a" / "demo").write_text(versioned(page), encoding="utf-8")
 
     (out / "api").mkdir(exist_ok=True)
     (out / "api" / "schema").write_text(json.dumps(blocks.public_schema(), ensure_ascii=False), encoding="utf-8")

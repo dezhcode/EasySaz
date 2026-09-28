@@ -16,17 +16,21 @@
 <!-- اسپلش: نشان ایزی‌ساز + نوار بارگذاری (مثل عبور) -->
 <div id="splash" class="splash" aria-hidden="true"><span class="mark mark-lg"></span><div class="bar"><i></i></div></div>
 
-<!-- ═══ خانه (تب) — طرح منشور ═══
-     سلام و «امروز چه بسازیم؟»، حوزه‌های قالب، مینی‌اپ‌های من، قدم بعد. -->
-<section id="home" class="screen tabscreen" hidden>
+<!-- ═══ خانه (تب) — ویترین ═══
+     هر مینی‌اپ یک گوشی واقعی روی صحنه (همان صفحه‌ای که خواننده می‌بیند)؛ ورق
+     زدن بین مینی‌اپ‌ها و آخرش گوشی خالی «تازه». زیر گوشی وسط: اسم، روشن/خاموش،
+     آدم‌های این هفته و فقط یک کار اصلی + «مدیریت». -->
+<section id="home" class="screen tabscreen home-v" hidden>
   <header class="hi">
-    <div class="grow"><div class="hi-s" id="hello-s">سلام</div><h1 class="hi-t">امروز چه بسازیم؟</h1></div>
+    <div class="grow"><div class="hi-s" id="hello-s">سلام</div><h1 class="hi-t">مینی‌اپ‌های تو</h1></div>
     <button class="av" id="home-av" aria-label="حساب"></button>
   </header>
-  <div class="doms" id="home-doms"></div>
-  <div class="sec"><span class="sec-t">مینی‌اپ‌های من</span><span class="sec-e" id="home-apps-e"></span></div>
-  <div class="apps" id="home-apps"></div>
-  <div id="home-next"></div>
+  <div class="vt" id="vt">
+    <i class="vt-glow" id="vt-glow" aria-hidden="true"></i>
+    <div class="vt-rail" id="vt-rail" aria-label="مینی‌اپ‌ها"></div>
+  </div>
+  <div class="vt-info" id="vt-info" aria-live="polite"></div>
+  <div class="vt-dots" id="vt-dots" aria-hidden="true"></div>
 </section>
 
 <!-- ═══ قالب‌ها (تب): فروشگاه قالب ═══ -->
@@ -48,42 +52,22 @@
   <div id="stats-body"></div>
 </section>
 
-<!-- ═══ حساب (تب) ═══ -->
+<!-- ═══ حساب (تب) — کاشی‌ها ═══ -->
 <section id="account" class="screen tabscreen" hidden>
   <header class="hi"><h1 class="hi-t grow">حساب</h1></header>
-  <div class="card mx me" id="acc-me"></div>
-  <div class="sec"><span class="sec-t">پلن‌ها</span><span class="sec-e">پرداخت با ستارهٔ تلگرام</span></div>
-  <div class="plans" id="acc-plans"></div>
-  <div class="sec"><span class="sec-t">مینی‌اپ‌های من</span><span class="sec-e" id="acc-apps-e"></span></div>
-  <div class="group" id="acc-apps"></div>
-  <div class="sec"><span class="sec-t">ربات ایزی‌ساز</span></div>
-  <div class="group" id="acc-bot"></div>
+  <div class="bt-grid" id="acc-body"></div>
 </section>
 
-<!-- ═══ داشبورد یک مینی‌اپ ═══
-     سربرگ به رنگ قالب، آمار، قالب‌های نصب‌شده، صفحه‌ها، اتصال و تنظیمات؛
-     پایین: ویرایش و انتشار. -->
+<!-- ═══ داشبورد یک مینی‌اپ — کاشی‌ها (بنتو) ═══
+     پیش‌نمایش زنده، کلید بزرگ روشن/خاموش، لینک و QR، آخرین قسمت، آمار هفته
+     و کاشی‌های کوچک ربات، پیام خوش‌آمد و قالب. «انتشار» فقط وقتی لازم است. -->
 <section id="app" class="screen appdash" hidden>
-  <header class="ad-top" id="ad-top">
-    <div class="ad-bar">
-      <button class="round" id="ad-back" aria-label="برگشت به خانه"><span data-icon="back"></span></button>
-      <span class="grow"></span>
-      <button class="round" id="ad-preview" aria-label="پیش‌نمایش"><span data-icon="eye"></span></button>
-      <button class="round" id="ad-more" aria-label="تنظیمات مینی‌اپ"><span data-icon="settings"></span></button>
-    </div>
-    <div class="ad-id">
-      <span class="tq xl" id="ad-icon"></span>
-      <div class="grow">
-        <h1 class="ad-name" id="ad-name"></h1>
-        <span class="status" id="ad-status"><i class="dot"></i><span></span></span>
-      </div>
-    </div>
+  <header class="bt-top">
+    <button class="round" id="ad-back" aria-label="برگشت به خانه"><span data-icon="back"></span></button>
+    <div class="grow bt-id"><h1 class="bt-name" id="ad-name"></h1><span class="bt-sub" id="ad-sub"></span></div>
+    <button class="round" id="ad-more" aria-label="تنظیمات مینی‌اپ"><span data-icon="settings"></span></button>
   </header>
-  <main class="ad-body" id="ad-body"></main>
-  <div class="ad-foot">
-    <button class="btn btn-s grow" id="ad-edit"><span data-icon="pencil"></span>ویرایش</button>
-    <button class="btn btn-p grow publish" id="ad-publish"><i class="dot"></i><span data-icon="send"></span>انتشار</button>
-  </div>
+  <main class="bt-grid" id="ad-body"></main>
 </section>
 
 <!-- ═══ ساخت مینی‌اپ تازه (کانال داستان با قالب قسمت) ═══

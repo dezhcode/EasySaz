@@ -30,6 +30,9 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext,
         text, markup = await plans_view(db, message.from_user.id)
         await message.answer(text, reply_markup=markup)
         return
+    if arg == "help":
+        await message.answer(texts.HELP, reply_markup=kb.back_home())
+        return
     if arg == "myapp":
         from .myapp import show_apps
 

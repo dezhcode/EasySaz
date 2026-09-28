@@ -557,6 +557,7 @@
     S.pageId = S.doc.pages[0].id;
     S.selected = null;
     try { localStorage.setItem('es-last-app', String(id)); } catch (e) {}
+    sampleCovers();
     if (!quiet) openEditor();
   }
   /* ===================== ادیتور (طرح د: بخش‌ها) =====================
@@ -3287,6 +3288,22 @@
      ['--pg-accent-ink', 'color-mix(in srgb, var(--pg-accent) 72%, var(--ink))'],
      ['--pg-soft', 'color-mix(in srgb, var(--pg-accent) 10%, transparent)']].forEach(([k, v]) => el.style.setProperty(k, v));
     return el;
+  }
+  /* داستان‌های نمونهٔ مینی‌اپ‌هایی که پیش از آمدن جلدها ساخته شده‌اند: یک بار جلد قالب
+     را می‌گیرند (اگر صاحبش بعداً جلد را پاک کند، دوباره گذاشته نمی‌شود). */
+  function sampleCovers() {
+    if (!S.doc || S.doc.kit !== 'shab') return;
+    const key = 'es-covers-' + S.app.id;
+    try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) { return; }
+    const t = shabTemplate();
+    if (!t) return;
+    const src = {};
+    t.doc.pages.forEach(p => p.blocks.forEach(b => { if (b.type === 'story' && b.props.cover) src[b.props.title] = b.props.cover; }));
+    let n = 0;
+    storyList().forEach(({ block }) => {
+      if (!block.props.cover && src[block.props.title] && isSample(block)) { block.props.cover = src[block.props.title]; n++; }
+    });
+    if (n) scheduleSave();
   }
   function coverMini(p, cls) {
     const w = h('div', 'st-cover ' + (cls || ''));

@@ -324,11 +324,11 @@ body.has-sub{overflow:hidden}
 .ped-tools .btn{flex:1; height:44px; font-size:13.5px}
 
 /* تنظیمات */
-.appcard{display:flex; align-items:center; gap:12px; margin-top:12px; padding:14px; border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--surface)}
+.appcard{display:flex; align-items:center; gap:12px; margin-top:12px; padding:14px; border-radius:22px; background:var(--tt, var(--surface)); box-shadow:0 1px 0 var(--line)}
+.appcard .tq.has-logo{background:var(--surface); overflow:hidden}
+.appcard .tq img{width:100%; height:100%; object-fit:cover}
 .appcard .grow{flex:1; min-width:0; display:flex; flex-direction:column}
 .appcard .caption{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:right}
-.appcard .appbar-tile{width:52px; height:52px; border-radius:16px; font-size:22px; overflow:hidden}
-.appcard .appbar-tile img{width:100%; height:100%; object-fit:cover}
 .sbody > .stats{margin-top:12px}
 
 /* شیت افزودن: بخش آماده / کامپوننت تکی */
@@ -529,20 +529,17 @@ body.has-sub{overflow:hidden}
 .row .caption{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .row .ltr{direction:ltr; text-align:right}
 .row input{flex:1; min-width:0; border:0; outline:0; background:none; font-weight:800; font-size:16px}
-.appbar-tile{width:40px; height:40px; border-radius:12px; background:var(--navy); color:var(--tunnel); display:grid; place-items:center; font-weight:800; font-size:17px; flex:none}
 
-.plan{padding:18px; border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--surface)}
-.plan.current{background:var(--navy); border-color:var(--navy); color:var(--on-pass); box-shadow:var(--shadow-pass)}
-.plan.current ul{color:var(--on-pass-2)}
-.plan.current .pill{background:var(--deep); border-color:transparent; color:var(--on-pass)}
-.plan-head{display:flex; justify-content:space-between; align-items:center; gap:8px}
-.plan-price{display:flex; align-items:baseline; gap:4px}
-.plan-price .ico{color:var(--media); align-self:center}
-.plan ul{list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:6px; color:var(--ink-2)}
-.plan li{display:flex; gap:8px; align-items:center}
-.plan li .ico{width:16px; height:16px; color:var(--success); stroke-width:2.2}
-.plan.current li .ico{color:var(--tunnel)}
-.plan .btn{margin-top:14px}
+.upcard{margin-top:var(--space-4); padding:16px; border-radius:22px; background:var(--brand-tint); color:var(--brand)}
+.upcard-h{display:flex; justify-content:space-between; align-items:center; gap:8px}
+.upcard-h > b{font-size:18px; font-weight:800}
+.upcard-p{display:flex; align-items:baseline; gap:4px}
+.upcard-p b{font-size:22px; font-weight:800}
+.upcard-p span{font-size:12px; font-weight:700}
+.upcard ul{list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:6px; color:var(--ink-2); font-size:13.5px}
+.upcard li{display:flex; gap:8px; align-items:center}
+.upcard li .ico{width:16px; height:16px; color:var(--brand); stroke-width:2.4; flex:none}
+.upcard .btn{margin-top:14px}
 .warn-box{display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border-radius:var(--radius-md); background:var(--media-tint); color:var(--media-ink); font-size:12.5px; line-height:1.8}
 .warn-box .ico{width:16px; height:16px; margin-top:3px}
 .warn-box .caption{color:inherit}
@@ -1068,3 +1065,4 @@ body.has-sub .nav{transform:translateY(160%)}
 .paper-light .sh-t-scream{text-shadow:none}
 .paper-light .sh-t-note p{color:var(--media-ink)}
 .paper-light .sh-t-whisper{color:var(--ink-3)}
+.sh-sec .me-use > span{background:var(--surface); box-shadow:0 1px 0 var(--line)}

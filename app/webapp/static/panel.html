@@ -7,9 +7,9 @@
 <link rel="preload" href="__BASE__static/fonts/peyda-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="__BASE__static/fonts/peyda-800.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="__BASE__static/peyda.css">
-<link rel="stylesheet" href="__BASE__static/tokens.css?v=20">
-<link rel="stylesheet" href="__BASE__static/render.css?v=20">
-<link rel="stylesheet" href="__BASE__static/panel.css?v=20">
+<link rel="stylesheet" href="__BASE__static/tokens.css?v=21">
+<link rel="stylesheet" href="__BASE__static/render.css?v=21">
+<link rel="stylesheet" href="__BASE__static/panel.css?v=21">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -98,12 +98,15 @@
 
   <div class="wz-step" id="wz-2" hidden>
     <div class="mx">
-      <div class="pass ob-pass" aria-hidden="true">
-        <span class="tunnel" data-art></span>
-        <div class="pass-head"><span class="pass-name" id="ob-pass-name">اسم مینی‌اپت</span><span class="pass-st"><i></i>پیش‌نویس</span></div>
-        <div class="pass-big"><span class="pass-initial" id="ob-pass-initial">؟</span></div>
-        <div class="pass-foot"><span class="pass-meta" id="ob-pass-kind">ساخته شده با ایزی‌ساز</span><span class="pass-btn">شروع</span></div>
-      </div>
+      <div class="wz-tpl" id="wz-tpl"></div>
+      <!-- کارت همین مینی‌اپ، همان شکلی که در خانه دیده می‌شود -->
+      <article class="acard ob-card" id="ob-card" aria-hidden="true">
+        <div class="acard-band"><i class="o1"></i><i class="o2"></i><span class="pill"><i></i>پیش‌نویس</span></div>
+        <div class="acard-b">
+          <span class="tq lg halo ob-icon" id="ob-pass-initial"></span>
+          <div class="acard-t"><b id="ob-pass-name">اسم مینی‌اپت</b><span id="ob-pass-kind"></span></div>
+        </div>
+      </article>
     </div>
     <div class="ob-body mx">
       <label for="ob-name" class="ob-label">اسمش چیه؟</label>
@@ -198,8 +201,8 @@
 <div class="toast" id="toast" role="status"><span class="toast-ico"></span><span class="toast-txt"></span></div>
 <input type="file" id="file" accept="image/png,image/jpeg,image/webp" hidden>
 
-<script src="__BASE__static/render.js?v=20"></script>
-<script src="__BASE__static/demo.js?v=20"></script>
-<script src="__BASE__static/panel.js?v=20"></script>
+<script src="__BASE__static/render.js?v=21"></script>
+<script src="__BASE__static/demo.js?v=21"></script>
+<script src="__BASE__static/panel.js?v=21"></script>
 </body>
 </html>

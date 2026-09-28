@@ -96,20 +96,7 @@
     t.appendChild(ico(iconName));
     return t;
   }
-  /* نقش تونل عبور (دو طاق) و نشان ایزی‌ساز (کاشی ۲×۲ که یکی‌اش روشن است) */
-  function tunnelArt(size) {
-    const s = document.createElementNS(SVG_NS, 'svg');
-    s.setAttribute('viewBox', '0 0 190 190');
-    s.setAttribute('class', 'tunnel-art');
-    s.setAttribute('aria-hidden', 'true');
-    if (size) { s.setAttribute('width', size); s.setAttribute('height', size); }
-    [['M20 190V95a75 75 0 0 1 150 0v95', 16], ['M55 190V95a40 40 0 0 1 80 0v95', 10]].forEach(([d, w]) => {
-      const p = document.createElementNS(SVG_NS, 'path');
-      p.setAttribute('d', d); p.setAttribute('stroke-width', w); p.setAttribute('fill', 'none');
-      s.appendChild(p);
-    });
-    return s;
-  }
+  /* نشان ایزی‌ساز (کاشی ۲×۲ که یکی‌اش روشن است) */
   function markSvg() {
     const s = document.createElementNS(SVG_NS, 'svg');
     s.setAttribute('viewBox', '0 0 40 40');
@@ -395,17 +382,29 @@
     });
   }
 
+  /* کارت مینی‌اپ در حال ساخت، به رنگ قالب انتخاب‌شده (مثل کارت خانه) */
   function drawPass() {
+    const t = kindTemplate();
+    const entry = storeOfKit(t.kit);
     $('ob-pass-name').textContent = W.name || 'اسم مینی‌اپت';
     const ini = $('ob-pass-initial');
     ini.textContent = '';
+    ini.classList.toggle('has-logo', !!W.logo);
     if (W.logo) {
       const img = h('img');
       img.src = W.logo;
       img.alt = '';
       ini.appendChild(img);
-    } else ini.textContent = W.name ? W.name.charAt(0) : '؟';
-    $('ob-pass-kind').textContent = KIND.title;
+    } else if (W.name) ini.textContent = W.name.charAt(0);
+    else ini.appendChild(ico(entry ? entry.icon : 'layers'));
+    $('ob-pass-kind').textContent = entry ? `${entry.title} · ${entry.tagline}` : t.title;
+    tint($('ob-card'), entry);
+    const chip = $('wz-tpl');
+    chip.textContent = '';
+    if (entry) {
+      tint(chip, entry);
+      chip.append(tq(entry, 'xs'), h('span', '', 'قالب'), h('b', '', entry.title));
+    }
   }
 
   /* سند قالب با اسم، لوگو و رنگ کاربر؛ و اگر پلن اجازه نمی‌دهد، نسخهٔ جمع‌وجورش */
@@ -3300,6 +3299,18 @@
     return S.doc.pages.find(p => p.blocks.some(b => b.type === 'story'))
       || S.doc.pages.find(p => p.id === 'stories') || S.doc.pages[S.doc.pages.length > 1 ? 1 : 0];
   }
+  /* کاغذ روشن نوشتن: سبک‌های شب‌نوشت با رنگ تأکید همین مینی‌اپ، روی زمینهٔ روشن پنل.
+     «پیش‌نمایش» همچنان خوانندهٔ واقعی (تیره) را نشان می‌دهد. */
+  function lightPaper(el) {
+    ES.applyTheme(el, S.doc.theme, 'shab');
+    el.classList.remove('pg-dark');
+    el.classList.add('paper-light');
+    [['--pg-bg', 'var(--surface)'], ['--pg-surface', 'var(--ground)'], ['--pg-ink', 'var(--ink)'], ['--pg-ink-2', 'var(--ink-2)'],
+     ['--pg-ink-3', 'var(--ink-3)'], ['--pg-line', 'var(--line)'], ['--sh-candle', 'var(--media)'],
+     ['--pg-accent-ink', 'color-mix(in srgb, var(--pg-accent) 72%, var(--ink))'],
+     ['--pg-soft', 'color-mix(in srgb, var(--pg-accent) 10%, transparent)']].forEach(([k, v]) => el.style.setProperty(k, v));
+    return el;
+  }
   function coverMini(p, cls) {
     const w = h('div', 'st-cover ' + (cls || ''));
     ES.applyTheme(w, S.doc.theme, 'shab');
@@ -3353,6 +3364,7 @@
   function renderStories() {
     if (!S.doc || S.screen !== 'stories') return;
     $('st-app').textContent = S.app.name;
+    tint($('stories'), storeOfKit(S.doc.kit));
     renderBar();
     const body = $('st-body');
     body.textContent = '';
@@ -3786,7 +3798,7 @@
       const status = selectControl({ label: 'وضعیت', options: [['draft', 'پیش‌نویس (خواننده نمی‌بیند)'], ['live', 'منتشر شود']] },
         ch.draft ? 'draft' : 'live', v => { ch.draft = v === 'draft'; changed(true); });
       const paper = h('div', 'bk-paper');
-      ES.applyTheme(paper, S.doc.theme, 'shab');
+      lightPaper(paper);
       const list = h('div', 'bk-list');
       const adds = h('div', 'bk-adds');
       paper.append(list, adds);
@@ -4049,7 +4061,7 @@
           if (b.kind !== 'hr') {
             sheet.appendChild(h('span', 'label bk-sh-l', 'سبک این بلوک'));
             const grid = h('div', 'bk-kinds');
-            ES.applyTheme(grid, S.doc.theme, 'shab');
+            lightPaper(grid);
             BK_KINDS.forEach(([k, name]) => {
               const c = h('button', 'bk-kind ch-p-' + k + (k === b.kind ? ' on' : ''));
               c.type = 'button';
@@ -4206,7 +4218,6 @@
   /* ---------- اتصال رویدادها ---------- */
   function wire() {
     document.querySelectorAll('[data-icon]').forEach(el => el.appendChild(ico(el.dataset.icon)));
-    document.querySelectorAll('[data-art]').forEach(el => el.appendChild(tunnelArt()));
     document.querySelectorAll('.mark').forEach(el => el.appendChild(markSvg()));
     document.querySelectorAll('#nav .nav-i').forEach(b => b.addEventListener('click', () => {
       if (b.dataset.tab === S.tab && !$(b.dataset.tab).hidden) return;

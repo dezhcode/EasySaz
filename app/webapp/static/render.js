@@ -794,6 +794,16 @@
     });
     return el;
   }
+  /* متن یک پاراگراف به تکه‌های {t, m}: m نام سبک کلمه (b، blood، strike، faint) یا '' */
+  function inlineRuns(text) {
+    const out = [];
+    String(text).split(INLINE).forEach((part, i) => {
+      if (!part) return;
+      if (i % 2) out.push({ t: part.slice(2, -2), m: INLINE_CLS[part.slice(0, 2)] });
+      else out.push({ t: part, m: '' });
+    });
+    return out;
+  }
   const plainText = t => paraKind(t)[1].replace(/\*\*|!!|~~|\(\(|\)\)/g, '');
   const paragraphs = body => String(body || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
   /* یک پاراگراف با سبکش. drop: حرف اول درشت (فقط پاراگراف عادی) */
@@ -1427,5 +1437,5 @@
   }
 
   window.EasySaz = { render, normalize, applyTheme, palette, accentVars, icon, h, openUrl, safeUrl, isDark, ICONS, KITS: Object.keys(KITS),
-    storyText, storyPara, paragraphs, paraKind, minutes, words, shabCover: p => coverEl(p || {}, '', { editing: false }) };
+    storyText, storyPara, paragraphs, paraKind, inlineRuns, minutes, words, shabCover: p => coverEl(p || {}, '', { editing: false }) };
 })();

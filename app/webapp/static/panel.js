@@ -3072,30 +3072,168 @@
     });
   }
 
-  /* ---------- ادیتور فصل: متن با سبک‌های نوشتاری ----------
-     سبک پاراگراف روی کل پاراگرافِ زیر نشانگر می‌نشیند (یک نشانهٔ اول خط)،
-     سبک کلمه دور متن انتخاب‌شده (بدون انتخاب: «متن» نمونه که انتخاب می‌ماند).
-     دکمه‌ها با pointerdown فوکوس را از متن نمی‌گیرند تا انتخاب بماند. */
-  const P_STYLES = [
-    ['p', '', 'عادی'], ['h', '# ', 'میان‌تیتر'], ['talk', '— ', 'گفت‌وگو'], ['whisper', '~ ', 'زمزمه'],
-    ['scream', '! ', 'فریاد'], ['note', '✉ ', 'نامه'], ['quote', '> ', 'نقل‌قول'], ['center', '^ ', 'وسط‌چین'],
+  /* ---------- ادیتور فصل: بلوک‌ها ----------
+     متن فصل در ادیتور به «بلوک»ها شکسته می‌شود: هر پاراگراف یک کارت با سبک
+     خودش (عادی، میان‌تیتر، گفت‌وگو، زمزمه، فریاد، نامه، نقل‌قول، وسط‌چین) و
+     جداکننده هم یک بلوک است. هر بلوک همان‌طور که خواننده می‌بیند نوشته
+     می‌شود (contenteditable روی پوستهٔ شب‌نوشت)، با دستگیره جابه‌جا می‌شود و
+     سبک چند کلمه (پررنگ، خونی، خط‌خورده، کم‌رنگ) روی متن انتخاب‌شده می‌نشیند.
+     ذخیره همان متن ساده با نشانه‌هاست (render.js، storyText)؛ پس خواننده و
+     سرور چیزی از ادیتور نمی‌دانند. هیچ HTML از DOM ویرایش ذخیره نمی‌شود:
+     متن از گره‌ها خوانده و دوباره به نشانه تبدیل می‌شود. */
+  const BK_KINDS = [
+    ['p', 'عادی', ''], ['h', 'میان‌تیتر', '# '], ['talk', 'گفت‌وگو', '— '], ['whisper', 'زمزمه', '~ '],
+    ['scream', 'فریاد', '! '], ['note', 'نامه', '✉ '], ['quote', 'نقل‌قول', '> '], ['center', 'وسط‌چین', '^ '],
   ];
-  const I_STYLES = [['**', '**', 'پررنگ', 'b'], ['!!', '!!', 'خونی', 'blood'], ['~~', '~~', 'خط‌خورده', 'strike'], ['((', '))', 'کم‌رنگ', 'faint']];
-  const P_PREFIX = /^(#|[—–-]|~|!|>|\^)\s+|^✉\s*/;
-  function paraBounds(v, c) {
-    const re = /\n[ \t]*\n/g;
-    let start = 0, end = v.length, m;
-    while ((m = re.exec(v))) {
-      if (m.index >= c) { end = m.index; break; }
-      start = m.index + m[0].length;
-    }
-    return [start, Math.max(start, end)];
+  const BK_NAME = Object.fromEntries(BK_KINDS.map(([k, n]) => [k, n]).concat([['hr', 'جداکننده']]));
+  const BK_PREFIX = Object.fromEntries(BK_KINDS.map(([k, , p]) => [k, p]));
+  const BK_CLS = { p: 'sh-r-p', h: 'sh-t-h', talk: 'sh-r-p sh-t-talk', whisper: 'sh-r-p sh-t-whisper', scream: 'sh-r-p sh-t-scream',
+    note: 'sh-r-p', quote: 'sh-r-p sh-t-quote', center: 'sh-r-p sh-t-center' };
+  const BK_MULTI = { note: 1, center: 1 }; // اینتر در این‌ها خط تازه است، نه بلوک تازه
+  const MARKS = [['b', '**', '**', 'پررنگ'], ['blood', '!!', '!!', 'خونی'], ['strike', '~~', '~~', 'خط‌خورده'], ['faint', '((', '))', 'کم‌رنگ']];
+  const MARK = Object.fromEntries(MARKS.map(m => [m[0], m]));
+
+  const runsText = runs => runs.map(r => r.t).join('');
+  function mergeRuns(runs) {
+    const out = [];
+    runs.forEach(r => {
+      if (!r.t) return;
+      const last = out[out.length - 1];
+      if (last && last.m === r.m) last.t += r.t; else out.push({ t: r.t, m: r.m });
+    });
+    return out;
   }
+  function parseBlocks(body) {
+    const list = ES.paragraphs(body).map(t => {
+      const [kind, text] = ES.paraKind(t);
+      return kind === 'hr' ? { kind: 'hr', runs: [] } : { kind, runs: ES.inlineRuns(text) };
+    });
+    return list.length ? list : [{ kind: 'p', runs: [] }];
+  }
+  function serializeBlock(b) {
+    if (b.kind === 'hr') return '***';
+    let text = b.runs.map(r => {
+      if (!r.m) return r.t;
+      const [, o, c] = MARK[r.m];
+      // نشانه‌ها از خط رد نمی‌شوند؛ هر خط جدا بسته می‌شود
+      return r.t.split('\n').map(line => (line.trim() ? o + line + c : line)).join('\n');
+    }).join('');
+    text = text.replace(/\n[ \t]*\n+/g, '\n').replace(/^\s+|\s+$/g, '');
+    return text ? BK_PREFIX[b.kind] + text : '';
+  }
+  const serializeBlocks = blocks => blocks.map(serializeBlock).filter(Boolean).join('\n\n');
+
+  // DOM ↔ تکه‌ها: متن و <br> و spanهای سبک؛ هر عنصر دیگری (div مرورگر) یعنی خط تازه
+  function nodeLen(n) {
+    if (n.nodeType === 3) return n.nodeValue.length;
+    if (n.nodeName === 'BR') return 1;
+    let s = 0;
+    n.childNodes.forEach(c => { s += nodeLen(c); });
+    return s;
+  }
+  function readRuns(el) {
+    const runs = [];
+    const push = (t, m) => { if (t) runs.push({ t, m }); };
+    const walk = (node, m) => node.childNodes.forEach(n => {
+      if (n.nodeType === 3) push(n.nodeValue.replace(/ /g, ' '), m);
+      else if (n.nodeName === 'BR') { if (n !== node.lastChild || n.parentNode !== el) push('\n', m); }
+      else {
+        const txt = runsText(runs);
+        if (/^(DIV|P)$/.test(n.nodeName) && txt && !txt.endsWith('\n')) push('\n', m);
+        walk(n, (n.dataset && n.dataset.m) || m);
+      }
+    });
+    walk(el, '');
+    return mergeRuns(runs);
+  }
+  function paintRuns(el, runs) {
+    el.textContent = '';
+    runs.forEach(r => {
+      const host = r.m ? h('span', 'sh-i-' + r.m) : el;
+      if (r.m) { host.dataset.m = r.m; el.appendChild(host); }
+      r.t.split('\n').forEach((part, i) => {
+        if (i) host.appendChild(document.createElement('br'));
+        if (part) host.appendChild(document.createTextNode(part));
+      });
+    });
+    if (runsText(runs).endsWith('\n')) el.appendChild(document.createElement('br'));
+  }
+  function caretOffset(el, node, off) {
+    let n = 0, found = false;
+    const walk = p => {
+      for (let i = 0; i < p.childNodes.length && !found; i++) {
+        const c = p.childNodes[i];
+        if (p === node && i === off) { found = true; return; }
+        if (c === node && c.nodeType === 3) { n += off; found = true; return; }
+        if (c.nodeType === 3) n += c.nodeValue.length;
+        else if (c.nodeName === 'BR') n += 1;
+        else walk(c);
+      }
+      if (p === node && off >= p.childNodes.length) found = true;
+    };
+    walk(el);
+    return n;
+  }
+  function getSel(el) {
+    const s = window.getSelection();
+    if (!s || !s.rangeCount || !el.contains(s.anchorNode)) return null;
+    const r = s.getRangeAt(0);
+    return [caretOffset(el, r.startContainer, r.startOffset), caretOffset(el, r.endContainer, r.endOffset)];
+  }
+  function pointAt(el, off) {
+    let left = off, res = null;
+    const walk = p => {
+      for (let i = 0; i < p.childNodes.length && !res; i++) {
+        const c = p.childNodes[i];
+        if (c.nodeType === 3) {
+          if (left <= c.nodeValue.length) { res = [c, left]; return; }
+          left -= c.nodeValue.length;
+        } else if (c.nodeName === 'BR') {
+          if (left === 0) { res = [p, i]; return; }
+          left -= 1;
+          if (left === 0) { res = [p, i + 1]; return; }
+        } else walk(c);
+      }
+    };
+    walk(el);
+    return res || [el, el.childNodes.length];
+  }
+  function setSel(el, a, b) {
+    const s = window.getSelection();
+    if (!s) return;
+    const r = document.createRange();
+    const [n1, o1] = pointAt(el, a);
+    const [n2, o2] = pointAt(el, b == null ? a : b);
+    try { r.setStart(n1, o1); r.setEnd(n2, o2); s.removeAllRanges(); s.addRange(r); } catch (e) {}
+  }
+  function splitRuns(runs, at) {
+    const left = [], right = [];
+    let pos = 0;
+    runs.forEach(r => {
+      const s = pos, e = pos + r.t.length;
+      pos = e;
+      if (e <= at) left.push(r);
+      else if (s >= at) right.push(r);
+      else { left.push({ t: r.t.slice(0, at - s), m: r.m }); right.push({ t: r.t.slice(at - s), m: r.m }); }
+    });
+    return [mergeRuns(left), mergeRuns(right)];
+  }
+  function markRuns(runs, a, b, m) {
+    const [l, rest] = splitRuns(runs, a);
+    const [mid, r] = splitRuns(rest, b - a);
+    const all = mid.filter(x => x.t.trim()).every(x => x.m === m);
+    return mergeRuns(l.concat(mid.map(x => ({ t: x.t, m: all ? '' : m })), r));
+  }
+
   function chapterPage(id, ch) {
     const f = findBlock(id);
     if (!f || chaps(f.block).indexOf(ch) < 0) return;
     const story = f.block;
     let mode = 'write';
+    let blocks = parseBlocks(ch.body);
+    let active = 0;
+    const past = [], future = [];
+    let typing = 0;
     push((el, pg) => {
       el.classList.add('sub-ch');
       const num = () => chaps(story).indexOf(ch) + 1;
@@ -3105,29 +3243,29 @@
       head.appendChild(top);
       const seg = h('div', 'seg ch-mode');
       const bar = h('div', 'ch-bar');
+      const rowKinds = h('div', 'ch-row');
+      const rowTools = h('div', 'ch-row');
+      bar.append(rowKinds, rowTools);
       head.append(seg, bar);
       const body = h('div', 'sbody ch-body');
       el.appendChild(body);
 
-      // نوشتن
+      // سر فصل
       const write = h('div', 'ch-write');
       const title = h('input', 'ch-title');
       title.maxLength = 80;
       title.placeholder = 'اسم فصل';
       title.value = ch.title || '';
-      title.addEventListener('input', () => { ch.title = title.value; changed(); });
+      title.addEventListener('input', () => { ch.title = title.value; changed(true); });
       const status = selectControl({ label: 'وضعیت', options: [['draft', 'پیش‌نویس (خواننده نمی‌بیند)'], ['live', 'منتشر شود']] },
-        ch.draft ? 'draft' : 'live', v => { ch.draft = v === 'draft'; changed(); });
-      const pp = h('div', 'ch-pp');
-      const ta = h('textarea', 'ch-ta');
-      ta.maxLength = BODY_MAX;
-      ta.value = ch.body || '';
-      ta.placeholder = 'از این‌جا بنویس… پاراگراف‌ها را با یک خط خالی جدا کن. برای سبک، متن را انتخاب کن یا نشانگر را در پاراگراف بگذار و از نوار بالا یکی را بزن.';
-      ta.setAttribute('aria-label', 'متن فصل');
+        ch.draft ? 'draft' : 'live', v => { ch.draft = v === 'draft'; changed(true); });
+      const paper = h('div', 'bk-paper');
+      ES.applyTheme(paper, S.doc.theme, 'shab');
+      const list = h('div', 'bk-list');
+      const adds = h('div', 'bk-adds');
+      paper.append(list, adds);
       const stats = h('div', 'ch-stats');
-      const tidy = h('button', 'ch-tidy', 'هر خط ← یک پاراگراف');
-      tidy.type = 'button';
-      write.append(title, status, pp, ta, stats);
+      write.append(title, status, h('span', 'label bk-label', 'متن فصل · هر کارت یک پاراگراف؛ با دستگیره جابه‌جا کن'), paper, stats);
 
       const more = h('details', 'more-sec');
       const sum = h('summary');
@@ -3135,13 +3273,12 @@
       const mb = h('div', 'more-body');
       const chSpec = S.schema.blocks.story.fields.find(x => x.key === 'chapters').fields;
       const cf = k => chSpec.find(x => x.key === k);
-      mb.appendChild(control(cf('note'), ch.note, v => { ch.note = v; changed(); }));
-      mb.appendChild(switchControl(cf('lock'), ch.lock, v => { ch.lock = v; changed(); }));
-      mb.appendChild(control(cf('url'), ch.url, v => { ch.url = v; changed(); }));
+      mb.appendChild(control(cf('note'), ch.note, v => { ch.note = v; changed(true); }));
+      mb.appendChild(switchControl(cf('lock'), ch.lock, v => { ch.lock = v; changed(true); }));
+      mb.appendChild(control(cf('url'), ch.url, v => { ch.url = v; changed(true); }));
       more.append(sum, mb);
       write.appendChild(more);
 
-      // پیش‌نمایش مثل صفحهٔ خواندن
       const read = h('div', 'ch-read');
       ES.applyTheme(read, S.doc.theme, 'shab');
       const drawRead = () => {
@@ -3153,6 +3290,368 @@
         read.appendChild(art);
       };
       body.append(write, read);
+
+      // ---- مدل ↔ ذخیره و «برگرد» محلی ----
+      const snap = () => JSON.stringify(blocks);
+      const remember = () => { past.push(snap()); if (past.length > 80) past.shift(); future.length = 0; drawBar(); };
+      const commit = () => {
+        const v = serializeBlocks(blocks);
+        ch.body = v;
+        changed(true);
+        drawStats();
+      };
+      const restore = s => { blocks = JSON.parse(s); active = Math.min(active, blocks.length - 1); drawList(); commit(); drawBar(); };
+      const undoLocal = () => { if (!past.length) return; future.push(snap()); restore(past.pop()); };
+      const redoLocal = () => { if (!future.length) return; past.push(snap()); restore(future.pop()); };
+
+      // ---- کارت‌ها ----
+      const edOf = i => list.children[i] && list.children[i].querySelector('.bk-ed');
+      const focusBlock = (i, off) => {
+        active = Math.max(0, Math.min(i, blocks.length - 1));
+        drawActive();
+        const ed = edOf(active);
+        if (!ed) { const w = list.children[active]; if (w) w.focus({ preventScroll: false }); return; }
+        ed.focus({ preventScroll: true });
+        setSel(ed, off == null ? runsText(blocks[active].runs).length : off);
+        const r = ed.getBoundingClientRect();
+        if (r.top < 170 || r.bottom > window.innerHeight - 40) ed.scrollIntoView({ block: 'center' });
+      };
+      function drawActive() {
+        [...list.children].forEach((w, i) => w.classList.toggle('on', i === active));
+        drawBar();
+      }
+      function card(b, i) {
+        const w = h('div', 'bk bk-' + b.kind + (i === active ? ' on' : ''));
+        w.dataset.i = String(i);
+        const handle = h('button', 'bk-grip');
+        handle.type = 'button';
+        handle.setAttribute('aria-label', 'جابه‌جایی بلوک');
+        handle.appendChild(ico('grip'));
+        const tag = h('button', 'bk-tag');
+        tag.type = 'button';
+        tag.append(document.createTextNode(BK_NAME[b.kind]), ico('chev'));
+        tag.addEventListener('pointerdown', e => e.preventDefault());
+        tag.addEventListener('click', () => { haptic(); active = Number(w.dataset.i); drawActive(); blockSheet(active); });
+        let content;
+        if (b.kind === 'hr') {
+          content = h('div', 'sh-orn bk-orn');
+          content.append(h('i'), h('i'), h('i'));
+          w.tabIndex = 0;
+          w.addEventListener('click', () => { active = Number(w.dataset.i); drawActive(); });
+        } else {
+          const ed = h('div', 'bk-ed ' + BK_CLS[b.kind]);
+          ed.contentEditable = 'true';
+          ed.dir = 'rtl';
+          ed.setAttribute('role', 'textbox');
+          ed.setAttribute('aria-multiline', 'true');
+          ed.setAttribute('aria-label', 'بلوک ' + BK_NAME[b.kind]);
+          ed.dataset.ph = { p: 'بنویس…', h: 'میان‌تیتر', talk: 'جملهٔ گفت‌وگو', whisper: 'زمزمه…', scream: 'فریاد!', note: 'متن نامه یا یادداشت', quote: 'نقل‌قول', center: 'خط‌ها وسط‌چین' }[b.kind];
+          paintRuns(ed, b.runs);
+          wireEd(ed, w);
+          content = b.kind === 'note' ? h('div', 'sh-t-note bk-note') : ed;
+          if (b.kind === 'note') content.appendChild(ed);
+        }
+        w.append(handle, content, tag);
+        wireDrag(handle, w);
+        return w;
+      }
+      function drawList() {
+        list.textContent = '';
+        blocks.forEach((b, i) => list.appendChild(card(b, i)));
+        drawBar();
+      }
+      function wireEd(ed, w) {
+        const idx = () => Number(w.dataset.i);
+        ed.addEventListener('focus', () => { if (active !== idx()) { active = idx(); drawActive(); } });
+        ed.addEventListener('input', () => {
+          if (!typing) remember();
+          clearTimeout(typing);
+          typing = setTimeout(() => { typing = 0; }, 900);
+          const i = idx();
+          const sel = getSel(ed);
+          blocks[i].runs = readRuns(ed);
+          // مرورگر گاهی div می‌گذارد؛ دوباره از مدل کشیده می‌شود
+          if (ed.querySelector('div,p')) { paintRuns(ed, blocks[i].runs); if (sel) setSel(ed, sel[0]); }
+          commit();
+        });
+        ed.addEventListener('paste', e => {
+          e.preventDefault();
+          const text = ((e.clipboardData || window.clipboardData).getData('text') || '').replace(/\r/g, '');
+          if (!text) return;
+          const i = idx();
+          const sel = getSel(ed) || [0, 0];
+          remember();
+          const [l, rest] = splitRuns(blocks[i].runs, sel[0]);
+          const [, r] = splitRuns(rest, sel[1] - sel[0]);
+          // چند پاراگراف یا چند خط (پست کانال) ← چند بلوک
+          const parts = /\n[ \t]*\n/.test(text) ? text.split(/\n[ \t]*\n/) : (!BK_MULTI[blocks[i].kind] && /\n/.test(text) ? text.split('\n') : [text]);
+          const clean = parts.map(x => x.trim()).filter(Boolean);
+          if (clean.length <= 1) {
+            blocks[i].runs = mergeRuns(l.concat([{ t: clean[0] || '', m: '' }], r));
+            paintRuns(ed, blocks[i].runs);
+            setSel(ed, sel[0] + (clean[0] || '').length);
+            commit();
+            return;
+          }
+          const made = clean.map(t => { const [kind, tx] = ES.paraKind(t); return kind === 'hr' ? { kind: 'hr', runs: [] } : { kind, runs: ES.inlineRuns(tx) }; });
+          blocks[i].runs = mergeRuns(l.concat(made[0].runs));
+          const lastB = made[made.length - 1];
+          const tailLen = runsText(lastB.runs).length;
+          lastB.runs = mergeRuns(lastB.runs.concat(r));
+          blocks.splice(i + 1, 0, ...made.slice(1));
+          drawList();
+          commit();
+          focusBlock(i + made.length - 1, tailLen);
+          toast(`${faN(made.length)} پاراگراف چسبانده شد`);
+        });
+        ed.addEventListener('beforeinput', e => {
+          const i = idx();
+          const b = blocks[i];
+          const sel = getSel(ed);
+          if (!sel) return;
+          if (e.inputType === 'insertParagraph' || e.inputType === 'insertLineBreak') {
+            e.preventDefault();
+            remember();
+            b.runs = readRuns(ed);
+            if (e.inputType === 'insertLineBreak' || BK_MULTI[b.kind]) {
+              const [l, rest] = splitRuns(b.runs, sel[0]);
+              const [, r] = splitRuns(rest, sel[1] - sel[0]);
+              b.runs = mergeRuns(l.concat([{ t: '\n', m: '' }], r));
+              paintRuns(ed, b.runs);
+              setSel(ed, sel[0] + 1);
+              commit();
+              return;
+            }
+            // اینتر: بلوک از جای نشانگر دو تکه می‌شود
+            const [l, rest] = splitRuns(b.runs, sel[0]);
+            const [, r] = splitRuns(rest, sel[1] - sel[0]);
+            b.runs = l;
+            if (l.length) l[l.length - 1].t = l[l.length - 1].t.replace(/[ \t]+$/, '');
+            if (r.length) r[0].t = r[0].t.replace(/^[ \t]+/, '');
+            const nextKind = b.kind === 'talk' ? 'talk' : 'p';
+            blocks.splice(i + 1, 0, { kind: nextKind, runs: r });
+            drawList();
+            commit();
+            focusBlock(i + 1, 0);
+            return;
+          }
+          if (e.inputType === 'deleteContentBackward' && sel[0] === 0 && sel[1] === 0) {
+            e.preventDefault();
+            remember();
+            b.runs = readRuns(ed);
+            if (b.kind !== 'p' && runsText(b.runs)) { b.kind = 'p'; drawList(); commit(); focusBlock(i, 0); return; }
+            if (i === 0) { if (b.kind !== 'p') { b.kind = 'p'; drawList(); commit(); focusBlock(0, 0); } return; }
+            const prev = blocks[i - 1];
+            if (prev.kind === 'hr') { blocks.splice(i - 1, 1); drawList(); commit(); focusBlock(i - 1, 0); return; }
+            const at = runsText(prev.runs).length;
+            prev.runs = mergeRuns(prev.runs.concat(b.runs));
+            blocks.splice(i, 1);
+            drawList();
+            commit();
+            focusBlock(i - 1, at);
+          }
+        });
+      }
+
+      // ---- کشیدن و رها کردن ----
+      function wireDrag(handle, w) {
+        let drag = null;
+        const scroller = el;
+        const place = () => {
+          if (!drag) return;
+          const y = drag.y;
+          const rows = [...list.children].filter(r => r !== w);
+          const target = rows.find(r => { const b = r.getBoundingClientRect(); return y < b.top + b.height / 2; });
+          if (target) { if (target !== w.nextElementSibling) { list.insertBefore(w, target); select(); } }
+          else if (list.lastElementChild !== w) { list.appendChild(w); select(); }
+          w.style.transform = '';
+          const top = w.getBoundingClientRect().top;
+          w.style.transform = `translateY(${y - drag.grab - top}px)`;
+        };
+        const tick = () => {
+          if (!drag) return;
+          const headH = head.getBoundingClientRect().bottom;
+          const edge = drag.y < headH + 50 ? -1 : drag.y > window.innerHeight - 60 ? 1 : 0;
+          if (edge) { scroller.scrollTop += edge * 10; place(); }
+          drag.raf = requestAnimationFrame(tick);
+        };
+        // گوش‌دادن روی پنجره: جابه‌جا کردن کارت در DOM، pointer capture را از دستگیره می‌گیرد
+        const move = e => { if (drag && e.pointerId === drag.pid) { e.preventDefault(); drag.y = e.clientY; place(); } };
+        handle.addEventListener('pointerdown', e => {
+          e.preventDefault();
+          const r = w.getBoundingClientRect();
+          drag = { y: e.clientY, grab: e.clientY - r.top, from: Number(w.dataset.i), pid: e.pointerId };
+          w.classList.add('dragging');
+          list.classList.add('dragging');
+          active = drag.from;
+          drawActive();
+          haptic();
+          window.addEventListener('pointermove', move, { passive: false });
+          window.addEventListener('pointerup', end);
+          window.addEventListener('pointercancel', end);
+          drag.raf = requestAnimationFrame(tick);
+        });
+        function end(e) {
+          if (!drag || (e && e.pointerId !== drag.pid)) return;
+          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointerup', end);
+          window.removeEventListener('pointercancel', end);
+          cancelAnimationFrame(drag.raf);
+          const order = [...list.children].map(r => Number(r.dataset.i));
+          drag = null;
+          w.classList.remove('dragging');
+          list.classList.remove('dragging');
+          w.style.transform = '';
+          const moved = order.some((v, i) => v !== i);
+          if (!moved) return;
+          remember();
+          const from = Number(w.dataset.i);
+          blocks = order.map(k => blocks[k]);
+          active = order.indexOf(from);
+          drawList();
+          commit();
+          notify('success');
+        }
+      }
+
+      // ---- کارهای یک بلوک (شیت) ----
+      function blockSheet(i) {
+        const b = blocks[i];
+        if (!b) return;
+        openSheet(sheet => {
+          sheetHead(sheet, 'story', 'text', `بلوک ${faN(i + 1)} از ${faN(blocks.length)}`, BK_NAME[b.kind]);
+          if (b.kind !== 'hr') {
+            sheet.appendChild(h('span', 'label bk-sh-l', 'سبک این بلوک'));
+            const grid = h('div', 'bk-kinds');
+            ES.applyTheme(grid, S.doc.theme, 'shab');
+            BK_KINDS.forEach(([k, name]) => {
+              const c = h('button', 'bk-kind ch-p-' + k + (k === b.kind ? ' on' : ''));
+              c.type = 'button';
+              c.appendChild(h('span', '', name));
+              c.addEventListener('click', () => { haptic(); setKind(i, k); closeSheet(); });
+              grid.appendChild(c);
+            });
+            sheet.appendChild(grid);
+          }
+          const acts = h('div', 'acts');
+          const act = (icon, label, fn, opt) => {
+            const x = h('button', 'act' + (opt && opt.danger ? ' danger' : ''));
+            x.type = 'button';
+            x.append(ico(icon), h('span', 'grow', label));
+            x.disabled = !!(opt && opt.disabled);
+            x.addEventListener('click', () => { haptic(); closeSheet(); fn(); });
+            acts.appendChild(x);
+          };
+          act('up', 'یکی بالاتر', () => moveBlk(i, -1), { disabled: i === 0 });
+          act('down', 'یکی پایین‌تر', () => moveBlk(i, 1), { disabled: i === blocks.length - 1 });
+          act('plus', 'پاراگراف تازه زیرش', () => insertAfter(i, 'p'));
+          act('minus', 'جداکننده زیرش', () => insertAfter(i, 'hr'));
+          act('copy', 'تکثیر', () => { remember(); blocks.splice(i + 1, 0, JSON.parse(JSON.stringify(b))); drawList(); commit(); focusBlock(i + 1); });
+          act('trash', 'حذف بلوک', () => removeBlk(i), { danger: true });
+          sheet.appendChild(acts);
+        });
+      }
+      function setKind(i, k) {
+        const b = blocks[i];
+        if (!b || b.kind === 'hr' || b.kind === k) return;
+        remember();
+        const ed = edOf(i);
+        if (ed) b.runs = readRuns(ed);
+        b.kind = k;
+        drawList();
+        commit();
+        focusBlock(i);
+      }
+      function moveBlk(i, d) {
+        const j = i + d;
+        if (j < 0 || j >= blocks.length) return;
+        remember();
+        [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
+        active = j;
+        drawList();
+        commit();
+        list.children[j].scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+      function insertAfter(i, kind) {
+        remember();
+        blocks.splice(i + 1, 0, { kind, runs: [] });
+        drawList();
+        commit();
+        focusBlock(i + 1, 0);
+      }
+      function removeBlk(i) {
+        remember();
+        blocks.splice(i, 1);
+        if (!blocks.length) blocks.push({ kind: 'p', runs: [] });
+        active = Math.max(0, i - 1);
+        drawList();
+        commit();
+        toast('بلوک حذف شد · «برگرد» بالای صفحه');
+      }
+
+      // ---- نوار ابزار (بالای صفحه، همیشه پیدا) ----
+      const kindBtns = {};
+      const undoB = h('button', 'ch-chip ch-ic');
+      const redoB = h('button', 'ch-chip ch-ic');
+      function drawBar() {
+        const b = blocks[active];
+        Object.keys(kindBtns).forEach(k => kindBtns[k].classList.toggle('on', !!b && b.kind === k));
+        undoB.disabled = !past.length;
+        redoB.disabled = !future.length;
+      }
+      const chip = (cls, label, onTap) => {
+        const b = h('button', 'ch-chip ' + cls);
+        b.type = 'button';
+        b.appendChild(h('span', '', label));
+        b.addEventListener('pointerdown', e => e.preventDefault()); // انتخاب متن نپرد
+        b.addEventListener('click', () => { haptic(); onTap(); });
+        (chip.row || rowKinds).appendChild(b);
+        return b;
+      };
+      [undoB, redoB].forEach((b, k) => {
+        b.type = 'button';
+        b.setAttribute('aria-label', k ? 'دوباره' : 'برگرد');
+        b.appendChild(ico(k ? 'redo' : 'undo'));
+        b.addEventListener('pointerdown', e => e.preventDefault());
+        b.addEventListener('click', () => { haptic(); if (k) redoLocal(); else undoLocal(); });
+        rowTools.appendChild(b);
+      });
+      rowTools.appendChild(h('i', 'ch-sep'));
+      chip.row = rowTools;
+      MARKS.forEach(([k, , , label]) => chip('ch-i-' + k, label, () => applyMark(k)));
+      rowTools.appendChild(h('span', 'ch-hint', 'چند کلمه را انتخاب کن'));
+      chip.row = rowKinds;
+      BK_KINDS.forEach(([k, name]) => { kindBtns[k] = chip('ch-p-' + k, name, () => setKind(active, k)); });
+      chip('ch-p-hr', '✦ جداکننده', () => insertAfter(active, 'hr'));
+      function applyMark(m) {
+        const b = blocks[active];
+        const ed = edOf(active);
+        if (!b || !ed) { toast('اول روی یک پاراگراف بزن', true); return; }
+        const sel = getSel(ed);
+        if (!sel || sel[0] === sel[1]) { toast('چند کلمه را انتخاب کن، بعد سبک را بزن', true); return; }
+        remember();
+        b.runs = markRuns(readRuns(ed), sel[0], sel[1], m);
+        paintRuns(ed, b.runs);
+        setSel(ed, sel[0], sel[1]);
+        commit();
+      }
+
+      // ---- افزودن بلوک در انتها ----
+      [['p', 'پاراگراف'], ['talk', 'گفت‌وگو'], ['hr', 'جداکننده'], ['note', 'نامه']].forEach(([k, label]) => {
+        const b = h('button', 'bk-add');
+        b.type = 'button';
+        b.append(ico('plus'), document.createTextNode(label));
+        b.addEventListener('click', () => { haptic(); insertAfter(blocks.length - 1, k); });
+        adds.appendChild(b);
+      });
+
+      const drawStats = () => {
+        const v = ch.body || '';
+        stats.textContent = '';
+        stats.append(h('span', '', `${faN(blocks.length)} بلوک، ${faN(ES.words(v))} کلمه، ${faN(ES.minutes(v))} دقیقه خواندن`),
+          h('span', v.length > BODY_MAX ? 'danger-t' : v.length > BODY_MAX * 0.9 ? 'warn-t' : '',
+            v.length > BODY_MAX ? `${faN(v.length - BODY_MAX)} حرف بیشتر از سقف؛ بقیه را فصل بعد بنویس` : `${faN(v.length)} از ${faN(BODY_MAX)} حرف`));
+      };
 
       const drawSeg = () => {
         seg.textContent = '';
@@ -3170,118 +3669,13 @@
         if (mode === 'read') drawRead();
         el.scrollTop = 0;
       };
-
-      // نوار سبک‌ها
-      const chips = {};
-      const chip = (cls, label, onTap) => {
-        const b = h('button', 'ch-chip ' + cls);
-        b.type = 'button';
-        b.appendChild(h('span', '', label));
-        b.addEventListener('pointerdown', e => e.preventDefault());
-        b.addEventListener('click', () => { haptic(); onTap(); });
-        bar.appendChild(b);
-        return b;
-      };
-      P_STYLES.forEach(([k, prefix, label]) => { chips[k] = chip('ch-p-' + k, label, () => setPara(prefix)); });
-      chip('ch-p-hr', '✦ جداکننده', insertDivider);
-      bar.appendChild(h('i', 'ch-sep'));
-      I_STYLES.forEach(([open, close, label, k]) => chip('ch-i-' + k, label, () => wrapInline(open, close)));
-
-      const put = (v, a, b2) => {
-        ta.value = v.slice(0, BODY_MAX);
-        ta.focus({ preventScroll: true });
-        ta.setSelectionRange(Math.min(a, ta.value.length), Math.min(b2 == null ? a : b2, ta.value.length));
-        onEdit();
-      };
-      function setPara(prefix) {
-        const v = ta.value, c = ta.selectionStart;
-        const [s0, e0] = paraBounds(v, c);
-        const para = v.slice(s0, e0);
-        if (/^(\*\s*){3}$/.test(para.trim())) return;
-        const bare = para.replace(/^\s+/, '').replace(P_PREFIX, '');
-        const np = prefix + bare;
-        put(v.slice(0, s0) + np + v.slice(e0), s0 + np.length);
-      }
-      function insertDivider() {
-        const v = ta.value, c = ta.selectionEnd;
-        const [, e0] = paraBounds(v, c);
-        const before = v.slice(0, e0).replace(/\s+$/, ''), after = v.slice(e0).replace(/^\s+/, '');
-        const mid = (before ? '\n\n' : '') + '***\n\n';
-        put(before + mid + after, (before + mid).length);
-      }
-      function wrapInline(open, close) {
-        const v = ta.value;
-        let a = ta.selectionStart, b2 = ta.selectionEnd;
-        if (a === b2) {
-          const ph = 'متن';
-          put(v.slice(0, a) + open + ph + close + v.slice(a), a + open.length, a + open.length + ph.length);
-          return;
-        }
-        let sel = v.slice(a, b2);
-        if (/\n/.test(sel)) { toast('برای سبک کلمه، چند کلمه در یک خط را انتخاب کن', true); return; }
-        // فاصله‌های دو سر بیرون نشانه بمانند
-        const lead = sel.length - sel.replace(/^\s+/, '').length, trail = sel.length - sel.replace(/\s+$/, '').length;
-        a += lead; b2 -= trail; sel = v.slice(a, b2);
-        if (!sel) return;
-        if (sel.startsWith(open) && sel.endsWith(close) && sel.length >= open.length + close.length) {
-          const inner = sel.slice(open.length, sel.length - close.length);
-          put(v.slice(0, a) + inner + v.slice(b2), a, a + inner.length);
-        } else if (v.slice(a - open.length, a) === open && v.slice(b2, b2 + close.length) === close) {
-          put(v.slice(0, a - open.length) + sel + v.slice(b2 + close.length), a - open.length, b2 - open.length);
-        } else {
-          put(v.slice(0, a) + open + sel + close + v.slice(b2), a + open.length, b2 + open.length);
-        }
-      }
-      tidy.addEventListener('click', () => {
-        haptic();
-        const v = ta.value.replace(/\r/g, '').split('\n').map(x => x.trim()).filter(Boolean).join('\n\n');
-        put(v, v.length);
-        toast('هر خط یک پاراگراف شد');
-      });
-
-      // پاراگراف زیر نشانگر: پیش‌نمایش کوچک و سبک فعال
-      const drawCaret = () => {
-        const v = ta.value;
-        const [s0, e0] = paraBounds(v, ta.selectionStart);
-        const para = v.slice(s0, e0).trim();
-        const kind = /^(\*\s*){3}$/.test(para) ? 'hr' : ES.paraKind(para)[0];
-        Object.keys(chips).forEach(k => chips[k].classList.toggle('on', k === kind && !!para));
-        pp.textContent = '';
-        ES.applyTheme(pp, S.doc.theme, 'shab');
-        const lbl = h('span', 'ch-pp-l', para ? 'این پاراگراف در مینی‌اپ' : 'پیش‌نمایش پاراگرافی که رویش هستی');
-        pp.appendChild(lbl);
-        if (para) pp.appendChild(ES.storyPara(para, false));
-      };
-      const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight + 2, window.innerHeight * 0.42) + 'px'; };
-      const drawStats = () => {
-        const v = ta.value;
-        stats.textContent = '';
-        stats.append(h('span', '', `${faN(ES.words(v))} کلمه، ${faN(ES.minutes(v))} دقیقه خواندن`),
-          h('span', v.length > BODY_MAX * 0.9 ? 'warn-t' : '', `${faN(v.length)} از ${faN(BODY_MAX)} حرف`));
-        if (/\n/.test(v) && !/\n[ \t]*\n/.test(v)) stats.appendChild(tidy);
-      };
-      function onEdit() {
-        ch.body = ta.value;
-        changed(true);
-        grow();
-        drawStats();
-        drawCaret();
-      }
-      ta.addEventListener('input', onEdit);
-      ['keyup', 'click', 'select', 'focus'].forEach(ev => ta.addEventListener(ev, drawCaret));
-      const onSel = () => { if (document.activeElement === ta) drawCaret(); };
-      document.addEventListener('selectionchange', onSel);
-      pg.onPop = () => document.removeEventListener('selectionchange', onSel);
-
       drawSeg();
       showMode();
+      drawList();
       drawStats();
-      drawCaret();
-      setTimeout(grow, 0);
-      pg.refresh = () => { if (mode === 'read') drawRead(); drawStats(); };
+      pg.refresh = () => { if (mode === 'read') drawRead(); };
     });
   }
-
 
   /* ---------- اتصال رویدادها ---------- */
   function wire() {

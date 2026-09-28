@@ -34,6 +34,11 @@ def _b(btype: str, props: dict | None = None, style: dict | None = None) -> dict
     return out
 
 
+def _sample(name: str) -> str:
+    """تصویر نمونهٔ همراه قالب (app/webapp/static/samples)؛ بدون BASE_URL خالی می‌ماند."""
+    return blocks.sample_prefix() + name if blocks.sample_prefix() else ""
+
+
 def _page(pid: str, title: str, icon: str, items: list[dict]) -> dict:
     return {"id": pid, "title": title, "icon": icon, "blocks": items}
 
@@ -112,9 +117,9 @@ def shab() -> dict:
         ]),
         _page("stories", "داستان‌ها", "list", [
             _b("story", {"title": "خانهٔ شمارهٔ ۱۳", "subtitle": "رمان کوتاه وحشت در سیزده شب", "genre": "وحشت", "status": "ongoing", "tone": "blood",
-                         "blurb": "خانه‌ای که شش سال خالی مانده، ولی ساعتش هنوز کار می‌کند.", "chapters": _CH13}),
+                         "blurb": "خانه‌ای که شش سال خالی مانده، ولی ساعتش هنوز کار می‌کند.", "cover": _sample("ghosts.jpg"), "chapters": _CH13}),
             _b("story", {"title": "آخرین قطار", "subtitle": "داستان بلند معمایی", "genre": "معمایی", "status": "ongoing", "tone": "night",
-                         "blurb": "قطاری که در هیچ برنامه‌ای نیست و هر شب می‌آید.", "chapters": _TRAIN}),
+                         "blurb": "قطاری که در هیچ برنامه‌ای نیست و هر شب می‌آید.", "cover": _sample("dream.jpg"), "chapters": _TRAIN}),
         ]),
         _page("marks", "نشان‌ها", "bookmark", [
             _b("shab_marks"),
@@ -130,6 +135,57 @@ def shab() -> dict:
 TEMPLATES: list[dict] = [shab()]
 BY_ID = {t["id"]: t for t in TEMPLATES}
 
+# ── فروشگاه قالب ──
+# ایزی‌ساز مادر قالب‌هاست: هر قالب یک «کار کامل» برای یک حوزه است (پوسته،
+# کامپوننت‌ها و در صورت نیاز بخش سرور در app/kits). فروشگاه پنل از همین
+# فهرست ساخته می‌شود؛ «ready» یعنی قالب ساخته شده و قابل نصب است (template
+# به یکی از TEMPLATES اشاره می‌کند)، «soon» فقط در فروشگاه دیده می‌شود.
+# color رنگ امضای قالب در پنل است و tint زمینهٔ روشن همان رنگ.
+DOMAINS = [
+    {"id": "story", "title": "داستان"},
+    {"id": "shop", "title": "فروشگاه"},
+    {"id": "booking", "title": "نوبت"},
+    {"id": "food", "title": "کافه"},
+    {"id": "edu", "title": "آموزش"},
+    {"id": "personal", "title": "شخصی"},
+    {"id": "event", "title": "رویداد"},
+    {"id": "form", "title": "فرم"},
+]
+
+STORE: list[dict] = [
+    {"id": "shab", "title": "شب‌نوشت", "domain": "story", "status": "ready", "template": "shab",
+     "tagline": "داستان دنباله‌دار با فصل، کانال و اعلان",
+     "desc": "داستانت را فصل‌به‌فصل منتشر کن. فصل‌ها می‌توانند فقط برای اعضای کانالت باز باشند "
+             "و با هر فصل تازه، ربات به خواننده‌ها خبر می‌دهد.",
+     "color": "#3B1E3F", "tint": "#F1E7F2", "icon": "book",
+     "components": ["سربرگ داستان", "ادامهٔ خواندن", "قفسه", "فصل‌های تازه", "دکمهٔ عضویت", "خوانندهٔ فصل"],
+     "features": [["book", "کتابخانه و قفسهٔ داستان‌ها", "جلد، خلاصه، ادامهٔ خواندن و فصل‌های تازه"],
+                  ["lock", "فصل فقط برای اعضای کانال", "خوانندهٔ غیرعضو دعوت به عضویت می‌شود"],
+                  ["send", "اعلام فصل تازه", "پست در کانال و پیام به کسانی که «خبرم کن» زده‌اند"],
+                  ["chart", "آمار خواندن", "چند نفر هر فصل را شروع کرده و تا آخر خوانده‌اند"]]},
+    {"id": "shop", "title": "ویترین", "domain": "shop", "status": "soon",
+     "tagline": "محصول، سبد خرید و پرداخت با ستاره",
+     "color": "#C9492A", "tint": "#FCE8E1", "icon": "shop"},
+    {"id": "booking", "title": "نوبت", "domain": "booking", "status": "soon",
+     "tagline": "رزرو وقت برای مطب، سالن و کلاس",
+     "color": "#1F6E5C", "tint": "#E1F1EC", "icon": "cal"},
+    {"id": "menu", "title": "منو", "domain": "food", "status": "soon",
+     "tagline": "منوی دیجیتال کافه و رستوران",
+     "color": "#9A6412", "tint": "#F8EDD8", "icon": "cup"},
+    {"id": "card", "title": "کارت", "domain": "personal", "status": "soon",
+     "tagline": "کارت ویزیت، لینک‌ها و راه‌های تماس",
+     "color": "#2C4BC0", "tint": "#E3E8FB", "icon": "idcard"},
+    {"id": "class", "title": "کلاس", "domain": "edu", "status": "soon",
+     "tagline": "دوره، درس و پیشرفت هنرجو",
+     "color": "#6A3FC8", "tint": "#EDE6FB", "icon": "cap"},
+    {"id": "event", "title": "رویداد", "domain": "event", "status": "soon",
+     "tagline": "ثبت‌نام، بلیت و یادآوری",
+     "color": "#B8315A", "tint": "#FBE4EC", "icon": "ticket"},
+    {"id": "poll", "title": "نظرسنجی", "domain": "form", "status": "soon",
+     "tagline": "فرم، رأی و نتیجهٔ زنده",
+     "color": "#4A5A6B", "tint": "#E6EBF0", "icon": "poll"},
+]
+
 
 def public() -> dict:
-    return {"categories": CATEGORIES, "templates": TEMPLATES}
+    return {"categories": CATEGORIES, "templates": TEMPLATES, "domains": DOMAINS, "store": STORE}

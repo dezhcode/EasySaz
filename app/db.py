@@ -97,6 +97,14 @@ CREATE TABLE IF NOT EXISTS fsm_state (
 );
 """
 
+# ستون‌هایی که بعد از نسخهٔ اول اضافه شدند (دیتابیس قدیمی را بی‌خطر به‌روز می‌کنند)
+MIGRATIONS = [
+    # کانال مینی‌اپ: قفل «فقط اعضا» و اعلام فصل تازه (ربات مشتری باید ادمینش باشد)
+    "ALTER TABLE apps ADD COLUMN channel_id INTEGER",
+    "ALTER TABLE apps ADD COLUMN channel_username TEXT",
+    "ALTER TABLE apps ADD COLUMN channel_title TEXT",
+]
+
 _SLUG_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789"  # بدون l/o/0/1 که با هم قاطی می شوند
 
 
@@ -138,6 +146,15 @@ class Database:
         await self.conn.execute("PRAGMA busy_timeout=10000")
         await self.conn.execute("PRAGMA foreign_keys=ON")
         await self.conn.executescript(SCHEMA)
+        from . import kits
+
+        await self.conn.executescript(kits.SCHEMA)
+        for sql in MIGRATIONS:
+            try:
+                await self.conn.execute(sql)
+            except aiosqlite.OperationalError as exc:  # ستون از قبل هست
+                if "duplicate column" not in str(exc):
+                    raise
         await self.conn.commit()
 
     async def close(self) -> None:
@@ -273,7 +290,15 @@ class Database:
             "UPDATE apps SET status = ?, updated_at = ? WHERE id = ?", (status, now(), app_id)
         )
 
+    async def set_channel(self, app_id: int, chat_id: int | None, username: str | None, title: str | None) -> None:
+        await self.execute(
+            "UPDATE apps SET channel_id = ?, channel_username = ?, channel_title = ?, updated_at = ? WHERE id = ?",
+            (chat_id, username, title, now(), app_id),
+        )
+
     async def delete_app(self, app_id: int) -> None:
+        for table in ("shab_chapters", "shab_readers", "shab_progress", "shab_marks", "shab_announces"):
+            await self.execute(f"DELETE FROM {table} WHERE app_id = ?", (app_id,))
         await self.execute("DELETE FROM visitors WHERE app_id = ?", (app_id,))
         await self.execute("DELETE FROM views_daily WHERE app_id = ?", (app_id,))
         await self.execute("DELETE FROM apps WHERE id = ?", (app_id,))

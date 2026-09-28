@@ -7,47 +7,83 @@
 <link rel="preload" href="__BASE__static/fonts/peyda-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="__BASE__static/fonts/peyda-800.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="__BASE__static/peyda.css">
-<link rel="stylesheet" href="__BASE__static/tokens.css?v=16">
-<link rel="stylesheet" href="__BASE__static/render.css?v=16">
-<link rel="stylesheet" href="__BASE__static/panel.css?v=16">
+<link rel="stylesheet" href="__BASE__static/tokens.css?v=21">
+<link rel="stylesheet" href="__BASE__static/render.css?v=21">
+<link rel="stylesheet" href="__BASE__static/panel.css?v=21">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
 <!-- اسپلش: نشان ایزی‌ساز + نوار بارگذاری (مثل عبور) -->
 <div id="splash" class="splash" aria-hidden="true"><span class="mark mark-lg"></span><div class="bar"><i></i></div></div>
 
-<!-- ═══ خانه (تب) ═══ -->
+<!-- ═══ خانه (تب) — طرح منشور ═══
+     سلام و «امروز چه بسازیم؟»، حوزه‌های قالب، مینی‌اپ‌های من، قدم بعد. -->
 <section id="home" class="screen tabscreen" hidden>
-  <header class="hello">
-    <div><div class="hello-s" id="hello-s">سلام</div><div class="hello-t">ایزی‌ساز</div></div>
-    <span class="mark"></span>
+  <header class="hi">
+    <div class="grow"><div class="hi-s" id="hello-s">سلام</div><h1 class="hi-t">امروز چه بسازیم؟</h1></div>
+    <button class="av" id="home-av" aria-label="حساب"></button>
   </header>
-  <div class="slider">
-    <div class="slides" id="home-passes"></div>
-    <div class="dots" id="home-dots"></div>
-  </div>
-  <div class="sec"><span class="sec-t">کارهای سریع</span></div>
-  <div class="tiles" id="home-tiles"></div>
-  <div class="sec"><span class="sec-t">اتصال و تنظیمات</span><span class="sec-e" id="home-conn-e"></span></div>
-  <div class="group" id="home-conn"></div>
-  <div class="sec"><span class="sec-t">آمار</span><span class="sec-e">بازدید از داخل ربات</span></div>
-  <div class="card mx stats" id="home-stats"></div>
+  <div class="doms" id="home-doms"></div>
+  <div class="sec"><span class="sec-t">مینی‌اپ‌های من</span><span class="sec-e" id="home-apps-e"></span></div>
+  <div class="apps" id="home-apps"></div>
+  <div id="home-next"></div>
+</section>
+
+<!-- ═══ قالب‌ها (تب): فروشگاه قالب ═══ -->
+<section id="store" class="screen tabscreen" hidden>
+  <header class="hi">
+    <h1 class="hi-t grow">قالب‌ها</h1>
+    <button class="round" id="store-find" aria-label="جستجوی قالب"><span data-icon="search"></span></button>
+  </header>
+  <label class="find mx" id="store-q-box" hidden><span data-icon="search"></span><input id="store-q" type="search" placeholder="جستجوی قالب یا کار…" aria-label="جستجوی قالب" autocomplete="off"></label>
+  <div class="cats" id="store-cats" role="tablist" aria-label="حوزه‌ها"></div>
+  <div id="store-feat"></div>
+  <div class="tgrid" id="store-grid"></div>
+</section>
+
+<!-- ═══ آمار (تب) ═══ -->
+<section id="stats" class="screen tabscreen" hidden>
+  <header class="hi"><h1 class="hi-t grow">آمار</h1></header>
+  <div class="cats" id="stats-apps" role="tablist" aria-label="مینی‌اپ‌ها"></div>
+  <div id="stats-body"></div>
 </section>
 
 <!-- ═══ حساب (تب) ═══ -->
 <section id="account" class="screen tabscreen" hidden>
-  <div class="band"><span class="tunnel" data-art></span><div class="band-t">حساب</div></div>
-  <div class="me">
-    <div class="me-av" id="me-av"></div>
-    <div class="me-name" id="me-name"></div>
-    <div class="me-line" id="me-line"></div>
-  </div>
+  <header class="hi"><h1 class="hi-t grow">حساب</h1></header>
+  <div class="card mx me" id="acc-me"></div>
   <div class="sec"><span class="sec-t">پلن‌ها</span><span class="sec-e">پرداخت با ستارهٔ تلگرام</span></div>
-  <div class="tickets" id="acc-plans"></div>
+  <div class="plans" id="acc-plans"></div>
   <div class="sec"><span class="sec-t">مینی‌اپ‌های من</span><span class="sec-e" id="acc-apps-e"></span></div>
   <div class="group" id="acc-apps"></div>
   <div class="sec"><span class="sec-t">ربات ایزی‌ساز</span></div>
   <div class="group" id="acc-bot"></div>
+</section>
+
+<!-- ═══ داشبورد یک مینی‌اپ ═══
+     سربرگ به رنگ قالب، آمار، قالب‌های نصب‌شده، صفحه‌ها، اتصال و تنظیمات؛
+     پایین: ویرایش و انتشار. -->
+<section id="app" class="screen appdash" hidden>
+  <header class="ad-top" id="ad-top">
+    <div class="ad-bar">
+      <button class="round" id="ad-back" aria-label="برگشت به خانه"><span data-icon="back"></span></button>
+      <span class="grow"></span>
+      <button class="round" id="ad-preview" aria-label="پیش‌نمایش"><span data-icon="eye"></span></button>
+      <button class="round" id="ad-more" aria-label="تنظیمات مینی‌اپ"><span data-icon="settings"></span></button>
+    </div>
+    <div class="ad-id">
+      <span class="tq xl" id="ad-icon"></span>
+      <div class="grow">
+        <h1 class="ad-name" id="ad-name"></h1>
+        <span class="status" id="ad-status"><i class="dot"></i><span></span></span>
+      </div>
+    </div>
+  </header>
+  <main class="ad-body" id="ad-body"></main>
+  <div class="ad-foot">
+    <button class="btn btn-s grow" id="ad-edit"><span data-icon="pencil"></span>ویرایش</button>
+    <button class="btn btn-p grow publish" id="ad-publish"><i class="dot"></i><span data-icon="send"></span>انتشار</button>
+  </div>
 </section>
 
 <!-- ═══ ساخت مینی‌اپ تازه (کانال داستان با قالب شب‌نوشت) ═══
@@ -62,12 +98,15 @@
 
   <div class="wz-step" id="wz-2" hidden>
     <div class="mx">
-      <div class="pass ob-pass" aria-hidden="true">
-        <span class="tunnel" data-art></span>
-        <div class="pass-head"><span class="pass-name" id="ob-pass-name">اسم مینی‌اپت</span><span class="pass-st"><i></i>پیش‌نویس</span></div>
-        <div class="pass-big"><span class="pass-initial" id="ob-pass-initial">؟</span></div>
-        <div class="pass-foot"><span class="pass-meta" id="ob-pass-kind">ساخته شده با ایزی‌ساز</span><span class="pass-btn">شروع</span></div>
-      </div>
+      <div class="wz-tpl" id="wz-tpl"></div>
+      <!-- کارت همین مینی‌اپ، همان شکلی که در خانه دیده می‌شود -->
+      <article class="acard ob-card" id="ob-card" aria-hidden="true">
+        <div class="acard-band"><i class="o1"></i><i class="o2"></i><span class="pill"><i></i>پیش‌نویس</span></div>
+        <div class="acard-b">
+          <span class="tq lg halo ob-icon" id="ob-pass-initial"></span>
+          <div class="acard-t"><b id="ob-pass-name">اسم مینی‌اپت</b><span id="ob-pass-kind"></span></div>
+        </div>
+      </article>
     </div>
     <div class="ob-body mx">
       <label for="ob-name" class="ob-label">اسمش چیه؟</label>
@@ -89,8 +128,9 @@
 <!-- ═══ داستان‌ها (تب): پنل مدیریت داستان‌ها ═══
      فهرست داستان‌ها با جلد، «داستان تازه» (اسم، جلد، عنوان کوتاه، توضیحات)،
      هر داستان یک زیرصفحه با فصل‌ها، و هر فصل ادیتور متن با سبک‌های نوشتاری. -->
-<section id="stories" class="screen tabscreen stories" hidden>
+<section id="stories" class="screen stories" hidden>
   <header class="st-top">
+    <button class="round" id="st-back" aria-label="برگشت به مینی‌اپ"><span data-icon="back"></span></button>
     <div class="grow">
       <div class="st-k" id="st-app"></div>
       <div class="st-t">داستان‌ها</div>
@@ -123,11 +163,17 @@
   </header>
   <main class="secs" id="secs"></main>
   <nav class="dock" id="toolbar" aria-label="ابزارها">
-    <button data-act="theme"><span data-icon="palette"></span><span class="dock-l">ظاهر</span></button>
-    <button data-act="stories"><span data-icon="book"></span><span class="dock-l">داستان‌ها</span></button>
-    <button data-act="add" class="dock-add" aria-label="افزودن بخش"><span class="dock-add-t" data-icon="plus"></span></button>
-    <button data-act="order"><span data-icon="order"></span><span class="dock-l">ترتیب</span></button>
-    <button data-act="settings"><span data-icon="settings"></span><span class="dock-l">تنظیمات</span></button>
+    <div class="dock-st">
+      <span class="status" id="dock-status"><i class="dot"></i><span></span></span>
+      <span class="dock-cnt" id="dock-count"></span>
+    </div>
+    <div class="dock-row">
+      <button data-act="theme"><span class="dock-t" data-icon="palette"></span><span class="dock-l">ظاهر</span></button>
+      <button data-act="stories"><span class="dock-t" data-icon="book"></span><span class="dock-l">داستان‌ها</span></button>
+      <button data-act="add" class="dock-add"><span data-icon="plus"></span>افزودن بخش</button>
+      <button data-act="order"><span class="dock-t" data-icon="order"></span><span class="dock-l">ترتیب</span></button>
+      <button data-act="settings"><span class="dock-t" data-icon="settings"></span><span class="dock-l">تنظیمات</span></button>
+    </div>
   </nav>
 </section>
 <!-- زیرصفحه‌های ادیتور (پشته؛ برگشت تلگرام یکی را می‌بندد) -->
@@ -140,12 +186,14 @@
   <a class="btn btn-s" href="#demo" id="demo-link">دیدن نسخهٔ نمایشی</a>
 </section>
 
-<!-- ناوبری شناور (مثل عبور): قرص روشن زیر تب فعال می‌لغزد -->
+<!-- ناوبری پایین (آتلیه روی منشور): سفید و چسبیده، برچسب زیر همه، نقطه زیر تب فعال؛
+     «ساختن» مربع تیرهٔ وسط است و شیت «چه می‌سازی؟» را باز می‌کند. -->
 <nav id="nav" class="nav" aria-label="ناوبری" hidden>
-  <span class="nav-ind still" id="nav-ind" aria-hidden="true"></span>
-  <button class="nav-i" data-tab="home"><span data-icon="home"></span><span class="nav-l">خانه</span></button>
-  <button class="nav-i" data-tab="stories"><span data-icon="book"></span><span class="nav-l">داستان‌ها</span></button>
-  <button class="nav-i" data-tab="account"><span data-icon="user"></span><span class="nav-l">حساب</span></button>
+  <button class="nav-i" data-tab="home"><span data-icon="home"></span><span class="nav-l">خانه</span><i class="nav-d"></i></button>
+  <button class="nav-i" data-tab="store"><span data-icon="grid"></span><span class="nav-l">قالب‌ها</span><i class="nav-d"></i></button>
+  <button class="nav-make" id="nav-make" aria-label="ساختن"><span data-icon="plus"></span></button>
+  <button class="nav-i" data-tab="stats"><span data-icon="chart"></span><span class="nav-l">آمار</span><i class="nav-d"></i></button>
+  <button class="nav-i" data-tab="account"><span data-icon="user"></span><span class="nav-l">حساب</span><i class="nav-d"></i></button>
 </nav>
 
 <div class="scrim" id="scrim"></div>
@@ -153,8 +201,8 @@
 <div class="toast" id="toast" role="status"><span class="toast-ico"></span><span class="toast-txt"></span></div>
 <input type="file" id="file" accept="image/png,image/jpeg,image/webp" hidden>
 
-<script src="__BASE__static/render.js?v=16"></script>
-<script src="__BASE__static/demo.js?v=16"></script>
-<script src="__BASE__static/panel.js?v=16"></script>
+<script src="__BASE__static/render.js?v=21"></script>
+<script src="__BASE__static/demo.js?v=21"></script>
+<script src="__BASE__static/panel.js?v=21"></script>
 </body>
 </html>

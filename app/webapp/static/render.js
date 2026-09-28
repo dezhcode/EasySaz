@@ -829,6 +829,11 @@
   }
   const words = text => (String(text || '').replace(/\*\*|!!|~~|\(\(|\)\)/g, '').match(/[^\s#~!>^✉—*-]\S*/g) || []).length;
   const minutes = text => Math.max(1, Math.round(words(text) / 180));
+  // در مینی‌اپ منتشرشده متن فصل در سند نیست (سرور فقط تعداد کلمه را می‌دهد)
+  const chMin = ch => (ch.body == null && typeof ch.words === 'number' ? Math.max(1, Math.round(ch.words / 180)) : minutes(ch.body));
+  // کلید فصل در وضعیت خواندن: شناسهٔ پایدار فصل (سند قدیمی: داستان:شماره)
+  const ckey = (st, i) => { const c = chapters(st)[i]; return (c && c.id) || st.id + ':' + i; };
+  const idxOf = (st, k) => chapters(st).findIndex((c, i) => (c.id || st.id + ':' + i) === k);
 
   /* وضعیت خواندن: در ادیتور فقط در حافظه (هر بار تازه) */
   const memStore = {};
@@ -838,11 +843,33 @@
     if (k) { try { data = JSON.parse(localStorage.getItem(k)); } catch (e) {} }
     if (!data || typeof data !== 'object') data = k ? {} : (memStore.x = memStore.x || {});
     data.read = data.read || {};
-    data.marks = Array.isArray(data.marks) ? data.marks : [];
+    data.marks = (Array.isArray(data.marks) ? data.marks : []).filter(m => m && m.k);
+    if (data.last && !data.last.k) data.last = null; // دادهٔ نسخهٔ قبل (شماره به جای شناسه)
     return {
       data,
       save() { if (k) { try { localStorage.setItem(k, JSON.stringify(data)); } catch (e) {} } },
     };
+  }
+
+  /* وضعیت خواندن از سرور (هر گوشی یکی): جای خواندن و نشان‌ها از سرور،
+     «تا کجا خوانده» بیشترینِ سرور و این گوشی */
+  function shabSeed(appKey, me) {
+    if (!appKey || !me) return;
+    const store = shabStore(appKey), d = store.data;
+    if (me.last && me.last.k) d.last = me.last;
+    Object.keys(me.read || {}).forEach(k => { d.read[k] = Math.max(d.read[k] || 0, me.read[k]); });
+    if (Array.isArray(me.marks)) d.marks = me.marks.filter(m => m && m.k);
+    if (typeof me.notify === 'boolean') d.notify = me.notify;
+    store.save();
+  }
+  /* باز کردن مستقیم یک فصل (لینک پست کانال، پیام «فصل تازه») */
+  function shabOpen(root, chapterId) {
+    const ctx = root && root.__ctx;
+    if (!ctx || !ctx.lib) return false;
+    const st = shabStories(ctx.lib, false).find(s => chapters(s).some(c => c.id === chapterId));
+    if (!st) return false;
+    openReader(ctx, st.id, chapters(st).findIndex(c => c.id === chapterId));
+    return true;
   }
 
   function coverEl(p, cls, ctx) {
@@ -868,12 +895,13 @@
       fn();
     });
   }
-  function chapterState(ctx, sid, i, ch) {
+  function chapterState(ctx, st, i, ch) {
     const d = ctx.store.data;
+    const k = ckey(st, i);
     if (ch.draft) return ['draft', 'پیش‌نویس'];
     if (ch.lock) return ['lock', 'در کانال'];
-    if (d.last && d.last.s === sid && d.last.c === i) return ['now', 'در حال خواندن'];
-    if ((d.read[sid + ':' + i] || 0) >= 0.9) return ['done', 'خوانده شد'];
+    if (d.last && d.last.k === k) return ['now', 'در حال خواندن'];
+    if ((d.read[k] || 0) >= 0.9) return ['done', 'خوانده شد'];
     return ['', ch.note || ''];
   }
   function chapterRow(ctx, st, i, meta) {
@@ -882,9 +910,9 @@
     row.type = 'button';
     row.appendChild(h('span', 'sh-ch-n', faNum(i + 1)));
     const t = h('span', 'sh-ch-t');
-    t.append(h('b', '', ch.title || 'فصل ' + faNum(i + 1)), h('small', '', meta || (ch.lock ? 'فقط در کانال' : `${faNum(minutes(ch.body))} دقیقه`)));
+    t.append(h('b', '', ch.title || 'فصل ' + faNum(i + 1)), h('small', '', meta || (ch.lock ? 'فقط اعضا' : `${faNum(chMin(ch))} دقیقه`)));
     row.appendChild(t);
-    const [state, label] = chapterState(ctx, st.id, i, ch);
+    const [state, label] = chapterState(ctx, st, i, ch);
     if (label) {
       const s = h('span', 'sh-ch-s' + (state ? ' is-' + state : ''));
       if (state === 'lock') s.appendChild(icon('lock'));
@@ -917,7 +945,7 @@
     info.appendChild(h('small', 'sh-story-m', `${faNum(list.length)} فصل · ${p.status === 'done' ? 'تمام شده' : 'ادامه دارد'}`));
     if (p.blurb) info.appendChild(h('p', 'sh-story-b', p.blurb));
     const last = ctx.store.data.last;
-    const resume = last && last.s === st.id && list[last.c] ? last.c : -1;
+    const resume = last && last.s === st.id ? idxOf(st, last.k) : -1;
     if (list.length) {
       const go = shabBtn(resume >= 0 ? `ادامه از فصل ${faNum(resume + 1)}` : 'شروع خواندن');
       tapped(go, ctx, () => ctx.read(st.id, Math.max(0, resume)));
@@ -939,8 +967,9 @@
     const all = shabStories(ctx.lib, ctx.editing).filter(s => chapters(s).length);
     const last = ctx.store.data.last;
     let st = last && all.find(s => s.id === last.s);
-    let idx = st && chapters(st)[last.c] ? last.c : 0;
-    let pct = st && chapters(st)[last.c] ? (last.p || 0) : 0;
+    let idx = st ? idxOf(st, last.k) : -1;
+    let pct = idx >= 0 ? (last.p || 0) : 0;
+    if (idx < 0) idx = 0;
     if (!st) { st = all[0]; idx = 0; pct = 0; }
     // فصل تمام شده و فصل بعدی هست: ادامه یعنی فصل بعد
     if (pct >= 0.95 && chapters(st)[idx + 1]) { idx += 1; pct = 0; }
@@ -957,8 +986,8 @@
     rail.appendChild(fill);
     info.appendChild(rail);
     const foot = h('div', 'sh-cont-f');
-    const left = Math.max(1, Math.round(minutes(ch.body) * (1 - pct)));
-    foot.appendChild(h('small', '', pct > 0.02 ? `${faNum(left)} دقیقه مانده` : `${faNum(minutes(ch.body))} دقیقه خواندن`));
+    const left = Math.max(1, Math.round(chMin(ch) * (1 - pct)));
+    foot.appendChild(h('small', '', pct > 0.02 ? `${faNum(left)} دقیقه مانده` : `${faNum(chMin(ch))} دقیقه خواندن`));
     const go = shabBtn(pct > 0.02 ? 'ادامه' : 'شروع');
     tapped(go, ctx, () => ctx.read(st.id, idx));
     foot.appendChild(go);
@@ -1022,7 +1051,8 @@
     const box = h('div', 'sh-chs');
     ctx.store.data.marks.slice().reverse().forEach(m => {
       const st = all.find(s => s.id === m.s);
-      if (st && chapters(st)[m.c]) box.appendChild(chapterRow(ctx, st, m.c, st.p.title));
+      const i = st ? idxOf(st, m.k) : -1;
+      if (i >= 0) box.appendChild(chapterRow(ctx, st, i, st.p.title));
     });
     if (!box.childElementCount) {
       const empty = h('div', 'sh-marks-empty');
@@ -1121,7 +1151,9 @@
     const aa = h('button', 'sh-ib sh-aa', 'Aa');
     aa.type = 'button';
     aa.setAttribute('aria-label', 'اندازهٔ متن');
-    const markOn = () => d.marks.some(m => m.s === sid && m.c === idx);
+    const key = ckey(st, idx);
+    const remote = ctx.remote || null;
+    const markOn = () => d.marks.some(m => m.k === key);
     const mark = h('button', 'sh-ib sh-mark');
     mark.type = 'button';
     mark.setAttribute('aria-label', 'نشان‌گذاری');
@@ -1129,9 +1161,10 @@
     const syncMark = () => { mark.classList.toggle('on', markOn()); mark.setAttribute('aria-pressed', markOn() ? 'true' : 'false'); };
     syncMark();
     mark.addEventListener('click', () => {
-      if (markOn()) d.marks = d.marks.filter(m => !(m.s === sid && m.c === idx));
-      else d.marks.push({ s: sid, c: idx });
+      const on = !markOn();
+      if (on) d.marks.push({ s: sid, k: key }); else d.marks = d.marks.filter(m => m.k !== key);
       store.save();
+      if (remote && ch.id) remote.mark(sid, ch.id, on);
       syncMark();
       try { tg && tg.HapticFeedback.impactOccurred('light'); } catch (e) {}
     });
@@ -1151,20 +1184,71 @@
     const art = h('article', 'sh-r-art');
     art.appendChild(h('span', 'sh-r-k', `فصل ${faNum(idx + 1)}`));
     art.appendChild(h('h1', 'sh-r-h', ch.title || ''));
-    art.appendChild(storyText(ch.body, { teaser: !!ch.lock }));
-    if (ch.lock) {
-      art.classList.add('sh-r-locked');
+    const bodyBox = h('div', 'sh-r-body');
+    art.appendChild(bodyBox);
+    let afterBody = () => {};
+    /* متن فصل: از سند (ادیتور، پیش‌نمایش) یا از سرور (مینی‌اپ منتشرشده).
+       فصل قفل: سرور به عضو کانال متن کامل و به بقیه چند خط اول را می‌دهد. */
+    let lockedView = false;
+    const fill = res => {
+      bodyBox.textContent = '';
+      art.classList.toggle('sh-r-locked', !!res.locked);
+      lockedView = !!res.locked;
+      if (!res.locked) {
+        bodyBox.appendChild(storyText(res.body));
+        afterBody();
+        return;
+      }
+      if (res.teaserNode) bodyBox.appendChild(res.teaserNode);
+      else if (res.teaser) bodyBox.appendChild(storyText(res.teaser, { drop: true }));
       const box = h('div', 'sh-lockbox');
       box.appendChild(icon('lock'));
-      box.appendChild(h('b', '', 'ادامهٔ این فصل در کانال است'));
-      const url = safeUrl(ch.url) || safeUrl(st.p.url);
-      if (url) {
-        const go = shabBtn('خواندن در کانال');
-        go.addEventListener('click', () => openUrl(url));
-        box.appendChild(go);
-      } else box.appendChild(h('small', '', 'به‌زودی'));
-      art.appendChild(box);
-    }
+      if (res.members_only) {
+        box.appendChild(h('b', '', 'این فصل مخصوص اعضای کانال است'));
+        box.appendChild(h('small', '', res.channel ? `عضو «${res.channel}» شو و برگرد؛ فصل همین‌جا باز می‌شود.` : 'عضو کانال شو و برگرد.'));
+        const row = h('div', 'sh-lock-acts');
+        if (safeUrl(res.join_url)) {
+          const go = shabBtn('عضویت در کانال');
+          go.addEventListener('click', () => openUrl(res.join_url));
+          row.appendChild(go);
+        }
+        if (remote) {
+          const again = h('button', 'sh-btn sh-btn--ghost');
+          again.type = 'button';
+          again.textContent = 'عضو شدم';
+          again.addEventListener('click', () => { again.disabled = true; load(true); });
+          row.appendChild(again);
+        }
+        box.appendChild(row);
+      } else {
+        box.appendChild(h('b', '', 'ادامهٔ این فصل در کانال است'));
+        const url = safeUrl(ch.url) || safeUrl(st.p.url) || safeUrl(res.join_url);
+        if (url) {
+          const go = shabBtn('خواندن در کانال');
+          go.addEventListener('click', () => openUrl(url));
+          box.appendChild(go);
+        } else box.appendChild(h('small', '', 'به‌زودی'));
+      }
+      bodyBox.appendChild(box);
+      afterBody();
+    };
+    const load = fresh => {
+      if (!(remote && ch.id)) return;
+      if (!fresh) { bodyBox.textContent = ''; const sk = h('div', 'sh-skel'); sk.append(h('i'), h('i'), h('i'), h('i')); bodyBox.appendChild(sk); }
+      remote.chapter(ch.id, fresh).then(res => {
+        if (res.body != null) ch.body = res.body;
+        fill(res.body != null ? { body: res.body } : res);
+        if (fresh && res.body == null) toast('هنوز عضو کانال نیستی');
+      }).catch(() => {
+        bodyBox.textContent = '';
+        const err = h('div', 'sh-lockbox');
+        err.append(h('b', '', 'فصل بارگذاری نشد'), h('small', '', 'اینترنتت را چک کن.'));
+        const again = shabBtn('دوباره');
+        again.addEventListener('click', () => load());
+        err.appendChild(again);
+        bodyBox.appendChild(err);
+      });
+    };
     const next = list[idx + 1];
     const end = h('div', 'sh-r-end');
     if (next) {
@@ -1175,6 +1259,19 @@
       end.appendChild(n);
     } else {
       end.appendChild(h('span', 'sh-fin', st.p.status === 'done' ? 'پایان' : 'ادامه دارد…'));
+      if (remote && remote.canSync && st.p.status !== 'done') {
+        const nb = h('button', 'sh-notify');
+        nb.type = 'button';
+        const sync = () => {
+          const on = d.notify !== false;
+          nb.classList.toggle('on', on);
+          nb.textContent = '';
+          nb.append(icon(on ? 'check' : 'notice'), document.createTextNode(on ? 'فصل تازه که آمد، در ربات خبرت می‌کنیم' : 'خبرم کن وقتی فصل تازه آمد'));
+        };
+        nb.addEventListener('click', () => { d.notify = d.notify === false; store.save(); remote.notify(d.notify); sync(); });
+        sync();
+        end.appendChild(nb);
+      }
     }
     art.appendChild(end);
     layer.scroll.appendChild(art);
@@ -1208,7 +1305,7 @@
     layer.appendChild(dock);
 
     // پیشرفت و «کجا ماند»
-    const total = minutes(ch.body);
+    const total = chMin(ch);
     let saveT = 0;
     const scroller = layer.scroll;
     const onScroll = () => {
@@ -1216,19 +1313,32 @@
       const pct = max > 4 ? Math.min(1, Math.max(0, scroller.scrollTop / max)) : 1;
       bar.style.width = Math.round(pct * 100) + '%';
       meter.textContent = `٪${faNum(Math.round(pct * 100))}، ${faNum(Math.max(0, Math.round(total * (1 - pct))))} دقیقه`;
-      d.last = { s: sid, c: idx, p: Math.round(pct * 1000) / 1000 };
-      const k = sid + ':' + idx;
-      d.read[k] = Math.max(d.read[k] || 0, pct);
+      if (!ready || lockedView) return; // تا متن نرسیده (یا فقط چند خط فصل قفل)، «کجا ماند» عوض نشود
+      d.last = { s: sid, k: key, p: Math.round(pct * 1000) / 1000 };
+      d.read[key] = Math.max(d.read[key] || 0, pct);
       clearTimeout(saveT);
       saveT = setTimeout(() => store.save(), 400);
+      if (remote && ch.id) remote.progress(sid, ch.id, pct);
     };
     scroller.addEventListener('scroll', onScroll, { passive: true });
-    layer.__off = () => { clearTimeout(saveT); store.save(); };
-    const resume = d.last && d.last.s === sid && d.last.c === idx ? d.last.p || 0 : 0;
-    requestAnimationFrame(() => {
-      if (resume > 0.02 && resume < 0.98) scroller.scrollTop = resume * (scroller.scrollHeight - scroller.clientHeight);
+    layer.__off = () => { clearTimeout(saveT); store.save(); if (remote) remote.flush(); };
+    const resume = d.last && d.last.k === key ? d.last.p || 0 : 0;
+    let ready = false;
+    afterBody = () => requestAnimationFrame(() => {
+      if (!ready && resume > 0.02 && resume < 0.98) scroller.scrollTop = resume * (scroller.scrollHeight - scroller.clientHeight);
+      ready = true;
       onScroll();
     });
+    if (ch.body != null) {
+      if (ch.lock) {
+        const tnode = storyText(ch.body, { teaser: true });
+        fill({ locked: true, teaserNode: tnode });
+      } else fill({ body: ch.body });
+    } else load();
+  }
+  function toast(text) {
+    try { if (tg && tg.showAlert) { tg.showAlert(text); return; } } catch (e) {}
+    try { window.alert(text); } catch (e) {}
   }
   function closeLayerQuiet(ctx) {
     const stack = ctx.root.__shab || [];
@@ -1374,6 +1484,8 @@
     if (kit === 'shab') {
       ctx.lib = opts.library ? normalize(opts.library) : doc;
       ctx.store = shabStore(opts.editing ? '' : (opts.appKey || 'preview'));
+      ctx.remote = opts.editing ? null : (opts.remote || null);
+      root.__ctx = ctx;
       ctx.read = (sid, i) => openReader(ctx, sid, i);
       ctx.book = sid => openBook(ctx, sid);
       ctx.refresh = () => render(root, rawDoc, opts);
@@ -1437,5 +1549,5 @@
   }
 
   window.EasySaz = { render, normalize, applyTheme, palette, accentVars, icon, h, openUrl, safeUrl, isDark, ICONS, KITS: Object.keys(KITS),
-    storyText, storyPara, paragraphs, paraKind, inlineRuns, minutes, words, shabCover: p => coverEl(p || {}, '', { editing: false }) };
+    storyText, storyPara, paragraphs, paraKind, inlineRuns, shabSeed, shabOpen, minutes, words, shabCover: p => coverEl(p || {}, '', { editing: false }) };
 })();

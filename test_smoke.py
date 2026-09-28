@@ -13,6 +13,7 @@ import hmac
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 import time
@@ -62,6 +63,7 @@ class FakeSession(BaseSession):
 
     calls: list[tuple[str, str, dict]] = []  # (bot_id, method, params)
     webhooks: dict[str, str] = {}
+    members: set[int] = set()  # اعضای کانال ساختگی (getChatMember)
 
     async def make_request(self, bot, method: TelegramMethod, timeout=None):  # noqa: ANN001, ANN201
         name = type(method).__name__
@@ -77,6 +79,16 @@ class FakeSession(BaseSession):
             FakeSession.webhooks[str(bot.id)] = params["url"]
         if name == "DeleteWebhook":
             FakeSession.webhooks.pop(str(bot.id), None)
+        if name == "GetChat":
+            from types import SimpleNamespace
+
+            return SimpleNamespace(id=-1001234567890, type="channel", title="Kaboos", username="kaboos_ch")
+        if name == "GetChatMember":
+            from types import SimpleNamespace
+
+            uid = params["user_id"]
+            status = "administrator" if uid == bot.id else ("member" if uid in FakeSession.members else "left")
+            return SimpleNamespace(status=status)
         if name in ("SendMessage", "EditMessageText"):
             return Message.model_validate(
                 {"message_id": len(FakeSession.calls), "date": int(time.time()),
@@ -227,6 +239,17 @@ def test_blocks() -> None:
         assert again["pages"] and t["category"] in templates.CATEGORIES, t["id"]
     ok([t["id"] for t in templates.TEMPLATES] == ["shab"] and templates.TEMPLATES[0]["kit"] == "shab",
        "فقط قالب شب‌نوشت عرضه می‌شود و معتبر است")
+    doms = {d["id"] for d in templates.DOMAINS}
+    hexok = lambda c: bool(re.fullmatch(r"#[0-9A-Fa-f]{6}", c or ""))
+    ok(all(e["domain"] in doms and hexok(e["color"]) and hexok(e["tint"]) and e["status"] in ("ready", "soon")
+           and (e["status"] != "ready" or e.get("template") in templates.BY_ID) for e in templates.STORE)
+       and len({e["id"] for e in templates.STORE}) == len(templates.STORE)
+       and "store" in templates.public() and "domains" in templates.public(),
+       "فروشگاه قالب: حوزه، رنگ و قالب آماده‌ها معتبر است")
+    covers = [b["props"]["cover"] for b in blocks.all_blocks(templates.BY_ID["shab"]["doc"]) if b["type"] == "story"]
+    ok(len(covers) == 2 and all(c.startswith(blocks.sample_prefix()) and blocks.clean_url(c, images=True) == c
+                                and os.path.isfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "app/webapp/static/samples", c.rsplit("/", 1)[1])) for c in covers),
+       "جلد داستان‌های نمونه از static/samples می‌آید")
     ok(blocks.empty_page()["kit"] == "shab" and blocks.upgrade({"blocks": [{"type": "text"}]})["kit"] == "base",
        "مینی‌اپ تازه روی شب‌نوشت است؛ سند قدیمی روی قالب پایه می‌ماند")
     ok(set(blocks.CATALOG_ORDER) == set(blocks.SCHEMA) and all(b["cat"] in blocks.CATEGORIES for b in blocks.SCHEMA.values()), "هر کامپوننت دسته و جای کاتالوگ دارد")
@@ -306,7 +329,7 @@ def test_web() -> None:
     st, res = jcall("POST", "/api/app/create", {"name": " "})
     ok(st == 400, "اسم خالی رد می شود")
     st, res = jcall("POST", "/api/app/create", {"name": "کافه نارنج"})
-    ok(st == 200 and res["doc"]["pages"][0]["blocks"] == [], "ساخت اپ با صفحه خالی")
+    ok(st == 200 and res["doc"]["pages"][0]["blocks"] == [] and res["app"]["kit"] == "shab", "ساخت اپ با صفحه خالی روی قالب شب‌نوشت")
     app_id, slug = res["app"]["id"], res["app"]["slug"]
     st, res = jcall("POST", "/api/app/create", {"name": "دومی"})
     ok(st == 402, "پلن رایگان: فقط یک مینی اپ")
@@ -422,6 +445,8 @@ def test_bot() -> None:
     st, res = jcall("POST", f"/api/page/{slug}/view", uid=55, token=MAIN_TOKEN)
     ok(res.get("ok") is False, "بازدید جعلی (امضای ربات دیگر) ثبت نمی شود")
 
+    test_shab(slug, app_id)
+
     hook(update("", callback=f"mode:{app_id}:menu"))
     ok("2000002" not in FakeSession.webhooks, "برگشت به منو وبهوک ما را برمی دارد")
 
@@ -437,6 +462,73 @@ def test_bot() -> None:
     ok(me["plan"]["key"] == "pro" and me["can_create"], "بعد از ارتقا، ساخت اپ دوم مجاز است")
     hook(update("/grant 7 pro 30", uid=99))
     ok("فعال شد" not in calls("SendMessage", 1000001)[-1]["text"], "غیرادمین نمی تواند پلن بدهد")
+
+
+def test_shab(slug: str, app_id: int) -> None:
+    """شب‌نوشت سمت سرور: فصل‌ها در جدول، قفل عضویت، وضعیت خواندن، آمار و اعلام."""
+    print("شب‌نوشت (سرور)")
+    st, tp = jcall("GET", "/api/templates", uid=None)
+    doc = dict(tp["templates"][0]["doc"], pages=tp["templates"][0]["doc"]["pages"][:2])
+    story = doc["pages"][1]["blocks"][0]
+    chs = story["props"]["chapters"]
+    free_id, locked_id = chs[0]["id"], chs[3]["id"]
+    ok(chs[3]["lock"] and all(c["id"] for c in chs), "فصل‌ها شناسهٔ پایدار دارند و قالب فصل قفل دارد")
+    st, res = jcall("POST", "/api/app/publish", {"id": app_id, "doc": doc})
+    fresh = [c["id"] for c in res["kit"]["new_chapters"]]
+    ok(st == 200 and free_id in fresh, "انتشار فصل‌های تازه را برای اعلام برمی‌گرداند")
+    st, page = jcall("GET", f"/api/page/{slug}", uid=None)
+    pchs = page["doc"]["pages"][1]["blocks"][0]["props"]["chapters"]
+    ok(all("body" not in c and c["words"] > 0 for c in pchs), "صفحهٔ عمومی متن فصل‌ها را ندارد، فقط تعداد کلمه")
+    st, ch = jcall("GET", f"/api/page/{slug}/chapter?id={free_id}", uid=None)
+    ok(st == 200 and "کلید" in ch["title"] and len(ch["body"]) > 50, "متن فصل آزاد جدا گرفته می‌شود")
+    st, ch = jcall("GET", f"/api/page/{slug}/chapter?id={locked_id}", uid=None)
+    ok(ch.get("locked") and ch["teaser"] and "body" not in ch, "فصل قفل بدون هویت فقط چند خط اولش را می‌دهد")
+
+    st, res = jcall("POST", "/api/kit/shab/channel", {"id": app_id, "channel": "https://t.me/kaboos_ch"})
+    ok(st == 200 and res["channel"]["title"] == "Kaboos", "کانال با ادمین بودن ربات ثبت می‌شود")
+    st, ch = jcall("GET", f"/api/page/{slug}/chapter?id={locked_id}", uid=55, token=CLIENT_TOKEN)
+    ok(ch.get("locked") and ch["members_only"] and ch["join_url"] == "https://t.me/kaboos_ch", "غیرعضو کانال فصل قفل را نمی‌گیرد")
+    FakeSession.members.add(56)
+    st, ch = jcall("GET", f"/api/page/{slug}/chapter?id={locked_id}", uid=56, token=CLIENT_TOKEN)
+    ok(ch.get("member") and "دستگیره" in ch["body"], "عضو کانال (امضای ربات همان مینی‌اپ) فصل قفل را می‌خواند")
+    st, ch = jcall("GET", f"/api/page/{slug}/chapter?id={locked_id}", uid=56, token=MAIN_TOKEN)
+    ok(ch.get("locked"), "امضای ربات دیگر برای فصل قفل پذیرفته نمی‌شود")
+
+    st, _ = jcall("GET", f"/api/page/{slug}/me", uid=None)
+    ok(st == 401, "وضعیت خواندن بدون initData داده نمی‌شود")
+    st, r = jcall("POST", f"/api/page/{slug}/progress", {"s": story["id"], "k": free_id, "p": 0.5}, uid=55, token=CLIENT_TOKEN)
+    jcall("POST", f"/api/page/{slug}/progress", {"s": story["id"], "k": free_id, "p": 0.2}, uid=55, token=CLIENT_TOKEN)
+    jcall("POST", f"/api/page/{slug}/mark", {"k": free_id, "on": True}, uid=55, token=CLIENT_TOKEN)
+    jcall("POST", f"/api/page/{slug}/notify", {"on": False}, uid=55, token=CLIENT_TOKEN)
+    st, me = jcall("GET", f"/api/page/{slug}/me", uid=55, token=CLIENT_TOKEN)
+    ok(me["last"]["k"] == free_id and me["read"][free_id] == 0.5 and me["marks"][0]["k"] == free_id and me["notify"] is False,
+       "جای خواندن (بیشترین)، نشان و «خبرم کن» روی سرور می‌ماند")
+    st, bad = jcall("POST", f"/api/page/{slug}/progress", {"k": "cnotreal00", "p": 1}, uid=55, token=CLIENT_TOKEN)
+    ok(bad.get("ok") is False, "پیشرفت فصلِ ناموجود ثبت نمی‌شود")
+
+    st, stats = jcall("GET", f"/api/kit/shab/stats?id={app_id}")
+    ok(stats["chapters"][free_id]["readers"] == 1 and stats["readers"] >= 1, "آمار خواندن هر فصل برای صاحب مینی‌اپ")
+    st, _ = jcall("GET", f"/api/kit/shab/stats?id={app_id}", uid=99)
+    ok(st == 404, "آمار مینی‌اپ دیگران داده نمی‌شود")
+
+    jcall("GET", f"/api/page/{slug}/me", uid=57, token=CLIENT_TOKEN)  # خوانندهٔ تازه با «خبرم کن» روشن
+    before = len(calls("SendMessage", 2000002))
+    st, res = jcall("POST", "/api/kit/shab/announce", {"id": app_id, "chapters": [free_id], "channel": True, "readers": True})
+    ok(st == 200 and res["readers"] >= 1 and res["channel"], "اعلام فصل تازه صف می‌شود")
+    time.sleep(0.6)
+    sent = calls("SendMessage", 2000002)[before:]
+    to_channel = [m for m in sent if m["chat_id"] == -1001234567890]
+    to_57 = [m for m in sent if m["chat_id"] == 57]
+    ok(to_channel and "start=c_" in to_channel[-1]["reply_markup"]["inline_keyboard"][0][0]["url"], "پست کانال با لینک همان فصل")
+    ok(to_57 and to_57[-1]["reply_markup"]["inline_keyboard"][0][0]["web_app"]["url"].endswith("#read=" + free_id)
+       and not [m for m in sent if m["chat_id"] == 55], "پیام خواننده‌ها فقط به «خبرم کن»‌ها، با دکمهٔ همان فصل")
+    st, _ = jcall("POST", "/api/kit/shab/announce", {"id": app_id, "chapters": [free_id], "readers": True})
+    ok(st == 400, "هر فصل فقط یک بار اعلام می‌شود")
+
+    upd = update(f"/start c_{free_id}", uid=58)
+    call("POST", "/hook/2000002", upd, {"X-Telegram-Bot-Api-Secret-Token": secure.client_hook_secret(2000002)})
+    btn = calls("SendMessage", 2000002)[-1]["reply_markup"]["inline_keyboard"][0][0]
+    ok(btn["web_app"]["url"].endswith("#read=" + free_id), "لینک کانال (start=c_…) همان فصل را در مینی‌اپ باز می‌کند")
 
 
 if __name__ == "__main__":

@@ -27,6 +27,8 @@ from urllib.parse import parse_qs
 from app import blocks
 from app.config import config
 
+from app.kits.shab.api import ShabApi
+
 from .api import Api, ApiError, dumps
 
 log = logging.getLogger("easysaz.web")
@@ -34,7 +36,7 @@ log = logging.getLogger("easysaz.web")
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 _SLUG = re.compile(r"^[a-z0-9]{6,16}$")
 _UPLOAD = re.compile(r"^[a-f0-9]{24}\.(jpg|png|webp)$")
-_STATIC_EXT = {".js", ".css", ".woff2", ".png", ".webp", ".svg", ".ico"}
+_STATIC_EXT = {".js", ".css", ".woff2", ".png", ".jpg", ".webp", ".svg", ".ico"}
 
 CSP = (
     "default-src 'self'; "
@@ -201,6 +203,25 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
                 coro = api.page(slug)
             elif method == "POST" and tail == "view":
                 coro = api.view(slug, init_data)
+            elif tail in ShabApi.READER:
+                # خوانندهٔ شب‌نوشت: متن فصل، وضعیت خواندن، نشان‌ها
+                shab = ShabApi(runtime.db, runtime.parts.clients, api)
+                if method == "GET" and tail in ("chapter", "me"):
+                    coro = getattr(shab, tail)(slug, init_data, query)
+                elif method == "POST" and tail in ("progress", "mark", "notify"):
+                    coro = getattr(shab, tail)(slug, init_data, _body(environ, limit=8192))
+                else:
+                    raise ApiError(405, "روش نامعتبر")
+            else:
+                raise ApiError(404, "پیدا نشد")
+        elif path.startswith("/api/kit/shab/"):
+            # صاحب مینی‌اپ: کانال، آمار خواندن، اعلام فصل تازه
+            action = path[len("/api/kit/shab/"):].strip("/")
+            shab = ShabApi(runtime.db, runtime.parts.clients, api)
+            if method == "GET" and action == "stats":
+                coro = shab.stats(init_data, query)
+            elif method == "POST" and action in ("channel", "announce"):
+                coro = getattr(shab, action)(init_data, _body(environ))
             else:
                 raise ApiError(404, "پیدا نشد")
         else:

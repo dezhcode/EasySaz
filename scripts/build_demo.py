@@ -15,7 +15,9 @@ index.html بدون doctype/head است تا میزبان (مثل Artifact) اس
 """
 from __future__ import annotations
 
+import base64
 import json
+import os
 import re
 import shutil
 import sys
@@ -23,6 +25,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+
+# نسخهٔ نمایشی سرور ندارد: تصویرهای نمونهٔ قالب‌ها (static/samples) با یک نشانی
+# ساختگی ساخته می‌شوند و بعد همان‌جا به data URI تبدیل می‌شوند.
+DEMO_BASE = "https://demo.easysaz.invalid"
+os.environ["BASE_URL"] = DEMO_BASE
 
 from app import blocks, templates  # noqa: E402
 
@@ -51,7 +58,11 @@ def build(out: Path) -> None:
 
     (out / "api").mkdir(exist_ok=True)
     (out / "api" / "schema").write_text(json.dumps(blocks.public_schema(), ensure_ascii=False), encoding="utf-8")
-    (out / "api" / "templates").write_text(json.dumps(templates.public(), ensure_ascii=False), encoding="utf-8")
+    tpl_json = json.dumps(templates.public(), ensure_ascii=False)
+    for img in sorted((STATIC / "samples").glob("*.jpg")):
+        data = "data:image/jpeg;base64," + base64.b64encode(img.read_bytes()).decode()
+        tpl_json = tpl_json.replace(blocks.sample_prefix() + img.name, data)
+    (out / "api" / "templates").write_text(tpl_json, encoding="utf-8")
 
     dst = out / "static"
     dst.mkdir(exist_ok=True)

@@ -24,6 +24,13 @@
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const UI = Object.assign({}, ES.ICONS, {
     plus: 'M12 5v14M5 12h14',
+    search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
+    grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+    page: 'M6 3h9l4 4v14H6zM14 3v5h5',
+    cal: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M8 14h3',
+    cap: 'M2 9l10-5 10 5-10 5-10-5zM6 11v5c3 2 9 2 12 0v-5M22 9v6',
+    idcard: 'M3 6h18v12H3zM8 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5.5 16c.6-1.4 1.4-2 2.5-2s1.9.6 2.5 2M14 10h4M14 14h3',
+    poll: 'M5 20V10M12 20V4M19 20v-7',
     palette: 'M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.6-1.3-.6-2.1 0-.9.7-1.5 1.6-1.5H17a4 4 0 0 0 4-4c0-4.9-4-8.8-9-8.8zM7.5 11.5v.01M10 7.5v.01M14.5 7.5v.01',
     eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
     x: 'M6 6l12 12M18 6L6 18',
@@ -89,20 +96,7 @@
     t.appendChild(ico(iconName));
     return t;
   }
-  /* نقش تونل عبور (دو طاق) و نشان ایزی‌ساز (کاشی ۲×۲ که یکی‌اش روشن است) */
-  function tunnelArt(size) {
-    const s = document.createElementNS(SVG_NS, 'svg');
-    s.setAttribute('viewBox', '0 0 190 190');
-    s.setAttribute('class', 'tunnel-art');
-    s.setAttribute('aria-hidden', 'true');
-    if (size) { s.setAttribute('width', size); s.setAttribute('height', size); }
-    [['M20 190V95a75 75 0 0 1 150 0v95', 16], ['M55 190V95a40 40 0 0 1 80 0v95', 10]].forEach(([d, w]) => {
-      const p = document.createElementNS(SVG_NS, 'path');
-      p.setAttribute('d', d); p.setAttribute('stroke-width', w); p.setAttribute('fill', 'none');
-      s.appendChild(p);
-    });
-    return s;
-  }
+  /* نشان ایزی‌ساز (کاشی ۲×۲ که یکی‌اش روشن است) */
   function markSvg() {
     const s = document.createElementNS(SVG_NS, 'svg');
     s.setAttribute('viewBox', '0 0 40 40');
@@ -190,6 +184,48 @@
   }
 
   /* ---------- API ---------- */
+  /* بعد از انتشار: فصل‌های تازه را به کانال و خواننده‌ها اعلام کن (app/kits/shab/api.py) */
+  function announceCard(fresh) {
+    const card = h('div', 'ann');
+    const head = h('div', 'ann-h');
+    head.append(catTile('story', 'notice'), h('b', '', fresh.length > 1 ? `${faN(fresh.length)} فصل تازه منتشر شد` : 'یک فصل تازه منتشر شد'));
+    card.appendChild(head);
+    const list = h('ul', 'ann-l');
+    fresh.slice(0, 5).forEach(c => list.appendChild(h('li', '', `${c.title} — «${c.story}»`)));
+    if (fresh.length > 5) list.appendChild(h('li', 'caption', `و ${faN(fresh.length - 5)} فصل دیگر`));
+    card.appendChild(list);
+    if (!S.app.bot_username) {
+      card.appendChild(h('p', 'caption', 'برای خبر دادن به خواننده‌ها اول ربات مینی‌اپ را وصل کن.'));
+      return card;
+    }
+    const opts = { readers: true, channel: !!S.app.channel };
+    const sw = (key, label, sub, disabled) => {
+      const row = switchControl({ label }, opts[key], v => { opts[key] = v; });
+      if (sub) row.appendChild(h('span', 'caption ann-sub', sub));
+      if (disabled) { row.classList.add('off'); row.querySelector('.switch').disabled = true; }
+      card.appendChild(row);
+    };
+    sw('readers', 'پیام به خواننده‌ها', 'کسانی که «خبرم کن» را روشن دارند، از @' + S.app.bot_username);
+    sw('channel', 'پست در کانال', S.app.channel ? (S.app.channel.title || '@' + S.app.channel.username) : 'اول کانال را در «تنظیمات» ثبت کن', !S.app.channel);
+    const go = h('button', 'btn btn-p btn-block');
+    go.type = 'button';
+    go.append(ico('send'), document.createTextNode('اعلام کن'));
+    go.addEventListener('click', async () => {
+      if (!opts.readers && !opts.channel) { toast('یکی را روشن کن', true); return; }
+      go.disabled = true;
+      try {
+        const res = await api('kit/shab/announce', { id: S.app.id, chapters: fresh.map(c => c.id), readers: opts.readers, channel: opts.channel });
+        notify('success');
+        card.textContent = '';
+        card.appendChild(h('b', '', res.readers || res.channel
+          ? `در حال فرستادن${res.channel ? ' به کانال' : ''}${res.readers ? `${res.channel ? ' و ' : ' به '}${faN(res.readers)} خواننده` : ''}`
+          : 'اعلام ثبت شد؛ هنوز خواننده‌ای «خبرم کن» ندارد'));
+      } catch (err) { failed(err); go.disabled = false; }
+    });
+    card.appendChild(go);
+    return card;
+  }
+
   async function api(path, body) {
     if (DEMO) return window.EasySazDemo.api(path, body);
     const opts = { headers: { 'X-Init-Data': (tg && tg.initData) || '' }, cache: 'no-store' };
@@ -226,9 +262,10 @@
   }
 
   /* ---------- صفحه‌ها ---------- */
-  const TABS = ['home', 'stories', 'account'];
+  const TABS = ['home', 'store', 'stats', 'account'];
+  const SCREENS = ['home', 'store', 'stats', 'account', 'app', 'onboard', 'stories', 'editor', 'blocked'];
   function show(id, asTab) {
-    ['home', 'account', 'onboard', 'stories', 'editor', 'blocked'].forEach(s => { $(s).hidden = s !== id; });
+    SCREENS.forEach(s => { $(s).hidden = s !== id; });
     const splash = $('splash');
     if (splash && !splash.classList.contains('off')) { splash.classList.add('off'); setTimeout(() => splash.remove(), 450); }
     S.screen = id;
@@ -242,29 +279,26 @@
     window.scrollTo(0, 0);
   }
 
-  /* ===== ناوبری شناور: قرص روشن زیر تب فعال می‌لغزد (مثل عبور) ===== */
+  /* ===== ناوبری پایین (آتلیه روی منشور): تب فعال پررنگ با نقطهٔ زیرش ===== */
   function renderNav() {
     document.querySelectorAll('#nav .nav-i').forEach(b => {
       const on = b.dataset.tab === S.tab;
       b.classList.toggle('on', on);
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
-    requestAnimationFrame(placeNav);
-  }
-  function placeNav() {
-    const nav = $('nav'), ind = $('nav-ind'), on = nav.querySelector('.nav-i.on');
-    if (!on || nav.hidden) return;
-    const n = nav.getBoundingClientRect(), r = on.getBoundingClientRect();
-    if (!r.width) return;
-    ind.style.left = (r.left - n.left) + 'px';
-    ind.style.width = r.width + 'px';
-    if (ind.classList.contains('still')) requestAnimationFrame(() => requestAnimationFrame(() => ind.classList.remove('still')));
   }
   function tab(name) {
-    if (name === 'home') { show('home', true); renderHome(); }
-    else if (name === 'stories') { show('stories', true); renderStories(); }
-    else if (name === 'account') { show('account', true); renderAccount(); }
+    if (!TABS.includes(name)) name = 'home';
+    show(name, true);
+    ({ home: renderHome, store: renderStore, stats: renderStats, account: renderAccount })[name]();
   }
+  /* داشبورد مینی‌اپ و مدیریت داستان‌ها صفحهٔ کامل‌اند، بدون ناوبری پایین */
+  async function openDash(id) {
+    if (!S.app || String(S.app.id) !== String(id)) { await saveNow(); await openApp(id, true); }
+    showApp();
+  }
+  function showApp() { show('app'); renderApp(); }
+  function showStories() { show('stories'); renderStories(); }
 
   /* ===== شروع: اسم ===== */
   /* ===== ساخت مینی‌اپ تازه: جادوی سه‌قدمی =====
@@ -275,10 +309,10 @@
   const MOODS = [
     ['آبی عبور', '#1D55F0'], ['سرمه‌ای', '#0A2572'], ['مرجانی', '#E0573E'], ['سبز', '#12A071'], ['بنفش', '#6A55E0'], ['فیروزه‌ای', '#0E8FAE'],
   ];
-  const W = { step: 2, kind: 'story', name: '', logo: '', accent: '' };
+  const W = { step: 2, kind: 'story', name: '', logo: '', accent: '', tpl: 'shab' };
 
-  function onboard() {
-    Object.assign(W, { step: 2, kind: 'story', name: '', logo: '', accent: '' });
+  function onboard(tplId) {
+    Object.assign(W, { step: 2, kind: 'story', name: '', logo: '', accent: '', tpl: tplId || 'shab' });
     show('onboard');
     const input = $('ob-name');
     input.value = '';
@@ -332,8 +366,9 @@
     next.disabled = (W.step === 1 && !W.kind) || (W.step === 2 && W.name.length < 2) || (W.step === 3 && !W.accent);
   }
 
-  const shabTemplate = () => S.templates.templates.find(t => t.id === 'shab') || S.templates.templates[0];
-  const kindTemplate = shabTemplate;
+  const tplById = id => S.templates.templates.find(t => t.id === id) || null;
+  const shabTemplate = () => tplById('shab') || S.templates.templates[0];
+  const kindTemplate = () => tplById(W.tpl) || shabTemplate();
 
   function drawChips() {
     const k = KIND;
@@ -347,17 +382,29 @@
     });
   }
 
+  /* کارت مینی‌اپ در حال ساخت، به رنگ قالب انتخاب‌شده (مثل کارت خانه) */
   function drawPass() {
+    const t = kindTemplate();
+    const entry = storeOfKit(t.kit);
     $('ob-pass-name').textContent = W.name || 'اسم مینی‌اپت';
     const ini = $('ob-pass-initial');
     ini.textContent = '';
+    ini.classList.toggle('has-logo', !!W.logo);
     if (W.logo) {
       const img = h('img');
       img.src = W.logo;
       img.alt = '';
       ini.appendChild(img);
-    } else ini.textContent = W.name ? W.name.charAt(0) : '؟';
-    $('ob-pass-kind').textContent = KIND.title;
+    } else if (W.name) ini.textContent = W.name.charAt(0);
+    else ini.appendChild(ico(entry ? entry.icon : 'layers'));
+    $('ob-pass-kind').textContent = entry ? `${entry.title} · ${entry.tagline}` : t.title;
+    tint($('ob-card'), entry);
+    const chip = $('wz-tpl');
+    chip.textContent = '';
+    if (entry) {
+      tint(chip, entry);
+      chip.append(tq(entry, 'xs'), h('span', '', 'قالب'), h('b', '', entry.title));
+    }
   }
 
   /* سند قالب با اسم، لوگو و رنگ کاربر؛ و اگر پلن اجازه نمی‌دهد، نسخهٔ جمع‌وجورش */
@@ -430,7 +477,7 @@
       S.pageId = S.doc.pages[0].id;
       resetHistory();
       notify('success');
-      tab('stories');
+      if (S.doc.kit === 'shab') showStories(); else showApp();
       if (cut) setTimeout(() => toast('نسخهٔ رایگانِ قالب ساخته شد؛ با پلن حرفه‌ای کامل می‌شه'), 2600);
     } catch (err) {
       failed(err);
@@ -470,7 +517,7 @@
         S.selected = null;
         notify('success');
         popAll();
-        tab('stories');
+        if (S.doc.kit === 'shab') showStories(); else showApp();
         toast(special ? `قالب «${t.title}» نصب شد` : `قالب «${t.title}» اعمال شد`);
         if (cut) setTimeout(() => toast(`نسخهٔ پلن ${S.plan.title}: ${S.doc.pages.length} صفحهٔ اول؛ بقیه با پلن حرفه‌ای`), 2400);
         else if (t.note) setTimeout(() => toast(t.note), 2400);
@@ -483,12 +530,29 @@
   }
 
   /* ===== ادیتور ===== */
+  /* شناسهٔ پایدار فصل‌ها (جای خواندن، نشان و آمار خواننده‌ها به آن بسته است).
+     سرور هم خالی/تکراری را پر می‌کند، ولی پنل خودش می‌گذارد تا پیش‌نویس
+     و سند منتشرشده یک شناسه داشته باشند. */
+  const newChId = () => 'c' + Array.from(crypto.getRandomValues(new Uint8Array(5)), b => b.toString(16).padStart(2, '0')).join('');
+  function ensureIds(doc) {
+    const seen = new Set();
+    (doc.pages || []).forEach(p => p.blocks.forEach(b => {
+      if (b.type !== 'story') return;
+      (b.props.chapters || []).forEach(c => {
+        if (!c.id || !/^c[a-z0-9]{5,15}$/.test(c.id) || seen.has(c.id)) c.id = newChId();
+        seen.add(c.id);
+      });
+    }));
+    return doc;
+  }
+
   async function openApp(id, quiet) {
     const res = await api('app?id=' + encodeURIComponent(id));
     S.app = res.app;
-    S.doc = ES.normalize(res.doc);
+    S.doc = ensureIds(ES.normalize(res.doc));
     resetHistory();
     S.stats = res.stats;
+    S.shabStats = null;
     S.plan = res.plan;
     S.pageId = S.doc.pages[0].id;
     S.selected = null;
@@ -510,7 +574,7 @@
     if ($('sheet').classList.contains('on')) closeSheet();
     popAll();
     await saveNow();
-    tab('home');
+    showApp();
   }
 
   function renderAll() {
@@ -534,7 +598,24 @@
     if (ss) { ss.querySelector('span').textContent = save || pub; ss.className = st.className; }
     const sp = $('st-publish');
     if (sp) sp.classList.toggle('dirty', !!S.app.dirty || !live);
+    const ds = $('ad-status');
+    if (ds) { ds.querySelector('span').textContent = save || pub; ds.className = st.className; }
+    $('ad-publish').classList.toggle('dirty', !!S.app.dirty || !live);
     document.querySelectorAll('.saved').forEach(drawSaved);
+    renderDock();
+  }
+  /* نوار وضعیت داک: صفحهٔ فعلی · تعداد بخش · ذخیره | سهم کامپوننت پلن */
+  function renderDock() {
+    const ds = $('dock-status');
+    if (!ds || !S.doc) return;
+    const pg = page(), st = S.saveState;
+    const save = st === 'busy' ? 'ذخیره…' : st === 'err' ? 'ذخیره نشد' : 'ذخیره شد';
+    ds.querySelector('span').textContent = `${pg.title || 'صفحه'} · ${pg.blocks.length} بخش · ${save}`;
+    ds.className = 'status ' + (st || 'live');
+    const used = totalBlocks(), max = S.plan.max_blocks;
+    const cnt = $('dock-count');
+    cnt.textContent = `${used} از ${max} کامپوننت`;
+    cnt.classList.toggle('full', used >= max);
   }
   /* «ذخیره شد» کنار نوار بالای زیرصفحه‌ها */
   function drawSaved(el) {
@@ -618,6 +699,7 @@
     const box = $('secs');
     box.textContent = '';
     const pg = page();
+    renderDock();
     if (coachOn()) box.appendChild(coachCard());
     box.appendChild(headerCard());
     if (!pg.blocks.length) { box.appendChild(emptyState()); return; }
@@ -812,7 +894,7 @@
     if (S.saving) { S.pendingSave = true; return; }
     S.saving = true;
     try {
-      const res = await api('app/save', { id: S.app.id, doc: S.doc });
+      const res = await api('app/save', { id: S.app.id, doc: ensureIds(S.doc) });
       S.app = res.app;
       setSave('');
     } catch (err) {
@@ -862,6 +944,7 @@
     syncBack();
     if (S.screen === 'editor' && S.doc) renderAll();
     else if (S.screen === 'stories' && S.doc) renderStories();
+    else if (S.screen === 'app' && S.doc) renderApp();
   }
   /* نوار بالای زیرصفحه: برگشت، مسیر، عنوان، و انتهای نوار */
   function subTop(el, crumb, title, end) {
@@ -971,8 +1054,8 @@
   /* دکمهٔ برگشت بومی تلگرام: شیت، زیرصفحه، ادیتور یا زیرصفحه‌های بیرون از تب */
   function syncBack() {
     if (!tg || !tg.BackButton) return;
-    const need = $('sheet').classList.contains('on') || (S.stack && S.stack.length) || S.screen === 'editor'
-      || (!S.asTab && S.screen === 'onboard' && S.app);
+    const need = $('sheet').classList.contains('on') || (S.stack && S.stack.length)
+      || ['editor', 'app', 'stories'].includes(S.screen) || (!S.asTab && S.screen === 'onboard' && S.app);
     if (need) tg.BackButton.show(); else tg.BackButton.hide();
   }
 
@@ -2227,6 +2310,7 @@
       conn.append(botRow(), linkRow());
       body.appendChild(conn);
       body.appendChild(welcomeSection());
+      if (S.doc.kit === 'shab') body.appendChild(channelSection());
 
       const planSec = h('div', 'sh-sec');
       const plan = h('div', 'plan current');
@@ -2292,12 +2376,11 @@
       : { st: 'warn', t: 'سربرگ ندارد', s: 'مشتری اول باید بفهمد کجا آمده', fix: framePage, fixL: 'روشن کن' });
     out.push(S.app.bot_username ? { st: 'ok', t: 'ربات وصل است', s: '@' + S.app.bot_username, ltr: true }
       : { st: 'warn', t: 'ربات وصل نیست', s: 'بعد از اتصال، مینی‌اپ روی ربات خودت باز می‌شود', fix: () => openBot('connect'), fixL: 'اتصال' });
-    const lockNoLink = allBlocks().filter(({ block }) => block.type === 'story' && emptyUrl(block.props.url)
-      && (block.props.chapters || []).some(c => c.lock && emptyUrl(c.url)));
+    const lockNoLink = S.app.channel ? [] : allBlocks().filter(({ block }) => block.type === 'story'
+      && (block.props.chapters || []).some(c => c.lock && !c.draft));
     if (lockNoLink.length) {
-      const f = lockNoLink[0];
-      out.push({ st: 'warn', t: 'فصل قفل بدون لینک کانال', s: `«${f.block.props.title || 'داستان'}»: خواننده باید بداند کجا بخواند`,
-        fix: () => { popAll(); goPage(f.page.id); editPage(f.block.id); }, fixL: 'درست کن' });
+      out.push({ st: 'warn', t: 'فصل «فقط اعضا» بدون کانال', s: 'کانال را در تنظیمات ثبت کن تا عضوها بتوانند بخوانند',
+        fix: () => { popAll(); settingsPage(); }, fixL: 'ثبت کانال' });
     }
     const links = emptyLinks();
     links.slice(0, 3).forEach(e => out.push({ st: 'warn', t: 'یک لینک خالی است', s: e.path, fix: e.fix, fixL: 'درست کن' }));
@@ -2346,7 +2429,7 @@
     btn.disabled = true;
     clearTimeout(S.saveTimer);
     try {
-      const res = await api('app/publish', { id: S.app.id, doc: S.doc });
+      const res = await api('app/publish', { id: S.app.id, doc: ensureIds(S.doc) });
       S.app = res.app;
       S.doc = ES.normalize(res.doc);
       H.base = JSON.stringify(S.doc);
@@ -2354,7 +2437,8 @@
       setSave('');
       renderAll();
       notify('success');
-      publishedSheet();
+      S.shabStats = null;
+      publishedSheet(res.kit || {});
     } catch (err) {
       failed(err);
     } finally {
@@ -2394,8 +2478,11 @@
     return row;
   }
 
-  function publishedSheet() {
+  function publishedSheet(kit) {
+    kit = kit || {};
     openSheet(sheet => {
+      const fresh = kit.new_chapters || [];
+      if (fresh.length && S.doc.kit === 'shab') sheet.appendChild(announceCard(fresh));
       const d = h('div', 'done');
       d.appendChild(catTile('success', 'check'));
       d.append(h('div', 'title-2', 'منتشر شد!'),
@@ -2479,7 +2566,7 @@
         S.app = res.app;
         const inList = S.me.apps.find(a => a.id === S.app.id);
         if (inList) inList.name = S.app.name;
-        if (S.screen === 'editor') renderAll(); else if (S.screen === 'home') renderHome();
+        if (S.screen === 'editor') renderAll(); else if (S.screen === 'home') renderHome(); else if (S.screen === 'app') renderApp();
         notify('success');
         toast('اسم عوض شد');
       } catch (err) { failed(err); }
@@ -2488,6 +2575,62 @@
     nameSec.appendChild(row);
     return nameSec;
   }
+  /* کانال شب‌نوشت: قفل «فقط اعضا» و پست فصل تازه. ربات مینی‌اپ باید ادمین کانال باشد. */
+  function channelSection() {
+    const sec = h('div', 'sh-sec stack');
+    sec.appendChild(h('span', 'label', 'کانال داستان‌ها'));
+    const box = h('div', 'chn');
+    sec.appendChild(box);
+    const draw = () => {
+      box.textContent = '';
+      const ch = S.app.channel;
+      if (!S.app.bot_username) {
+        box.appendChild(h('p', 'caption', 'اول ربات مینی‌اپ را وصل کن؛ همان ربات باید ادمین کانال باشد تا عضویت خواننده‌ها را ببیند و فصل تازه را پست کند.'));
+        const c = h('button', 'btn btn-s btn-block', 'اتصال ربات');
+        c.type = 'button';
+        c.addEventListener('click', () => openBot('connect'));
+        box.appendChild(c);
+        return;
+      }
+      if (ch) {
+        const row = h('div', 'row');
+        const g = h('span', 'grow');
+        g.append(h('b', 'body-strong', ch.title || 'کانال'), h('span', 'caption ltr', ch.username ? '@' + ch.username : String(ch.id)));
+        const rm = h('button', 'btn btn-s btn-sm', 'برداشتن');
+        rm.type = 'button';
+        rm.addEventListener('click', () => confirmBox('کانال برداشته شود؟ فصل‌های «فقط اعضا» تا کانال تازه ثبت نشود برای کسی باز نمی‌شوند.', async () => {
+          try { await api('kit/shab/channel', { id: S.app.id, channel: '' }); S.app.channel = null; draw(); toast('کانال برداشته شد'); } catch (err) { failed(err); }
+        }));
+        row.append(catTile('act', 'send'), g, rm);
+        box.appendChild(row);
+        box.appendChild(h('p', 'caption', 'فصل‌های «فقط اعضا» فقط برای عضوهای این کانال باز می‌شوند.'));
+        return;
+      }
+      box.appendChild(h('p', 'caption', `@${S.app.bot_username} را ادمین کانالت کن، بعد آیدی کانال را این‌جا بنویس.`));
+      const inp = h('input', 'ltr');
+      inp.placeholder = '@my_channel';
+      inp.setAttribute('aria-label', 'آیدی کانال');
+      const f = h('div', 'field');
+      f.appendChild(inp);
+      box.appendChild(f);
+      const save = h('button', 'btn btn-p btn-block', 'ثبت کانال');
+      save.type = 'button';
+      save.addEventListener('click', async () => {
+        save.disabled = true;
+        try {
+          const res = await api('kit/shab/channel', { id: S.app.id, channel: inp.value.trim() });
+          S.app.channel = res.channel;
+          notify('success');
+          toast('کانال ثبت شد');
+          draw();
+        } catch (err) { failed(err); save.disabled = false; }
+      });
+      box.appendChild(save);
+    };
+    draw();
+    return sec;
+  }
+
   function welcomeSection() {
     const wel = h('div', 'sh-sec');
     wel.appendChild(h('span', 'label', 'پیام خوش‌آمد ربات'));
@@ -2508,7 +2651,7 @@
         S.app = res.app;
         const inList = S.me.apps.find(a => a.id === S.app.id);
         if (inList) inList.welcome = S.app.welcome;
-        if (S.screen === 'home') renderHome();
+        if (S.screen === 'app') renderApp();
         notify('success');
         toast(res.app.welcome ? 'پیام خوش‌آمد ذخیره شد' : 'پیام پیش‌فرض برگشت');
       } catch (err) { failed(err); }
@@ -2549,217 +2692,579 @@
     return r;
   }
 
-  function passCard(a) {
-    const current = S.app && a.id === S.app.id;
-    if (current) a = S.app;  // وضعیت انتشار و اسم تازه
-    const card = h('article', 'pass');
-    card.appendChild(tunnelArt());
-    const head = h('div', 'pass-head');
-    head.appendChild(h('span', 'pass-name', a.name));
-    const live = !!a.published_at;
-    const st = h('span', 'pass-st' + (live ? (a.dirty ? ' warn' : '') : ' warn'));
-    st.append(h('i'), document.createTextNode(!live ? 'پیش‌نویس' : (a.dirty ? 'تغییر منتشرنشده' : 'منتشر شده')));
-    head.appendChild(st);
-    const big = h('div', 'pass-big');
-    big.append(h('span', 'pass-num n', current && S.stats ? fmt(S.stats.visitors) : '—'), h('span', 'pass-unit', 'بازدیدکننده'));
-    const rail = h('div', 'pass-rail');
-    const fill = h('span');
-    rail.appendChild(fill);
-    const used = current ? totalBlocks() : 0;
-    requestAnimationFrame(() => { fill.style.width = current ? Math.min(100, used / S.plan.max_blocks * 100) + '%' : '0%'; });
-    const foot = h('div', 'pass-foot');
-    const meta = h('span', 'pass-meta');
-    if (current) meta.append(num(used), document.createTextNode(' از '), num(S.plan.max_blocks), document.createTextNode(' کامپوننت · '), num(S.doc.pages.length), document.createTextNode(' صفحه'));
-    else meta.textContent = a.bot_username ? '@' + a.bot_username : 'بزن تا باز بشه';
-    const btn = h('button', 'pass-btn');
-    btn.type = 'button';
-    btn.append(ico('pencil'), document.createTextNode('ویرایش'));
-    btn.addEventListener('click', async () => {
-      haptic();
-      try { if (!current) await openApp(a.id); else openEditor(); } catch (err) { failed(err); }
-    });
-    foot.append(meta, btn);
-    card.append(head, big, rail, foot);
-    return card;
+  /* ===================== فروشگاه قالب (داده: /api/templates → store) =====================
+     هر قالب رنگ امضای خودش را دارد (color، tint) و کارت‌ها، سربرگ داشبورد و
+     آیکن مینی‌اپ با همان رنگ ساخته می‌شوند. رنگ‌ها از داده می‌آیند، نه از CSS. */
+  const storeList = () => (S.templates && S.templates.store) || [];
+  const domainList = () => (S.templates && S.templates.domains) || [];
+  const domainTitle = id => (domainList().find(d => d.id === id) || {}).title || '';
+  function storeOfKit(kit) {
+    return storeList().find(e => e.template && (tplById(e.template) || {}).kit === kit) || null;
+  }
+  function tint(el, entry) {
+    if (!entry) return el;
+    el.style.setProperty('--tc', entry.color);
+    el.style.setProperty('--tt', entry.tint);
+    return el;
+  }
+  /* آیکن قالب: مربع گردگوشه به رنگ امضا (soft: زمینهٔ روشن و آیکن رنگی) */
+  function tq(entry, cls) {
+    const el = tint(h('span', 'tq' + (cls ? ' ' + cls : '') + (entry ? '' : ' base')), entry);
+    el.appendChild(ico(entry ? entry.icon : 'layers'));
+    return el;
+  }
+  const installed = e => !!(S.doc && e.template && (tplById(e.template) || {}).kit === S.doc.kit);
+  /* پیش‌نمایش واقعی یک صفحهٔ قالب در قاب گوشی (کوچک‌شده، بدون تعامل) */
+  const SAMPLE_NAME = 'قصه‌های شب';
+  const sampleDocs = {};
+  function sampleDoc(t) {
+    if (!sampleDocs[t.id]) sampleDocs[t.id] = JSON.parse(JSON.stringify(t.doc).split('{name}').join(SAMPLE_NAME));
+    return sampleDocs[t.id];
+  }
+  function phoneShot(entry, pageIndex, width) {
+    const t = entry.template && tplById(entry.template);
+    const frame = h('div', 'phone');
+    frame.style.width = width + 'px';
+    frame.style.height = Math.round(width * 2.05) + 'px';
+    const screen = h('div', 'phone-s');
+    frame.appendChild(screen);
+    if (!t) return frame;
+    const doc = sampleDoc(t);
+    const p = doc.pages[Math.min(pageIndex, doc.pages.length - 1)];
+    const inner = h('div', 'phone-in');
+    inner.style.transform = `scale(${(width - 8) / 390})`;
+    screen.appendChild(inner);
+    ES.render(inner, doc, { page: p.id, appName: SAMPLE_NAME, editing: true });
+    // زمینهٔ صفحهٔ قالب تا پایین قاب ادامه پیدا کند
+    requestAnimationFrame(() => { const r = inner.firstElementChild; if (r) screen.style.background = getComputedStyle(r).backgroundColor; });
+    frame.setAttribute('aria-hidden', 'true');
+    return frame;
   }
 
-  function newPassCard() {
-    const b = h('button', 'newpass');
-    b.type = 'button';
-    const ic = h('span', 'ic navy lg');
-    ic.appendChild(ico('plus'));
-    const left = S.me.plan.max_apps - S.me.apps.length;
-    b.append(ic, h('b', 'empty-t', 'مینی‌اپ تازه'),
-      h('span', 'empty-s', left > 0 ? `پلن ${S.me.plan.title}: ${left} مینی‌اپ دیگر می‌تونی بسازی` : `پلن ${S.me.plan.title} فقط ${S.me.plan.max_apps} مینی‌اپ دارد`));
-    b.addEventListener('click', () => {
-      haptic();
-      if (S.me.apps.length >= S.me.plan.max_apps) { upsellSheet(`پلن ${S.me.plan.title} فقط ${S.me.plan.max_apps} مینی‌اپ دارد.`); return; }
-      onboard();
+  function renderStore() {
+    const list = storeList();
+    const q = ($('store-q').value || '').trim();
+    const cats = $('store-cats');
+    cats.textContent = '';
+    [{ id: '', title: 'همه' }].concat(domainList().filter(d => list.some(e => e.domain === d.id))).forEach(d => {
+      const n = list.filter(e => !d.id || e.domain === d.id).length;
+      const b = h('button', 'cat' + ((S.storeCat || '') === d.id ? ' on' : ''));
+      b.type = 'button';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', (S.storeCat || '') === d.id ? 'true' : 'false');
+      b.append(document.createTextNode(d.title), h('small', '', faN(n)));
+      b.addEventListener('click', () => { select(); S.storeCat = d.id; renderStore(); });
+      cats.appendChild(b);
     });
+    const shown = list.filter(e => (!S.storeCat || e.domain === S.storeCat) && (!q || (e.title + ' ' + e.tagline).includes(q)));
+    const feat = $('store-feat');
+    feat.textContent = '';
+    const star = !q && shown.find(e => e.status === 'ready');
+    if (star) feat.appendChild(featCard(star));
+    const grid = $('store-grid');
+    grid.textContent = '';
+    shown.filter(e => e !== star).forEach(e => grid.appendChild(tplCard(e)));
+    if (!shown.length) {
+      const empty = h('div', 'st-empty mx');
+      empty.append(h('b', '', 'قالبی پیدا نشد'), h('p', '', 'اسم کار یا حوزهٔ دیگری را امتحان کن.'));
+      feat.appendChild(empty);
+    }
+  }
+  function featCard(e) {
+    const card = tint(h('article', 'feat mx'), e);
+    const tx = h('div', 'feat-tx');
+    tx.append(h('span', 'feat-k', installed(e) ? 'نصب‌شده روی «' + S.app.name + '»' : 'انتخاب ایزی‌ساز'), h('b', 'feat-t', e.title), h('p', 'feat-s', e.desc || e.tagline));
+    const go = h('button', 'feat-b', 'دیدن و نصب');
+    go.type = 'button';
+    go.addEventListener('click', () => { haptic(); templateDetail(e); });
+    tx.appendChild(go);
+    card.append(tx, phoneShot(e, 0, 96));
+    return card;
+  }
+  function tplCard(e) {
+    const b = tint(h('button', 'tcard'), e);
+    b.type = 'button';
+    const art = h('span', 'tcard-art');
+    const tag = e.status !== 'ready' ? 'به‌زودی' : (installed(e) ? 'نصب‌شده' : 'آماده');
+    art.append(h('span', 'tcard-tag', tag), ico(e.icon));
+    const tx = h('span', 'tcard-tx');
+    tx.append(h('b', '', e.title), h('span', '', e.tagline));
+    b.append(art, tx);
+    b.addEventListener('click', () => { haptic(); templateDetail(e); });
     return b;
   }
 
-  /* اسلایدر کارت‌ها: scroll-snap بومی؛ کارت‌های کناری کمی عقب‌تر و کم‌رنگ‌تر */
-  function sliderFx(track, dots, onSettle) {
-    let t = 0;
-    const fx = () => {
-      const r = track.getBoundingClientRect(), mid = r.left + r.width / 2;
-      let best = 0, bestD = 1e9;
-      [...track.children].forEach((sl, i) => {
-        const b = sl.getBoundingClientRect();
-        const d = (b.left + b.width / 2 - mid) / b.width;
-        const a = Math.min(1, Math.abs(d));
-        sl.style.transform = `scale(${1 - a * 0.06}) translateY(${a * 8}px)`;
-        sl.style.opacity = String(1 - a * 0.35);
-        if (Math.abs(d) < bestD) { bestD = Math.abs(d); best = i; }
-      });
-      [...dots.children].forEach((d, i) => d.classList.toggle('on', i === best));
-      return best;
-    };
-    track.onscroll = () => { fx(); clearTimeout(t); t = setTimeout(() => onSettle(fx()), 160); };
-    requestAnimationFrame(fx);
+  /* جزئیات قالب: پیش‌نمایش صفحه‌ها، آنچه اضافه می‌کند، و نصب */
+  function templateDetail(e) {
+    const ready = e.status === 'ready';
+    const t = e.template && tplById(e.template);
+    push((el) => {
+      el.classList.add('tdetail');
+      tint(el, e);
+      const hero = h('div', 'td-hero');
+      const bar = h('div', 'td-bar');
+      bar.appendChild(iconBtn('back', 'برگشت', pop, 'round'));
+      hero.appendChild(bar);
+      const shots = h('div', 'td-shots');
+      if (t) {
+        const order = t.doc.pages.length > 2 ? [1, 0, 2] : [0];
+        order.forEach((i, k) => { const ph = phoneShot(e, i, k === 1 || order.length === 1 ? 112 : 88); if (order.length > 1 && k !== 1) ph.classList.add(k ? 'tilt-l' : 'tilt-r'); shots.appendChild(ph); });
+      } else {
+        const big = h('span', 'td-art');
+        big.appendChild(ico(e.icon));
+        shots.appendChild(big);
+      }
+      hero.appendChild(shots);
+      const body = h('div', 'td-body');
+      const id = h('div', 'td-id');
+      const nm = h('div', 'grow');
+      nm.append(h('h2', 'td-name', e.title),
+        h('span', 'td-sub', domainTitle(e.domain) + ' · ' + (!ready ? 'به‌زودی' : (t && t.premium ? 'پلن حرفه‌ای' : 'رایگان در همهٔ پلن‌ها'))));
+      id.append(tq(e, 'lg'), nm);
+      body.appendChild(id);
+      body.appendChild(h('p', 'td-desc', e.desc || e.tagline));
+      if (e.features && e.features.length) {
+        body.appendChild(h('b', 'td-h', 'چه چیزهایی اضافه می‌کند'));
+        const fl = h('div', 'td-feats');
+        e.features.forEach(([icon, ft, fs]) => {
+          const r = h('div', 'td-feat');
+          const tx = h('span', 'grow');
+          tx.append(h('b', '', ft), h('span', '', fs));
+          r.append(tq(e, 'soft sm'), tx);
+          r.querySelector('.tq').replaceChildren(ico(icon));
+          fl.appendChild(r);
+        });
+        body.appendChild(fl);
+      }
+      if (e.components && e.components.length) {
+        body.appendChild(h('b', 'td-h', `${faN(e.components.length)} کامپوننت که اضافه می‌شود`));
+        const cs = h('div', 'td-chips');
+        e.components.forEach(c => cs.appendChild(h('span', 'chip', c)));
+        body.appendChild(cs);
+      }
+      const foot = h('div', 'td-foot');
+      const ft = h('span', 'grow');
+      const act = h('button', 'btn btn-p');
+      act.type = 'button';
+      if (!ready) {
+        ft.append(h('b', '', 'در راه است'), h('span', '', 'وقتی آماده شد همین‌جا نصب می‌شود'));
+        act.textContent = 'به‌زودی';
+        act.disabled = true;
+      } else if (installed(e)) {
+        ft.append(h('b', '', 'روی «' + S.app.name + '» نصب است'), h('span', '', 'مدیریت محتوا از داشبورد مینی‌اپ'));
+        act.textContent = 'باز کردن';
+        act.addEventListener('click', () => { haptic(); if (S.doc.kit === 'shab') showStories(); else showApp(); });
+      } else {
+        ft.append(h('b', '', 'روی کدام مینی‌اپ؟'), h('span', '', S.app ? 'مینی‌اپ تازه یا «' + S.app.name + '»' : 'یک مینی‌اپ تازه'));
+        act.textContent = 'نصب';
+        act.addEventListener('click', () => { haptic(); installSheet(e); });
+      }
+      foot.append(ft, act);
+      el.append(hero, body, foot);
+    });
+  }
+  function installSheet(e) {
+    const t = tplById(e.template);
+    openSheet(sh => {
+      sheetHead(sh, 'brand', 'grid', `نصب «${e.title}»`, 'اسم و لوگوی مینی‌اپ می‌ماند');
+      const list = h('div', 'mk-list');
+      list.appendChild(mkOpt(tq(null), 'مینی‌اپ تازه', S.me.apps.length < S.me.plan.max_apps ? `با قالب ${e.title} شروع کن` : `پلن ${S.me.plan.title} فقط ${faN(S.me.plan.max_apps)} مینی‌اپ دارد`, () => { closeSheet(); newApp(e.template); }));
+      if (S.app && !installed(e)) {
+        list.appendChild(mkOpt(tq(storeOfKit(S.doc.kit)), `روی «${S.app.name}»`, 'جای صفحه‌های فعلی می‌نشیند', () => { closeSheet(); pickTemplate(t, false); }));
+      }
+      sh.appendChild(list);
+    });
   }
 
+  /* ===================== «ساختن»: شیت چه می‌سازی؟ ===================== */
+  function mkOpt(icon, title, sub, fn) {
+    const b = h('button', 'mk');
+    b.type = 'button';
+    const tx = h('span', 'grow');
+    tx.append(h('b', '', title), h('span', '', sub));
+    b.append(icon, tx, ico('arrow', 'chev'));
+    b.addEventListener('click', () => { haptic(); fn(); });
+    return b;
+  }
+  function newApp(tplId) {
+    if (S.me.apps.length >= S.me.plan.max_apps) { upsellSheet(`پلن ${S.me.plan.title} فقط ${S.me.plan.max_apps} مینی‌اپ دارد.`); return; }
+    onboard(tplId);
+  }
+  function makeSheet() {
+    openSheet(sh => {
+      const head = h('div', 'mk-head');
+      const t = h('div', 'grow');
+      t.append(h('b', '', 'چه می‌سازی؟'), h('span', '', 'با یک قالب شروع کن یا به مینی‌اپت چیزی اضافه کن'));
+      const x = h('button', 'round');
+      x.type = 'button';
+      x.setAttribute('aria-label', 'بستن');
+      x.appendChild(ico('x'));
+      x.addEventListener('click', closeSheet);
+      head.append(t, x);
+      sh.appendChild(head);
+      const list = h('div', 'mk-list');
+      const left = S.me.plan.max_apps - S.me.apps.length;
+      const plus = h('span', 'tq brand');
+      plus.appendChild(ico('plus'));
+      list.appendChild(mkOpt(plus, 'مینی‌اپ تازه', left > 0 ? 'اسم، رنگ و اولین قالب' : `پلن ${S.me.plan.title} فقط ${faN(S.me.plan.max_apps)} مینی‌اپ دارد`, () => { closeSheet(); newApp(); }));
+      if (S.app) {
+        const g = h('span', 'tq soft-brand');
+        g.appendChild(ico('grid'));
+        list.appendChild(mkOpt(g, `نصب قالب روی «${S.app.name}»`, storeList().filter(e => e.status !== 'ready').slice(0, 3).map(e => e.title).join('، ') + ' و …', () => { closeSheet(); tab('store'); }));
+        const pg = h('span', 'tq soft-act');
+        pg.appendChild(ico('page'));
+        list.appendChild(mkOpt(pg, 'صفحهٔ تازه', `در «${S.app.name}» · ${faN(S.doc.pages.length)} از ${faN(S.plan.max_pages)} صفحه`, () => {
+          closeSheet();
+          if (S.doc.pages.length >= S.plan.max_pages) { upsellSheet(`پلن ${S.plan.title} حداکثر ${S.plan.max_pages} صفحه دارد.`); return; }
+          openEditor();
+          addPage();
+        }));
+      }
+      sh.appendChild(list);
+      const foot = h('div', 'mk-foot');
+      const dots = h('span', 'mk-dots');
+      storeList().slice(0, 4).forEach(e => dots.appendChild(tq(e, 'soft xs')));
+      const all = h('button', 'mk-all');
+      all.type = 'button';
+      all.append(document.createTextNode('همهٔ قالب‌ها'), ico('arrow'));
+      all.addEventListener('click', () => { closeSheet(); tab('store'); });
+      foot.append(dots, h('span', 'grow', `${faN(storeList().length)} قالب در ${faN(new Set(storeList().map(e => e.domain)).size)} حوزه`), all);
+      sh.appendChild(foot);
+    });
+  }
+
+  /* ===================== خانه ===================== */
+  function appStatus(a) {
+    if (!a.published_at) return ['پیش‌نویس', 'warn'];
+    return a.dirty ? ['تغییر منتشرنشده', 'warn'] : ['منتشر شده', 'live'];
+  }
+  function statusPill(a) {
+    const [t, c] = appStatus(a);
+    const p = h('span', 'pill ' + c);
+    p.append(h('i'), document.createTextNode(t));
+    return p;
+  }
+  function appCard(a) {
+    const current = S.app && String(a.id) === String(S.app.id);
+    if (current) a = S.app;
+    const entry = storeOfKit(current ? S.doc.kit : a.kit);
+    const card = tint(h('article', 'acard'), entry);
+    const band = h('div', 'acard-band');
+    band.append(h('i', 'o1'), h('i', 'o2'), statusPill(a));
+    const body = h('div', 'acard-b');
+    const t = h('div', 'acard-t');
+    const sub = entry ? entry.title : 'قالب پایه';
+    const extra = current && S.doc.kit === 'shab'
+      ? (() => { const l = storyList(); return ` · ${faN(l.length)} داستان · ${faN(l.reduce((n, x) => n + chaps(x.block).length, 0))} فصل`; })()
+      : (a.bot_username ? ' · @' + a.bot_username : '');
+    t.append(h('b', '', a.name), h('span', '', sub + extra));
+    body.append(tq(entry, 'lg halo'), t);
+    const row = h('div', 'acard-row');
+    if (current) {
+      [[fmt(S.stats && S.stats.visitors), 'بازدیدکننده'], [`${faN(totalBlocks())}/${faN(S.plan.max_blocks)}`, 'کامپوننت']].forEach(([n, l]) => {
+        const k = h('span', 'kpi');
+        k.append(h('b', 'n', n), h('span', '', l));
+        row.appendChild(k);
+      });
+    } else {
+      row.appendChild(h('span', 'acard-note grow', 'برای آمار و ویرایش بازش کن'));
+    }
+    const open = h('button', 'btn btn-p acard-go');
+    open.type = 'button';
+    open.append(document.createTextNode('باز کن'), ico('arrow'));
+    open.addEventListener('click', async () => { haptic(); try { await openDash(a.id); } catch (err) { failed(err); } });
+    row.appendChild(open);
+    body.appendChild(row);
+    card.append(band, body);
+    return card;
+  }
+  /* قدم بعد برای مینی‌اپ فعلی: ساختن ← محتوا ← ربات ← انتشار */
+  function nextSteps() {
+    const shab = S.doc.kit === 'shab';
+    return [
+      ['ساختن مینی‌اپ', true],
+      [shab ? 'داستان اول' : 'چیدن صفحه‌ها', shab ? storyList().some(x => !isSample(x.block)) : totalBlocks() > 0,
+        shab ? 'اسم، جلد و اولین فصل' : 'چند کامپوننت روی صفحه بگذار', shab ? 'نوشتن' : 'ویرایش', () => (shab ? (showStories(), newStorySheet()) : openEditor())],
+      ['اتصال ربات', !!S.app.bot_username, `توکن را در @${S.me.bot || 'EasySazBot'} بفرست`, 'اتصال', () => openBot('connect')],
+      ['انتشار', !!S.app.published_at && !S.app.dirty, 'تا کاربرها نسخهٔ تازه را ببینند', 'انتشار', () => publishSheet()],
+    ];
+  }
+  function nextCard() {
+    const steps = nextSteps();
+    const done = steps.filter(x => x[1]).length;
+    const next = steps.find(x => !x[1]);
+    const card = h('div', 'next mx');
+    const ring = h('span', 'ring');
+    ring.style.setProperty('--p', Math.round(done / steps.length * 100));
+    ring.appendChild(h('b', '', `${faN(done)}/${faN(steps.length)}`));
+    const tx = h('span', 'grow');
+    if (next) tx.append(h('b', '', 'قدم بعد: ' + next[0]), h('span', '', next[2]));
+    else tx.append(h('b', '', 'همه‌چیز آماده است'), h('span', '', 'لینک مینی‌اپ را برای کاربرهایت بفرست'));
+    const go = h('button', 'btn btn-d btn-sm');
+    go.type = 'button';
+    go.textContent = next ? next[3] : 'کپی لینک';
+    go.addEventListener('click', () => { haptic(); if (next) next[4](); else copyText(S.app.url); });
+    card.append(ring, tx, go);
+    return card;
+  }
   function renderHome() {
     const first = (S.me.user && S.me.user.first_name) || '';
     $('hello-s').textContent = first ? `سلام ${first}` : 'سلام';
-
-    // کارت‌ها
-    const track = $('home-passes'), dots = $('home-dots');
-    const keep = track.scrollLeft;
-    track.textContent = '';
-    dots.textContent = '';
-    const slides = S.me.apps.map(a => { const sl = h('div', 'slide'); sl.appendChild(passCard(a)); sl.dataset.id = a.id; return sl; });
-    const add = h('div', 'slide');
-    add.appendChild(newPassCard());
-    slides.concat([add]).forEach(sl => { track.appendChild(sl); dots.appendChild(h('i', 'dot-i')); });
-    const idx = Math.max(0, S.me.apps.findIndex(a => S.app && a.id === S.app.id));
-    requestAnimationFrame(() => {
-      if (keep) track.scrollLeft = keep;
-      else if (slides[idx]) slides[idx].scrollIntoView({ block: 'nearest', inline: 'center' });
-    });
-    sliderFx(track, dots, async i => {
-      const id = slides[i] && slides[i].dataset.id;
-      if (!id || String(id) === String(S.app.id)) return;
-      try { await saveNow(); await openApp(Number(id), true); select(); renderHome(); } catch (err) { failed(err); }
-    });
-
-    // کارهای سریع (کاشی‌های رنگی)
-    const tiles = $('home-tiles');
-    tiles.textContent = '';
-    const connected = !!S.app.bot_username;
-    [
-      ['write', 'brush', 'ویرایش صفحه‌ها', 'سبک، رنگ و کامپوننت‌ها', () => openEditor()],
-      ['shop', 'eye', 'پیش‌نمایش', 'همونی که کاربرها می‌بینن', () => { openEditor(); previewPage(); }],
-      ['media', 'book', 'داستان‌ها', 'داستان تازه، فصل‌ها و متن‌ها', () => tab('stories')],
-      ['act', 'bot', connected ? 'ربات تو' : 'اتصال ربات', connected ? '@' + S.app.bot_username : 'توکن رو در ربات بفرست', () => openBot(connected ? 'myapp' : 'connect')],
-    ].forEach(([cat, icon, t, sub, fn]) => {
-      const b = h('button', 'tile ' + cat);
+    $('home-av').textContent = (first || 'م').trim().charAt(0);
+    const doms = $('home-doms');
+    doms.textContent = '';
+    domainList().forEach(d => {
+      const e = storeList().find(x => x.domain === d.id);
+      if (!e) return;
+      const b = h('button', 'dom');
       b.type = 'button';
-      b.appendChild(ico(icon));
-      const tx = h('span');
-      tx.append(h('span', 'tile-t', t), h('span', 'tile-s', sub));
-      b.appendChild(tx);
-      b.addEventListener('click', () => { haptic(); fn(); });
-      tiles.appendChild(b);
+      b.append(tq(e, 'soft round'), h('span', '', d.title));
+      b.addEventListener('click', () => { haptic(); S.storeCat = d.id; tab('store'); });
+      doms.appendChild(b);
     });
+    $('home-apps-e').textContent = `${faN(S.me.apps.length)} از ${faN(S.me.plan.max_apps)}`;
+    const box = $('home-apps');
+    box.textContent = '';
+    S.me.apps.forEach(a => box.appendChild(appCard(a)));
+    if (S.me.apps.length < S.me.plan.max_apps) {
+      const add = h('button', 'addapp');
+      add.type = 'button';
+      const plus = h('span', 'tq soft-brand');
+      plus.appendChild(ico('plus'));
+      const tx = h('span', 'grow');
+      tx.append(h('b', '', 'مینی‌اپ تازه'), h('span', '', `از بین ${faN(storeList().filter(e => e.status === 'ready').length)} قالب آماده`));
+      add.append(plus, tx, ico('arrow', 'chev'));
+      add.addEventListener('click', () => { haptic(); newApp(); });
+      box.appendChild(add);
+    }
+    const nx = $('home-next');
+    nx.textContent = '';
+    if (S.app) nx.appendChild(nextCard());
+  }
+
+  /* ===================== داشبورد مینی‌اپ ===================== */
+  function renderApp() {
+    if (S.screen !== 'app' || !S.doc) return;
+    const entry = storeOfKit(S.doc.kit);
+    const top = $('ad-top');
+    top.style.removeProperty('--tc');
+    top.style.removeProperty('--tt');
+    tint(top, entry);
+    $('ad-icon').replaceWith(Object.assign(tq(entry, 'xl'), { id: 'ad-icon' }));
+    $('ad-name').textContent = S.app.name;
+    renderBar();
+    const body = $('ad-body');
+    body.textContent = '';
+
+    const kpis = h('div', 'kpis mx');
+    [['brand', fmt(S.stats && S.stats.visitors), 'بازدیدکننده'],
+     ['act', `${faN(S.doc.pages.length)}/${faN(S.plan.max_pages)}`, 'صفحه'],
+     ['media', `${faN(totalBlocks())}/${faN(S.plan.max_blocks)}`, 'کامپوننت']].forEach(([c, n, l]) => {
+      const k = h('div', 'kpi-t ' + c);
+      k.append(h('b', 'n', n), h('span', '', l));
+      kpis.appendChild(k);
+    });
+    body.appendChild(kpis);
+
+    // قالب‌های نصب‌شده
+    const tg1 = h('div', 'card mx dcard');
+    const th = h('div', 'dcard-h');
+    const addT = h('button', 'link-btn');
+    addT.type = 'button';
+    addT.append(ico('plus'), document.createTextNode('قالب‌ها'));
+    addT.addEventListener('click', () => { haptic(); tab('store'); });
+    th.append(h('b', '', 'قالب نصب‌شده'), addT);
+    tg1.appendChild(th);
+    const tr = h('div', 'drow');
+    const ttx = h('span', 'grow');
+    let manage;
+    if (entry && S.doc.kit === 'shab') {
+      const l = storyList();
+      const all = l.reduce((a, x) => a.concat(chaps(x.block)), []);
+      ttx.append(h('b', '', entry.title), h('span', '', `${faN(l.length)} داستان · ${faN(all.length)} فصل · ${faN(all.filter(c => c.draft).length)} پیش‌نویس`));
+      manage = () => showStories();
+    } else {
+      ttx.append(h('b', '', entry ? entry.title : 'قالب پایه'), h('span', '', 'صفحه‌ها و کامپوننت‌ها'));
+      manage = () => openEditor();
+    }
+    const mg = h('button', 'btn btn-s btn-sm', 'مدیریت');
+    mg.type = 'button';
+    mg.addEventListener('click', () => { haptic(); manage(); });
+    tr.append(tq(entry), ttx, mg);
+    tg1.appendChild(tr);
+    body.appendChild(tg1);
+
+    // صفحه‌ها
+    const pc = h('div', 'card mx dcard');
+    const ph = h('div', 'dcard-h');
+    ph.append(h('b', '', 'صفحه‌ها'), h('span', 'caption', `${faN(S.doc.pages.length)} از ${faN(S.plan.max_pages)} · ${faN(totalBlocks())} از ${faN(S.plan.max_blocks)} کامپوننت`));
+    pc.appendChild(ph);
+    S.doc.pages.forEach((p, i) => {
+      const r = h('button', 'drow');
+      r.type = 'button';
+      const th2 = h('span', 'pthumb');
+      th2.append(h('i'), h('i'), h('i'));
+      const tx = h('span', 'grow');
+      tx.append(h('b', '', p.title), h('span', '', `${faN(p.blocks.length)} بخش` + (i === 0 ? ' · صفحهٔ اول' : '')));
+      r.append(th2, tx, ico('arrow', 'chev'));
+      r.addEventListener('click', () => { haptic(); S.pageId = p.id; openEditor(); });
+      pc.appendChild(r);
+    });
+    body.appendChild(pc);
 
     // اتصال و تنظیمات
-    const conn = $('home-conn');
-    conn.textContent = '';
-    $('home-conn-e').textContent = S.app.name;
+    const sec = h('div', 'sec');
+    sec.append(h('span', 'sec-t', 'اتصال و تنظیمات'));
+    body.appendChild(sec);
+    const conn = h('div', 'group');
+    const connected = !!S.app.bot_username;
     const copy = h('button', 'btn btn-s btn-sm', 'کپی');
     copy.addEventListener('click', () => copyText(S.app.url));
-    const url = h('span', 'row-s ltr', S.app.url.replace(/^https?:\/\//, ''));
-    conn.appendChild(grow('brand', 'link', 'لینک مینی‌اپ', url, copy));
+    conn.appendChild(grow('brand', 'link', 'لینک مینی‌اپ', h('span', 'row-s ltr', S.app.url.replace(/^https?:\/\//, '')), copy));
     conn.appendChild(grow(connected ? 'act' : '', 'bot', connected ? '@' + S.app.bot_username : 'ربات وصل نیست',
       connected ? (S.app.mode === 'full' ? 'کنترل کامل · /start هم جواب می‌ده' : 'دکمهٔ منو · مینی‌اپ روی ربات فعال است') : 'توکن رباتت رو در ایزی‌ساز بفرست',
       null, () => openBot(connected ? 'myapp' : 'connect')));
     const wl = decodeHtml(S.app.welcome).split('\n')[0];
     conn.appendChild(grow('shop', 'chat', 'پیام خوش‌آمد ربات', wl || 'متن پیش‌فرض', null, welcomeSheet));
     conn.appendChild(grow('write', 'pencil', 'اسم مینی‌اپ', S.app.name, null, renameSheet));
+    body.appendChild(conn);
+  }
 
-    // آمار
-    const stats = $('home-stats');
-    stats.textContent = '';
-    [['visitors', 'بازدیدکننده'], ['views_today', 'بازدید امروز'], ['views_week', 'هفت روز']].forEach(([k, label]) => {
-      const st = h('div', 'stat');
-      st.append(h('b', 'n', fmt(S.stats && S.stats[k])), h('span', 'lbl', label));
-      stats.appendChild(st);
+  /* ===================== آمار ===================== */
+  function renderStats() {
+    if (S.screen !== 'stats') return;
+    const chips = $('stats-apps');
+    chips.textContent = '';
+    chips.hidden = S.me.apps.length < 2;
+    S.me.apps.forEach(a => {
+      const on = S.app && String(a.id) === String(S.app.id);
+      const b = h('button', 'cat' + (on ? ' on' : ''), a.name);
+      b.type = 'button';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      b.addEventListener('click', async () => {
+        if (on) return;
+        select();
+        try { await saveNow(); await openApp(a.id, true); renderStats(); } catch (err) { failed(err); }
+      });
+      chips.appendChild(b);
     });
+    const body = $('stats-body');
+    body.textContent = '';
+    if (!S.app) return;
+    const entry = storeOfKit(S.doc.kit);
+    const head = tint(h('div', 'st-app mx'), entry);
+    const ht = h('span', 'grow');
+    ht.append(h('b', '', S.app.name), h('span', '', entry ? entry.title : 'قالب پایه'));
+    head.append(tq(entry), ht, statusPill(S.app));
+    body.appendChild(head);
+    const big = h('div', 'card mx bigstat');
+    big.append(h('span', 'caption', 'بازدیدکننده از داخل تلگرام'), h('b', 'n', fmt(S.stats && S.stats.visitors)));
+    const row = h('div', 'bigstat-row');
+    [['views_today', 'بازدید امروز'], ['views_week', 'هفت روز']].forEach(([k, l]) => {
+      const c = h('span');
+      c.append(h('b', 'n', fmt(S.stats && S.stats[k])), h('span', '', l));
+      row.appendChild(c);
+    });
+    big.appendChild(row);
+    body.appendChild(big);
+    if (S.doc.kit === 'shab') {
+      const st = shabStats();
+      const sec = h('div', 'sec');
+      sec.append(h('span', 'sec-t', 'خواندن'), h('span', 'sec-e', entry ? entry.title : ''));
+      body.appendChild(sec);
+      const kp = h('div', 'kpis mx');
+      const l = storyList();
+      const pubCh = l.reduce((n, x) => n + chaps(x.block).filter(c => !c.draft).length, 0);
+      [['brand', st ? faN(st.readers) : '…', 'خواننده'], ['act', st ? faN(st.followers) : '…', 'منتظر فصل تازه'], ['media', faN(pubCh), 'فصل منتشر']].forEach(([c, n, lb]) => {
+        const k = h('div', 'kpi-t ' + c);
+        k.append(h('b', 'n', n), h('span', '', lb));
+        kp.appendChild(k);
+      });
+      body.appendChild(kp);
+      if (l.length) {
+        const g = h('div', 'card mx dcard');
+        l.forEach(({ block }) => {
+          const r = h('div', 'drow');
+          const tx = h('span', 'grow');
+          const rd = st && st.stories && st.stories[block.id];
+          tx.append(h('b', '', block.props.title || 'بی‌نام'), h('span', '', `${faN(chaps(block).length)} فصل`));
+          r.append(coverMini(block.props, 'xs'), tx, h('b', 'n', rd ? faN(rd.readers) + ' خواننده' : '۰ خواننده'));
+          g.appendChild(r);
+        });
+        body.appendChild(g);
+      }
+    }
+    body.appendChild(h('p', 'st-foot', 'آمار از باز شدن مینی‌اپ داخل تلگرام جمع می‌شود؛ هر کاربر یک بار در روز شمرده می‌شود.'));
   }
 
   /* ===================== حساب ===================== */
   function renderAccount() {
     const u = S.me.user || {};
-    const av = $('me-av');
+    const me = $('acc-me');
+    me.textContent = '';
+    const top = h('div', 'me-top');
+    const av = h('span', 'av');
     av.textContent = (u.first_name || '؟').trim().charAt(0);
-    $('me-name').textContent = u.first_name || 'کاربر';
-    const line = $('me-line');
-    line.textContent = '';
-    const planSpan = h('span');
-    planSpan.append(ico('star'), document.createTextNode('پلن ' + S.me.plan.title));
-    const appsSpan = h('span');
-    appsSpan.append(ico('layers'), num(S.me.apps.length), document.createTextNode(' از '), num(S.me.plan.max_apps), document.createTextNode(' مینی‌اپ'));
-    line.append(planSpan, appsSpan);
+    const nm = h('span', 'grow');
+    nm.append(h('b', '', u.first_name || 'کاربر'), h('span', '', 'پلن ' + S.me.plan.title));
+    top.append(av, nm);
+    const use = h('div', 'me-use');
+    [[`${faN(S.me.apps.length)}/${faN(S.me.plan.max_apps)}`, 'مینی‌اپ'],
+     [S.doc ? `${faN(totalBlocks())}/${faN(S.me.plan.max_blocks)}` : '—', 'کامپوننت'],
+     [S.doc ? `${faN(S.doc.pages.length)}/${faN(S.me.plan.max_pages)}` : '—', 'صفحه']].forEach(([n, l]) => {
+      const c = h('span');
+      c.append(h('b', 'n', n), h('span', '', l));
+      use.appendChild(c);
+    });
+    me.append(top, use);
 
-    // بلیت‌های پلن
     const box = $('acc-plans');
     box.textContent = '';
     (S.me.plans || [S.me.plan]).forEach(p => {
       const cur = p.key === S.me.plan.key;
-      const best = p.key === 'pro';
-      const tk = h('article', 'tk' + (best ? ' best' : ''));
-      if (cur || best) {
-        const tag = h('span', 'tk-tag ' + (cur ? 'plain' : 'best'));
-        tag.append(ico(cur ? 'check' : 'star'), document.createTextNode(cur ? 'پلن فعلی تو' : 'پیشنهادی'));
-        tk.appendChild(tag);
+      const card = h('article', 'plan plan-' + p.key + (cur ? ' cur' : ''));
+      const vol = h('span', 'plan-v');
+      vol.append(h('b', 'n', faN(p.max_blocks)), h('span', '', 'کامپوننت'));
+      const tx = h('span', 'grow');
+      const nm = h('span', 'plan-n');
+      nm.appendChild(h('b', '', p.title));
+      if (cur || p.key === 'pro') nm.appendChild(h('span', 'plan-tag', cur ? 'پلن فعلی' : 'پیشنهادی'));
+      tx.append(nm, h('span', 'plan-s', `${faN(p.max_apps)} مینی‌اپ · ${faN(p.max_pages)} صفحه · ${p.premium_blocks ? 'همهٔ قالب‌ها' : 'کامپوننت‌های پایه'}`),
+        h('b', 'plan-p', p.price_stars ? `${faN(p.price_stars)} ستاره در ماه` : 'رایگان'));
+      card.append(vol, tx);
+      if (!cur && p.price_stars) {
+        const buy = h('button', 'plan-buy', 'خرید');
+        buy.type = 'button';
+        buy.addEventListener('click', async () => {
+          haptic();
+          if (DEMO && p.key === 'pro') {
+            await api('demo/plan', { key: 'pro' });
+            S.me = await api('me');
+            if (S.app) await openApp(S.app.id, true);
+            renderAccount();
+            toast('نسخهٔ نمایشی روی پلن حرفه‌ای است');
+            return;
+          }
+          openBot('plans');
+        });
+        card.appendChild(buy);
       }
-      const top = h('div', 'tk-top');
-      top.appendChild(h('span', 'tk-name', p.title));
-      const vol = h('div', 'tk-vol');
-      vol.append(num(p.max_blocks), h('small', '', 'کامپوننت'));
-      top.append(vol, h('span', 'tk-s', `${p.max_apps} مینی‌اپ · ${p.max_pages} صفحه`), h('span', 'tk-s', p.premium_blocks ? 'همهٔ کامپوننت‌ها و قالب‌ها' : 'کامپوننت‌های پایه'));
-      const bot = h('div', 'tk-bot');
-      const price = h('div', 'tk-p');
-      if (p.price_stars) price.append(num(p.price_stars), h('small', '', '⭐ در ماه'));
-      else price.appendChild(h('b', '', 'رایگان'));
-      const buy = h('button', 'tk-buy' + (cur ? ' short' : ''));
-      buy.type = 'button';
-      buy.textContent = cur ? 'فعال است' : (p.price_stars ? 'خرید در ربات' : 'پلن پایه');
-      buy.disabled = cur || !p.price_stars;
-      buy.addEventListener('click', async () => {
-        haptic();
-        if (DEMO && p.key === 'pro') {
-          await api('demo/plan', { key: 'pro' });
-          S.me = await api('me');
-          if (S.app) await openApp(S.app.id, true);
-          renderAccount();
-          toast('نسخهٔ نمایشی روی پلن حرفه‌ای است');
-          return;
-        }
-        openBot('plans');
-      });
-      bot.append(price, buy);
-      tk.append(top, h('div', 'tk-cut'), bot);
-      box.appendChild(tk);
+      box.appendChild(card);
     });
 
-    // مینی‌اپ‌ها
     const apps = $('acc-apps');
     apps.textContent = '';
-    $('acc-apps-e').textContent = `${S.me.apps.length} از ${S.me.plan.max_apps}`;
+    $('acc-apps-e').textContent = `${faN(S.me.apps.length)} از ${faN(S.me.plan.max_apps)}`;
     S.me.apps.forEach(a => {
-      const sub = a.bot_username ? '@' + a.bot_username : (a.published_at ? 'منتشر شده · بدون ربات' : 'پیش‌نویس');
-      const r = grow('navy', 'sparkle', a.name, sub, null, async () => { try { await openApp(a.id); } catch (err) { failed(err); } });
-      const ic = r.querySelector('.ic');
-      ic.textContent = (a.name || '?').trim().charAt(0);
+      const cur = S.app && String(a.id) === String(S.app.id);
+      const entry = storeOfKit(cur ? S.doc.kit : a.kit);
+      const sub = a.bot_username ? '@' + a.bot_username : appStatus(cur ? S.app : a)[0];
+      const r = grow('', 'layers', a.name, (entry ? entry.title + ' · ' : '') + sub, null, async () => { try { await openDash(a.id); } catch (err) { failed(err); } });
+      r.querySelector('.ic').replaceWith(tq(entry));
       apps.appendChild(r);
     });
-    apps.appendChild(grow('brand', 'plus', 'مینی‌اپ تازه', 'اسم، رنگ، و تمام', null, () => {
-      if (S.me.apps.length >= S.me.plan.max_apps) { upsellSheet(`پلن ${S.me.plan.title} فقط ${S.me.plan.max_apps} مینی‌اپ دارد.`); return; }
-      onboard();
-    }));
+    apps.appendChild(grow('brand', 'plus', 'مینی‌اپ تازه', 'اسم، رنگ و اولین قالب', null, () => newApp()));
 
     const botG = $('acc-bot');
     botG.textContent = '';
@@ -2793,6 +3298,18 @@
   function storyHome() {
     return S.doc.pages.find(p => p.blocks.some(b => b.type === 'story'))
       || S.doc.pages.find(p => p.id === 'stories') || S.doc.pages[S.doc.pages.length > 1 ? 1 : 0];
+  }
+  /* کاغذ روشن نوشتن: سبک‌های شب‌نوشت با رنگ تأکید همین مینی‌اپ، روی زمینهٔ روشن پنل.
+     «پیش‌نمایش» همچنان خوانندهٔ واقعی (تیره) را نشان می‌دهد. */
+  function lightPaper(el) {
+    ES.applyTheme(el, S.doc.theme, 'shab');
+    el.classList.remove('pg-dark');
+    el.classList.add('paper-light');
+    [['--pg-bg', 'var(--surface)'], ['--pg-surface', 'var(--ground)'], ['--pg-ink', 'var(--ink)'], ['--pg-ink-2', 'var(--ink-2)'],
+     ['--pg-ink-3', 'var(--ink-3)'], ['--pg-line', 'var(--line)'], ['--sh-candle', 'var(--media)'],
+     ['--pg-accent-ink', 'color-mix(in srgb, var(--pg-accent) 72%, var(--ink))'],
+     ['--pg-soft', 'color-mix(in srgb, var(--pg-accent) 10%, transparent)']].forEach(([k, v]) => el.style.setProperty(k, v));
+    return el;
   }
   function coverMini(p, cls) {
     const w = h('div', 'st-cover ' + (cls || ''));
@@ -2828,9 +3345,26 @@
     storiesQueued = true;
     requestAnimationFrame(() => { storiesQueued = false; renderStories(); });
   }
+  /* آمار خواندن از سرور؛ ۳۰ ثانیه نگه داشته می‌شود */
+  function shabStats() {
+    const st = S.shabStats;
+    if (st && (st.data || st.busy) && Date.now() - st.at < 30000) return st.data;
+    if (!S.app || S.doc.kit !== 'shab') return null;
+    S.shabStats = { at: Date.now(), busy: true, data: st && st.data };
+    api('kit/shab/stats?id=' + S.app.id).then(data => {
+      S.shabStats = { at: Date.now(), data };
+      if (S.screen === 'stories') renderStoriesQ();
+      else if (S.screen === 'stats') renderStats();
+      const top = S.stack[S.stack.length - 1];
+      if (top) queueRefresh(top);
+    }).catch(() => { S.shabStats = { at: Date.now(), data: st && st.data }; });
+    return st && st.data;
+  }
+
   function renderStories() {
     if (!S.doc || S.screen !== 'stories') return;
     $('st-app').textContent = S.app.name;
+    tint($('stories'), storeOfKit(S.doc.kit));
     renderBar();
     const body = $('st-body');
     body.textContent = '';
@@ -2849,9 +3383,10 @@
     const all = list.reduce((a, { block }) => a.concat(chaps(block)), []);
     const drafts = all.filter(c => c.draft).length;
     const stats = h('div', 'st-stats');
-    [[list.length, 'داستان'], [all.length - drafts, 'فصل منتشرشده'], [drafts, 'پیش‌نویس']].forEach(([n, l]) => {
+    const stats0 = shabStats();
+    [[list.length, 'داستان'], [all.length - drafts, 'فصل منتشر'], [drafts, 'پیش‌نویس'], [stats0 ? stats0.readers : '…', 'خواننده']].forEach(([n, l]) => {
       const s = h('div', 'st-stat');
-      s.append(h('b', '', faN(n)), h('span', '', l));
+      s.append(h('b', '', typeof n === 'number' ? faN(n) : n), h('span', '', l));
       stats.appendChild(s);
     });
     body.appendChild(stats);
@@ -2910,6 +3445,8 @@
     if (p.genre) meta.appendChild(h('span', 'st-badge', p.genre));
     meta.appendChild(h('span', 'st-badge', `${faN(list.length)} فصل`));
     if (drafts) meta.appendChild(h('span', 'st-badge draft', `${faN(drafts)} پیش‌نویس`));
+    const sst = (shabStats() || { stories: {} }).stories[b.id];
+    if (sst) meta.appendChild(h('span', 'st-badge readers', `${faN(sst.readers)} خواننده`));
     meta.appendChild(h('span', 'st-badge ' + (p.status === 'done' ? 'done' : ''), p.status === 'done' ? 'تمام شده' : 'ادامه دارد'));
     info.appendChild(meta);
     main.append(info, ico('arrow', 'chev'));
@@ -2961,7 +3498,7 @@
       go.addEventListener('click', () => {
         if (!d.title.trim()) return;
         const b = defaultBlock('story', Object.assign({}, d, { title: d.title.trim(),
-          chapters: [{ title: 'فصل اول', body: '', note: '', lock: false, url: '', draft: true }] }));
+          chapters: [{ id: newChId(), title: 'فصل اول', body: '', note: '', lock: false, url: '', draft: true }] }));
         storyHome().blocks.push(b);
         notify('success');
         closeSheet();
@@ -2977,7 +3514,7 @@
     if (!f) return;
     const list = chaps(f.block);
     if (list.length >= 60) { toast('هر داستان حداکثر ۶۰ فصل دارد', true); return; }
-    const ch = { title: `فصل ${faN(list.length + 1)}`, body: '', note: '', lock: false, url: '', draft: true };
+    const ch = { id: newChId(), title: `فصل ${faN(list.length + 1)}`, body: '', note: '', lock: false, url: '', draft: true };
     list.push(ch);
     changed();
     chapterPage(id, ch);
@@ -3014,7 +3551,8 @@
           txt.type = 'button';
           const t = h('span', 'st-ch-t');
           t.append(h('b', 'body-strong', c.title || `فصل ${faN(i + 1)}`),
-            h('span', 'caption', c.body ? `${faN(ES.words(c.body))} کلمه، ${faN(ES.minutes(c.body))} دقیقه` : 'هنوز متنی ندارد'));
+            h('span', 'caption', (c.body ? `${faN(ES.words(c.body))} کلمه، ${faN(ES.minutes(c.body))} دقیقه` : 'هنوز متنی ندارد')
+              + (((shabStats() || { chapters: {} }).chapters[c.id]) ? ` · ${faN(shabStats().chapters[c.id].readers)} خواننده، ${faN(shabStats().chapters[c.id].finished || 0)} تا آخر` : '')));
           const badges = h('span', 'st-badges');
           if (c.draft) badges.appendChild(h('span', 'st-badge draft', 'پیش‌نویس'));
           if (c.lock) badges.appendChild(h('span', 'st-badge lock', 'در کانال'));
@@ -3260,7 +3798,7 @@
       const status = selectControl({ label: 'وضعیت', options: [['draft', 'پیش‌نویس (خواننده نمی‌بیند)'], ['live', 'منتشر شود']] },
         ch.draft ? 'draft' : 'live', v => { ch.draft = v === 'draft'; changed(true); });
       const paper = h('div', 'bk-paper');
-      ES.applyTheme(paper, S.doc.theme, 'shab');
+      lightPaper(paper);
       const list = h('div', 'bk-list');
       const adds = h('div', 'bk-adds');
       paper.append(list, adds);
@@ -3269,7 +3807,7 @@
 
       const more = h('details', 'more-sec');
       const sum = h('summary');
-      sum.append(ico('lock'), h('span', 'grow', 'قفل، برچسب و لینک کانال'), ico('chev', 'more-chev'));
+      sum.append(ico('lock'), h('span', 'grow', 'فقط اعضا، برچسب و لینک'), ico('chev', 'more-chev'));
       const mb = h('div', 'more-body');
       const chSpec = S.schema.blocks.story.fields.find(x => x.key === 'chapters').fields;
       const cf = k => chSpec.find(x => x.key === k);
@@ -3523,7 +4061,7 @@
           if (b.kind !== 'hr') {
             sheet.appendChild(h('span', 'label bk-sh-l', 'سبک این بلوک'));
             const grid = h('div', 'bk-kinds');
-            ES.applyTheme(grid, S.doc.theme, 'shab');
+            lightPaper(grid);
             BK_KINDS.forEach(([k, name]) => {
               const c = h('button', 'bk-kind ch-p-' + k + (k === b.kind ? ' on' : ''));
               c.type = 'button';
@@ -3680,15 +4218,27 @@
   /* ---------- اتصال رویدادها ---------- */
   function wire() {
     document.querySelectorAll('[data-icon]').forEach(el => el.appendChild(ico(el.dataset.icon)));
-    document.querySelectorAll('[data-art]').forEach(el => el.appendChild(tunnelArt()));
     document.querySelectorAll('.mark').forEach(el => el.appendChild(markSvg()));
     document.querySelectorAll('#nav .nav-i').forEach(b => b.addEventListener('click', () => {
       if (b.dataset.tab === S.tab && !$(b.dataset.tab).hidden) return;
       haptic();
       tab(b.dataset.tab);
     }));
-    window.addEventListener('resize', () => { placeNav(); });
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeNav);
+    $('nav-make').addEventListener('click', () => { haptic('medium'); makeSheet(); });
+    $('home-av').addEventListener('click', () => { haptic(); tab('account'); });
+    $('store-find').addEventListener('click', () => {
+      haptic();
+      const box = $('store-q-box');
+      box.hidden = !box.hidden;
+      if (!box.hidden) $('store-q').focus(); else { $('store-q').value = ''; renderStore(); }
+    });
+    $('store-q').addEventListener('input', debounce(renderStore, 150));
+    $('ad-back').addEventListener('click', () => { haptic(); tab('home'); });
+    $('ad-preview').addEventListener('click', () => { haptic(); if (S.doc.kit === 'shab') S.pageId = storyHome().id; previewPage(); });
+    $('ad-more').addEventListener('click', () => { haptic(); settingsPage(); });
+    $('ad-edit').addEventListener('click', () => { haptic(); openEditor(); });
+    $('ad-publish').addEventListener('click', () => { haptic(); publishSheet(); });
+    $('st-back').addEventListener('click', () => { haptic(); showApp(); });
     $('ed-back').addEventListener('click', () => { haptic(); leaveEditor(); });
     $('bar-undo').addEventListener('click', () => { haptic(); undo(); });
     $('bar-redo').addEventListener('click', () => { haptic(); redo(); });
@@ -3701,7 +4251,7 @@
     $('demo-link').addEventListener('click', e => { e.preventDefault(); location.hash = '#demo'; location.reload(); });
     const tools = {
       theme: themePage,
-      stories: () => { popAll(); tab('stories'); },
+      stories: () => { popAll(); showStories(); },
       add: () => addSheet(),
       order: orderPage,
       settings: settingsPage,
@@ -3714,6 +4264,8 @@
         if ($('sheet').classList.contains('on')) closeSheet();
         else if (S.stack.length) pop();
         else if (S.screen === 'editor') leaveEditor();
+        else if (S.screen === 'stories') showApp();
+        else if (S.screen === 'app') tab('home');
         else if (S.screen === 'onboard' && S.me && S.me.apps.length) tab('home');
       });
       tg.onEvent('themeChanged', () => { applyChrome(); if (S.doc && S.screen === 'editor') renderAll(); });

@@ -674,3 +674,18 @@
 .sh-i-strike{text-decoration:line-through; text-decoration-color:var(--pg-accent); text-decoration-thickness:2px; opacity:.8}
 .sh-i-faint{opacity:.5}
 .sh-candle .sh-t-talk{color:#E2C59C}
+
+/* ---------- بارگذاری فصل، قفل عضویت، «خبرم کن» ---------- */
+.sh-skel{display:flex; flex-direction:column; gap:14px; padding:6px 0 20px}
+.sh-skel i{display:block; height:14px; border-radius:7px; background:var(--pg-sunk); animation:sk 1.1s ease-in-out infinite alternate}
+.sh-skel i:nth-child(2){width:86%}
+.sh-skel i:nth-child(3){width:94%}
+.sh-skel i:nth-child(4){width:60%}
+@media (prefers-reduced-motion:reduce){.sh-skel i{animation:none}}
+.sh-lock-acts{display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:4px}
+.sh-btn--ghost{background:transparent; color:var(--pg-ink); border:1px solid var(--pg-line)}
+.sh-btn:disabled{opacity:.5}
+.sh-r-end{flex-direction:column; align-items:center; gap:14px}
+.sh-notify{display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 14px; border-radius:8px; border:1px solid var(--pg-line); background:none; color:var(--pg-ink-2); font:inherit; font-size:13px; font-weight:700; cursor:pointer}
+.sh-notify .pg-ico{width:17px; height:17px}
+.sh-notify.on{border-color:transparent; background:var(--pg-soft); color:var(--pg-accent-ink)}

@@ -51,7 +51,7 @@
   function appJson(a) {
     return {
       id: a.id, name: a.name, slug: 'demo', url: new URL(pageUrl(), location.href).href,
-      bot_username: a.bot_username || null, mode: a.bot_username ? 'menu' : 'none', status: 'active',
+      bot_username: a.bot_username || null, mode: a.bot_username ? 'menu' : 'none', status: a.status || 'active',
       published_at: a.published ? a.published_at : null, updated_at: a.updated_at,
       dirty: JSON.stringify(a.draft) !== JSON.stringify(a.published),
       welcome: a.welcome || '',
@@ -128,6 +128,16 @@
       a.name = name; a.updated_at = now(); save(d);
       return Promise.resolve({ app: appJson(a) });
     }
+    if (path === 'app/status') {
+      a.status = body.active ? 'active' : 'paused'; save(d);
+      return Promise.resolve({ app: appJson(a) });
+    }
+    if (path === 'app/remove_kit') {
+      const doc = Object.assign(blank(), { kit: 'base', theme: { accent: '#1D55F0', mode: 'light', radius: 'soft', radius_px: 18, bg: 'tint' } });
+      doc.tabbar = { enabled: false, style: 'floating' };
+      a.draft = doc; a.published = JSON.parse(JSON.stringify(doc)); a.published_at = now(); a.pubCh = []; a.announced = []; save(d);
+      return Promise.resolve({ doc: doc, app: appJson(a) });
+    }
     if (path === 'app/welcome') {
       const text = String(body.text || '').trim().slice(0, 1000);
       a.welcome = text ? escapeHtml(text) : ''; save(d);
@@ -162,6 +172,7 @@
     const d = db();
     const a = d.apps[0];
     const branding = plan(d).branding;
+    if (a && a.status === 'paused') return { name: a.name, paused: true };
     if (a && a.published) {
       // مثل api.page → blocks.reader_view: قسمت‌های پیش‌نویس به خواننده نمی‌رسند
       const doc = JSON.parse(JSON.stringify(a.published));

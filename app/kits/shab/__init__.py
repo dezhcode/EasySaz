@@ -202,3 +202,12 @@ async def on_publish(db, app, doc: dict) -> dict:  # noqa: ANN001
         "SELECT chapter_id FROM shab_announces WHERE app_id = ?", (app["id"],))}
     fresh = [{"id": r[1], "story": r[3], "title": r[4]} for r in rows if r[1] not in before and r[1] not in announced]
     return {"new_chapters": fresh}
+
+
+TABLES = ("shab_chapters", "shab_readers", "shab_progress", "shab_marks", "shab_announces")
+
+
+async def on_remove(db, app_id: int) -> None:  # noqa: ANN001
+    """حذف قالب: متن قسمت‌ها، خواننده‌ها، جای خواندن، نشان‌ها و اعلام‌ها."""
+    for table in TABLES:
+        await db.execute(f"DELETE FROM {table} WHERE app_id = ?", (app_id,))

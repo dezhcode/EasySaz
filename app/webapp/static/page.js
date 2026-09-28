@@ -92,7 +92,7 @@
     }
     const data = r.data;
     if (!r.ok) { state('spark', 'پیدا نشد', data.error || 'این مینی‌اپ وجود ندارد.'); return; }
-    if (data.paused) { state('spark', data.name, 'این مینی‌اپ موقتاً در دسترس نیست.'); return; }
+    if (data.paused) { state('clock', data.name, 'فعلاً بسته است؛ به‌زودی برمی‌گردد.'); return; }
     const doc = ES.normalize(data.doc);
     const empty = doc.pages.every(pg => !(pg.blocks || []).length);
     if (empty) { state('spark', data.name, 'به‌زودی اینجا چیزهای خوبی می‌بینی.', doc.theme, doc.kit); return; }

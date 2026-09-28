@@ -161,7 +161,8 @@
 
   /* تأیید: داخل تلگرام showConfirm بومی؛ بیرون از آن (نسخهٔ نمایشی، مرورگر)
      پنجرهٔ خود صفحه، چون confirm مرورگر در همه‌جا کار نمی‌کند */
-  function confirmBox(message, cb) {
+  function confirmBox(message, cb, opts) {
+    opts = opts || {};
     if (tg && tg.showConfirm && tg.initData) { tg.showConfirm(message, ok => ok && cb()); return; }
     const wrap = h('div', 'confirm');
     wrap.setAttribute('role', 'alertdialog');
@@ -169,7 +170,7 @@
     const box = h('div', 'confirm-box');
     const row = h('div', 'confirm-row');
     const no = h('button', 'btn secondary', 'انصراف');
-    const yes = h('button', 'btn primary', 'تأیید');
+    const yes = h('button', 'btn ' + (opts.danger ? 'danger' : 'primary'), opts.yes || 'تأیید');
     const close = () => { wrap.remove(); document.removeEventListener('keydown', onKey); };
     const onKey = e => { if (e.key === 'Escape') close(); };
     no.addEventListener('click', close);
@@ -589,7 +590,7 @@
     const live = !!S.app.published_at;
     const st = $('bar-status');
     // یک خط کوتاه: وضعیت ذخیره وقتی در جریان است، وگرنه وضعیت انتشار
-    const pub = !live ? 'پیش‌نویس' : (S.app.dirty ? 'منتشر نشده' : 'منتشر شده');
+    const pub = S.app.status === 'paused' ? 'خاموش' : !live ? 'پیش‌نویس' : (S.app.dirty ? 'منتشر نشده' : 'منتشر شده');
     const save = { busy: 'ذخیره…', err: 'ذخیره نشد', '': '' }[S.saveState];
     st.querySelector('span').textContent = save || pub;
     st.title = pub + (save ? ' · ' + save : ' · ذخیره شد');
@@ -2913,6 +2914,7 @@
 
   /* ===================== خانه ===================== */
   function appStatus(a) {
+    if (a.status === 'paused') return ['خاموش', 'off'];
     if (!a.published_at) return ['پیش‌نویس', 'warn'];
     return a.dirty ? ['تغییر منتشرنشده', 'warn'] : ['منتشر شده', 'live'];
   }
@@ -3034,6 +3036,8 @@
     const body = $('ad-body');
     body.textContent = '';
 
+    if (S.app.status === 'paused') body.appendChild(pausedBanner());
+
     const kpis = h('div', 'kpis mx');
     [['brand', fmt(S.stats && S.stats.visitors), 'بازدیدکننده'],
      ['act', `${faN(S.doc.pages.length)}/${faN(S.plan.max_pages)}`, 'صفحه'],
@@ -3055,20 +3059,33 @@
     tg1.appendChild(th);
     const tr = h('div', 'drow');
     const ttx = h('span', 'grow');
+    const noKit = S.doc.kit !== 'shab' && !totalBlocks();
     let manage;
-    if (entry && S.doc.kit === 'shab') {
+    if (noKit) {
+      ttx.append(h('b', '', 'هنوز قالبی نصب نیست'), h('span', '', 'یک قالب انتخاب کن تا مینی‌اپ جان بگیرد'));
+      manage = () => tab('store');
+    } else if (entry && S.doc.kit === 'shab') {
       const l = storyList();
       const all = l.reduce((a, x) => a.concat(chaps(x.block)), []);
-      ttx.append(h('b', '', entry.title), h('span', '', `${faN(l.length)} داستان · ${faN(all.length)} قسمت · ${faN(all.filter(c => c.draft).length)} پیش‌نویس`));
+      ttx.append(h('b', '', entry.title), h('span', '', `${faN(l.length)} داستان · ${faN(all.length)} قسمت`
+        + (S.app.status === 'paused' ? ' · خاموش' : '')));
       manage = () => showStories();
     } else {
       ttx.append(h('b', '', entry ? entry.title : 'قالب پایه'), h('span', '', 'صفحه‌ها و کامپوننت‌ها'));
       manage = () => openEditor();
     }
-    const mg = h('button', 'btn btn-s btn-sm', 'مدیریت');
+    const mg = h('button', 'btn btn-sm ' + (noKit ? 'btn-p' : 'btn-s'), noKit ? 'انتخاب قالب' : 'مدیریت');
     mg.type = 'button';
     mg.addEventListener('click', () => { haptic(); manage(); });
     tr.append(tq(entry), ttx, mg);
+    if (!noKit) {
+      const more = h('button', 'btn btn-s btn-sm sq tpl-more');
+      more.type = 'button';
+      more.setAttribute('aria-label', 'روشن، خاموش یا حذف قالب');
+      more.appendChild(ico('more'));
+      more.addEventListener('click', () => { haptic(); templateSheet(); });
+      tr.appendChild(more);
+    }
     tg1.appendChild(tr);
     body.appendChild(tg1);
 
@@ -3106,6 +3123,96 @@
     conn.appendChild(grow('shop', 'chat', 'پیام خوش‌آمد ربات', wl || 'متن پیش‌فرض', null, welcomeSheet));
     conn.appendChild(grow('write', 'pencil', 'اسم مینی‌اپ', S.app.name, null, renameSheet));
     body.appendChild(conn);
+  }
+
+  /* ---------- روشن، خاموش و حذف قالب ----------
+     خاموش: خواننده‌ها به‌جای مینی‌اپ «فعلاً بسته است» می‌بینند و هیچ چیز پاک
+     نمی‌شود (همان «توقف» ربات). حذف: قالب با محتوایش پاک و مینی‌اپ خالی می‌شود. */
+  function syncAppInList() {
+    const i = S.me.apps.findIndex(a => String(a.id) === String(S.app.id));
+    if (i >= 0) S.me.apps[i] = Object.assign({}, S.me.apps[i], S.app);
+  }
+  async function setActive(on) {
+    try {
+      const res = await api('app/status', { id: S.app.id, active: on });
+      S.app = res.app;
+      syncAppInList();
+      notify('success');
+      toast(on ? 'روشن شد؛ خواننده‌ها دوباره مینی‌اپ را می‌بینند' : 'خاموش شد؛ خواننده‌ها «فعلاً بسته است» می‌بینند');
+      renderBar();
+      renderApp();
+      return true;
+    } catch (err) { failed(err); return false; }
+  }
+  function pausedBanner() {
+    const b = h('div', 'paused-b mx');
+    const ic = h('span', 'paused-ic');
+    ic.appendChild(ico('power'));
+    const tx = h('span', 'grow');
+    tx.append(h('b', '', 'مینی‌اپ خاموش است'), h('span', '', 'خواننده‌ها پیام «فعلاً بسته است» می‌بینند. چیزی پاک نشده.'));
+    const go = h('button', 'btn btn-p btn-sm', 'روشن کن');
+    go.type = 'button';
+    go.addEventListener('click', () => { haptic(); setActive(true); });
+    b.append(ic, tx, go);
+    return b;
+  }
+  function templateSheet() {
+    const entry = storeOfKit(S.doc.kit);
+    const title = entry ? entry.title : 'قالب پایه';
+    const l = S.doc.kit === 'shab' ? storyList() : [];
+    const nCh = l.reduce((n, x) => n + chaps(x.block).length, 0);
+    openSheet(sheet => {
+      sheetHead(sheet, 'story', 'layers', `قالب «${title}»`, 'روشن، خاموش، عوض کردن یا حذف');
+      const on = S.app.status !== 'paused';
+      const card = h('div', 'tpl-power' + (on ? ' on' : ''));
+      const ic = h('span', 'paused-ic');
+      ic.appendChild(ico('power'));
+      const tx = h('span', 'grow');
+      tx.append(h('b', '', on ? 'روشن است' : 'خاموش است'),
+        h('span', '', on ? 'خواننده‌ها مینی‌اپ را می‌بینند' : 'خواننده‌ها «فعلاً بسته است» می‌بینند'));
+      const sw = h('button', 'switch' + (on ? ' on' : ''));
+      sw.type = 'button';
+      sw.setAttribute('role', 'switch');
+      sw.setAttribute('aria-checked', on ? 'true' : 'false');
+      sw.setAttribute('aria-label', 'روشن یا خاموش');
+      sw.addEventListener('click', async () => { sw.disabled = true; if (await setActive(!on)) closeSheet(); else sw.disabled = false; });
+      card.append(ic, tx, sw);
+      sheet.appendChild(card);
+      sheet.appendChild(h('p', 'caption tpl-note', 'برای مدتی که داستان را کامل می‌کنی یا تعطیلی، خاموشش کن. با روشن کردن همه‌چیز همان‌طور که بود برمی‌گردد.'));
+      const acts = h('div', 'acts');
+      const act = (icn, label, fn, danger) => {
+        const x = h('button', 'act' + (danger ? ' danger' : ''));
+        x.type = 'button';
+        x.append(ico(icn), h('span', 'grow', label));
+        x.addEventListener('click', () => { haptic(); fn(); });
+        acts.appendChild(x);
+      };
+      act('layers', 'عوض کردن قالب', () => { closeSheet(); tab('store'); });
+      act('trash', 'حذف قالب', () => {
+        const what = S.doc.kit === 'shab'
+          ? `${faN(l.length)} داستان، ${faN(nCh)} قسمت و آمار خواندنشان برای همیشه پاک می‌شود`
+          : 'همهٔ صفحه‌ها و بخش‌ها پاک می‌شود';
+        confirmBox(`قالب «${title}» حذف شود؟ ${what} و مینی‌اپ خالی می‌شود. اگر فقط می‌خواهی مدتی دیده نشود، «خاموش» کافی است.`, removeKit, { yes: 'حذف', danger: true });
+      }, true);
+      sheet.appendChild(acts);
+    });
+  }
+  async function removeKit() {
+    try {
+      const res = await api('app/remove_kit', { id: S.app.id });
+      S.doc = ES.normalize(res.doc);
+      S.app = res.app;
+      H.base = JSON.stringify(S.doc);
+      S.pageId = S.doc.pages[0].id;
+      S.selected = null;
+      S.shabStats = null;
+      syncAppInList();
+      closeSheet();
+      popAll();
+      notify('warning');
+      toast('قالب حذف شد؛ یک قالب تازه انتخاب کن');
+      showApp();
+    } catch (err) { failed(err); }
   }
 
   /* ===================== آمار ===================== */

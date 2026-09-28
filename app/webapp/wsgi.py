@@ -36,7 +36,7 @@ log = logging.getLogger("easysaz.web")
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 _SLUG = re.compile(r"^[a-z0-9]{6,16}$")
 _UPLOAD = re.compile(r"^[a-f0-9]{24}\.(jpg|png|webp)$")
-_STATIC_EXT = {".js", ".css", ".woff2", ".png", ".webp", ".svg", ".ico"}
+_STATIC_EXT = {".js", ".css", ".woff2", ".png", ".jpg", ".webp", ".svg", ".ico"}
 
 CSP = (
     "default-src 'self'; "

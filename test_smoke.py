@@ -246,6 +246,10 @@ def test_blocks() -> None:
        and len({e["id"] for e in templates.STORE}) == len(templates.STORE)
        and "store" in templates.public() and "domains" in templates.public(),
        "فروشگاه قالب: حوزه، رنگ و قالب آماده‌ها معتبر است")
+    covers = [b["props"]["cover"] for b in blocks.all_blocks(templates.BY_ID["shab"]["doc"]) if b["type"] == "story"]
+    ok(len(covers) == 2 and all(c.startswith(blocks.sample_prefix()) and blocks.clean_url(c, images=True) == c
+                                and os.path.isfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "app/webapp/static/samples", c.rsplit("/", 1)[1])) for c in covers),
+       "جلد داستان‌های نمونه از static/samples می‌آید")
     ok(blocks.empty_page()["kit"] == "shab" and blocks.upgrade({"blocks": [{"type": "text"}]})["kit"] == "base",
        "مینی‌اپ تازه روی شب‌نوشت است؛ سند قدیمی روی قالب پایه می‌ماند")
     ok(set(blocks.CATALOG_ORDER) == set(blocks.SCHEMA) and all(b["cat"] in blocks.CATEGORIES for b in blocks.SCHEMA.values()), "هر کامپوننت دسته و جای کاتالوگ دارد")

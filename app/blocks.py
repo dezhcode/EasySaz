@@ -583,6 +583,13 @@ def _upload_prefix() -> str:
     return (config.base_url + "/u/") if config.base_url else ""
 
 
+def sample_prefix() -> str:
+    """نشانی تصویرهای نمونهٔ قالب‌ها (جلد داستان‌های نمایشی و …) روی همین سرور."""
+    from .config import config
+
+    return (config.base_url + "/static/samples/") if config.base_url else ""
+
+
 def clean_url(value: Any, *, images: bool = False) -> str:
     """فقط لینک https (و http برای لینک عادی). بقیه پاک می شود.
 
@@ -594,6 +601,8 @@ def clean_url(value: Any, *, images: bool = False) -> str:
         return ""
     if images and _upload_prefix() and url.startswith(_upload_prefix()) and re.match(r"^[a-f0-9]{24}\.(jpg|png|webp)$", url[len(_upload_prefix()):]):
         return url  # تصویر آپلودشده روی سرور خودمان
+    if images and sample_prefix() and url.startswith(sample_prefix()) and re.match(r"^[a-z0-9-]{1,40}\.(jpg|png|webp)$", url[len(sample_prefix()):]):
+        return url  # تصویر نمونهٔ قالب‌ها (app/webapp/static/samples)
     low = url.lower()
     if low.startswith("t.me/") or low.startswith("telegram.me/"):
         url, low = "https://" + url, "https://" + low

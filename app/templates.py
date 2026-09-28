@@ -34,6 +34,11 @@ def _b(btype: str, props: dict | None = None, style: dict | None = None) -> dict
     return out
 
 
+def _sample(name: str) -> str:
+    """تصویر نمونهٔ همراه قالب (app/webapp/static/samples)؛ بدون BASE_URL خالی می‌ماند."""
+    return blocks.sample_prefix() + name if blocks.sample_prefix() else ""
+
+
 def _page(pid: str, title: str, icon: str, items: list[dict]) -> dict:
     return {"id": pid, "title": title, "icon": icon, "blocks": items}
 
@@ -112,9 +117,9 @@ def shab() -> dict:
         ]),
         _page("stories", "داستان‌ها", "list", [
             _b("story", {"title": "خانهٔ شمارهٔ ۱۳", "subtitle": "رمان کوتاه وحشت در سیزده شب", "genre": "وحشت", "status": "ongoing", "tone": "blood",
-                         "blurb": "خانه‌ای که شش سال خالی مانده، ولی ساعتش هنوز کار می‌کند.", "chapters": _CH13}),
+                         "blurb": "خانه‌ای که شش سال خالی مانده، ولی ساعتش هنوز کار می‌کند.", "cover": _sample("ghosts.jpg"), "chapters": _CH13}),
             _b("story", {"title": "آخرین قطار", "subtitle": "داستان بلند معمایی", "genre": "معمایی", "status": "ongoing", "tone": "night",
-                         "blurb": "قطاری که در هیچ برنامه‌ای نیست و هر شب می‌آید.", "chapters": _TRAIN}),
+                         "blurb": "قطاری که در هیچ برنامه‌ای نیست و هر شب می‌آید.", "cover": _sample("dream.jpg"), "chapters": _TRAIN}),
         ]),
         _page("marks", "نشان‌ها", "bookmark", [
             _b("shab_marks"),

@@ -16,6 +16,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import mimetypes
@@ -101,14 +102,36 @@ def _body(environ: dict, limit: int = 262_144) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+_ASSET = re.compile(r"__BASE__static/([\w.-]+\.(?:css|js))(?:\?v=\w+)?")
+_versions: dict[str, tuple[float, str]] = {}
+
+
+def asset_version(rel: str) -> str:
+    """نسخهٔ فایل ثابت از روی محتوایش: هر به‌روزرسانی نشانی تازه می‌سازد و
+    تلگرام و مرورگر نسخهٔ قدیمی را از حافظه نمی‌آورند."""
+    full = os.path.join(STATIC_DIR, rel)
+    try:
+        mtime = os.path.getmtime(full)
+    except OSError:
+        return "0"
+    hit = _versions.get(rel)
+    if hit and hit[0] == mtime:
+        return hit[1]
+    with open(full, "rb") as fh:
+        ver = hashlib.sha256(fh.read()).hexdigest()[:10]
+    _versions[rel] = (mtime, ver)
+    return ver
+
+
 def _html(name: str, title: str = "EasySaz") -> bytes:
     with open(os.path.join(STATIC_DIR, name), encoding="utf-8") as fh:
         html = fh.read()
+    html = _ASSET.sub(lambda m: f"__BASE__static/{m.group(1)}?v={asset_version(m.group(1))}", html)
     base = (config.app_base_uri or "") + "/"
     return html.replace("__BASE__", escape(base)).replace("__TITLE__", escape(title)).encode("utf-8")
 
 
-def _static(start_response, rel: str):  # noqa: ANN001, ANN202
+def _static(start_response, rel: str, query: str = ""):  # noqa: ANN001, ANN202
     rel = rel.lstrip("/")
     full = os.path.realpath(os.path.join(STATIC_DIR, rel))
     if (
@@ -124,8 +147,8 @@ def _static(start_response, rel: str):  # noqa: ANN001, ANN202
         ctype = "text/javascript; charset=utf-8"
     elif full.endswith(".woff2"):
         ctype = "font/woff2"
-    # فونت ها عوض نمی شوند؛ js/css با ?v= نسخه دار می شوند
-    cache = "public, max-age=31536000, immutable" if full.endswith(".woff2") else "public, max-age=300"
+    # فونت‌ها عوض نمی‌شوند و js/css در HTML با ?v=<هش محتوا> می‌آیند (asset_version)
+    cache = "public, max-age=31536000, immutable" if full.endswith(".woff2") or "v=" in query else "no-cache"
     return _send(start_response, "200 OK", data, ctype, [("Cache-Control", cache)])
 
 
@@ -136,7 +159,7 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
     page_headers = [("Content-Security-Policy", CSP), ("Cache-Control", "no-cache")]
 
     if path.startswith("/static/") and method == "GET":
-        return _static(start_response, path[len("/static/"):])
+        return _static(start_response, path[len("/static/"):], environ.get("QUERY_STRING", ""))
 
     if path.startswith("/u/") and method == "GET":
         name = path[3:]

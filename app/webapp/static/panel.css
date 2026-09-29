@@ -43,12 +43,10 @@ input,textarea{font:inherit; color:inherit}
 .num-lg{font-size:22px; font-weight:800; font-variant-numeric:tabular-nums}
 
 /* ═══ نشان ═══ */
-.mark{width:40px; height:40px; border-radius:12px; background:var(--navy); display:grid; place-items:center; flex:none; box-shadow:var(--shadow-pass)}
-.mark svg{width:30px; height:30px}
-.mark .mark-off{fill:var(--on-pass); opacity:.22}
-.mark .mark-on{fill:var(--tunnel)}
+.mark{width:40px; height:40px; border-radius:12px; background:var(--brand); display:grid; place-items:center; flex:none; box-shadow:var(--shadow-pass)}
+.mark svg{width:32px; height:32px; fill:#FFFFFF}
 .mark-lg{width:72px; height:72px; border-radius:22px}
-.mark-lg svg{width:54px; height:54px}
+.mark-lg svg{width:58px; height:58px}
 
 /* ═══ اسپلش ═══ */
 .splash{position:fixed; inset:0; z-index:100; background:var(--ground); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; transition:opacity .4s, visibility .4s}

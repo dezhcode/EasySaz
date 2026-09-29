@@ -78,6 +78,7 @@ def build(out: Path) -> None:
                  "render.js", "demo.js", "panel.js", "page.js"):
         shutil.copy2(STATIC / name, dst / name)
     shutil.copytree(STATIC / "fonts", dst / "fonts", dirs_exist_ok=True)
+    shutil.copytree(STATIC / "brand", dst / "brand", dirs_exist_ok=True)
 
 
 if __name__ == "__main__":

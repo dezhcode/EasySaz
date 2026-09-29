@@ -159,6 +159,7 @@
 .pg-brand{display:flex; width:max-content; margin:26px auto 0; align-items:center; gap:7px; height:28px; padding:0 12px; border-radius:14px;
   font-size:11.5px; font-weight:600; color:var(--pg-ink-2); background:var(--pg-surface); border:1px solid var(--pg-line); text-decoration:none; cursor:pointer}
 .pg-brand .pg-ico{width:14px; height:14px; color:var(--pg-accent)}
+.pg-brand-mark{width:18px; height:14px; fill:var(--pg-accent); flex:none}
 
 /* ---------- Pricing = بلیت عبور ----------
    هر پلن یک بلیت: بالای خط برش اسم، قیمت و ویژگی‌ها؛ پایینش خرید.

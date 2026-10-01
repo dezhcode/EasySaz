@@ -246,6 +246,28 @@ async def taxonomy(db, app_id: int, public: bool = True) -> tuple[list[dict], li
     return cats, authors
 
 
+def demo_home(img: str = "") -> dict:
+    """دادهٔ نمایشی برای پیش‌نمایش قالب «مجله» پیش از نصب (گالری قالب‌ها در سایت)."""
+    t = now()
+    cats = [{"id": "dc1", "name": "آموزش", "color": "#1D55F0", "icon": "cap", "count": 12},
+            {"id": "dc2", "name": "فناوری", "color": "#0E8FAE", "icon": "spark", "count": 9},
+            {"id": "dc3", "name": "سفر", "color": "#12A071", "icon": "globe", "count": 6},
+            {"id": "dc4", "name": "گفت‌وگو", "color": "#E0457B", "icon": "chat", "count": 4}]
+    authors = [{"id": "da1", "name": "سارا محمدی", "bio": "عکاس و مدرس", "avatar": "", "count": 18, "tg": False},
+               {"id": "da2", "name": "امید رضایی", "bio": "نویسندهٔ فناوری", "avatar": "", "count": 11, "tg": False},
+               {"id": "da3", "name": "نگار احمدی", "bio": "سفرنامه‌نویس", "avatar": "", "count": 7, "tg": False}]
+    rows = [("۵ ترفند ساده برای عکاسی با موبایل در شب", "dc1", "da1", "dream.jpg", 6, 8200),
+            ("هوش مصنوعی در گوشی شما؛ چه چیزی واقعاً عوض شد؟", "dc2", "da2", "", 4, 5100),
+            ("سفر ارزان به شمال: راهنمای کامل سه‌روزه", "dc3", "da3", "ghosts.jpg", 8, 3900),
+            ("گفت‌وگو با سازندهٔ یک بازی ایرانی", "dc4", "da1", "", 5, 2600),
+            ("۱۰ میان‌بر صفحه‌کلید که وقتت را نجات می‌دهد", "dc1", "da2", "", 3, 12000)]
+    latest = [{"id": f"pdemo{k:04d}", "title": title, "lead": "", "cover": (img + cover) if img and cover else "",
+               "cat": cat, "tags": [], "author": au, "at": t - k * 86400, "mins": mins, "views": views,
+               "audio": k == 0, "video": k == 2} for k, (title, cat, au, cover, mins, views) in enumerate(rows)]
+    popular = sorted(latest, key=lambda p: -p["views"])
+    return {"cats": cats, "authors": authors, "latest": latest, "popular": popular}
+
+
 async def home(db, app_id: int) -> dict:  # noqa: ANN001
     """دادهٔ خانهٔ مجله برای خواننده: دسته‌ها، نویسنده‌ها، تازه‌ها، پرخواننده‌ها."""
     t = now()

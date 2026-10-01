@@ -35,7 +35,10 @@ THEME_FIELDS: dict[str, dict[str, Any]] = {
     "mode": {"type": "select", "options": ["auto", "light", "dark"], "default": "light"},
     "radius": {"type": "select", "options": ["soft", "round", "sharp", "custom"], "default": "soft"},
     "radius_px": {"type": "int", "min": 0, "max": 32, "default": 18},
-    "bg": {"type": "select", "options": ["tint", "plain"], "default": "tint"},
+    # پس‌زمینه: ته‌رنگ اصلی، ساده، گرادیان، الگوی نقطه یا تصویر
+    "bg": {"type": "select", "options": ["tint", "plain", "gradient", "pattern", "image"], "default": "tint"},
+    "bg_color": {"type": "color", "default": ""},   # خالی = رنگ زمینهٔ قالب
+    "bg_image": {"type": "image", "default": ""},
 }
 
 # رنگ‌های آماده (توکن‌های accent-* سیستم طراحی «کاشی»)
@@ -776,6 +779,8 @@ STYLE_SUPPORT: dict[str, list[str]] = {
     "apps": ["box", "accent"],
     "stats": ["box", "radius", "accent"],
     "story": [], "shab_continue": [], "shab_shelf": [], "shab_latest": [], "shab_marks": [], "shab_quote": [],
+    "mag_cats": ["accent"], "mag_featured": ["radius", "accent"], "mag_latest": ["radius", "accent"], "mag_popular": ["radius", "accent"],
+    "mag_authors": ["radius", "accent"], "mag_catgrid": ["radius"], "mag_saved": ["radius", "accent"],
 }
 
 # ---------- سبک‌های آماده ----------
@@ -913,7 +918,10 @@ VARIANTS: dict[str, list[dict]] = {
 HEADER_FIELDS: list[dict[str, Any]] = [
     {"key": "enabled", "label": "نمایش سربرگ", "type": "bool", "default": False},
     {"key": "style", "label": "سبک", "type": "select", "default": "bar",
-     "options": [["bar", "نوار"], ["solid", "توپر"], ["plain", "ساده"]]},
+     "options": [["bar", "نوار"], ["solid", "توپر"], ["plain", "ساده"], ["search", "با جستجو"], ["cover", "با کاور"]]},
+    {"key": "cover", "label": "تصویر کاور", "type": "image", "default": ""},
+    {"key": "search", "label": "دکمهٔ جستجو", "type": "bool", "default": True},
+    {"key": "sticky", "label": "چسبیده هنگام پیمایش", "type": "bool", "default": True},
     {"key": "title", "label": "عنوان", "type": "text", "max": 40, "default": ""},
     {"key": "subtitle", "label": "زیرعنوان", "type": "text", "max": 60, "default": ""},
     {"key": "logo", "label": "لوگو", "type": "image", "default": ""},
@@ -924,6 +932,7 @@ TABBAR_FIELDS: list[dict[str, Any]] = [
     {"key": "enabled", "label": "نمایش نوار پایین", "type": "bool", "default": True},
     {"key": "style", "label": "سبک", "type": "select", "default": "floating",
      "options": [["floating", "شناور"], ["docked", "چسبیده"], ["minimal", "فقط آیکن"]]},
+    {"key": "labels", "label": "نام زیر آیکن", "type": "bool", "default": True},
 ]
 PAGE_ICONS = [
     ["home", "خانه"], ["menu", "منو"], ["shop", "فروشگاه"], ["star", "ویژه"],
@@ -987,6 +996,8 @@ def clean_theme(theme: Any) -> dict:
             out[key] = val if isinstance(val, str) and _HEX.match(val) else spec["default"]
         elif spec["type"] == "int":
             out[key] = _clean_field(spec, val)
+        elif spec["type"] == "image":
+            out[key] = clean_url(val, images=True)
         else:
             out[key] = val if val in spec["options"] else spec["default"]
     return out
@@ -1037,6 +1048,8 @@ def _clean_blocks(raw_blocks: Any, premium: bool, seen: set[str], kit: str = "ba
         style = clean_style(btype, raw.get("style"))
         if style:
             block["style"] = style
+        if raw.get("hidden") is True:  # پنهان: فقط در استودیو دیده می‌شود
+            block["hidden"] = True
         blocks.append(block)
     return blocks
 
@@ -1106,6 +1119,7 @@ def reader_view(doc: dict) -> dict:
     """نسخهٔ خواننده: قسمت‌های پیش‌نویس از داستان‌ها برداشته می‌شوند (سمت سرور،
     تا متن منتشرنشده به گوشی خواننده نرسد)."""
     for pg in doc.get("pages", []):
+        pg["blocks"] = [b for b in pg.get("blocks", []) if not (isinstance(b, dict) and b.get("hidden"))]
         for b in pg.get("blocks", []):
             if b.get("type") == "story" and isinstance(b.get("props"), dict):
                 b["props"]["chapters"] = [c for c in b["props"].get("chapters") or [] if not (isinstance(c, dict) and c.get("draft"))]

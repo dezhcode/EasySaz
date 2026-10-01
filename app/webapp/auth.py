@@ -37,6 +37,7 @@ class WebAppUser:
     language_code: str
     is_premium: bool
     start_param: str
+    photo_url: str = ""
 
 
 def _parse_qsl(init_data: str) -> dict:
@@ -116,4 +117,11 @@ def verify(init_data: str, token: str | None = None) -> WebAppUser:
         language_code=(raw_user.get("language_code") or "")[:8],
         is_premium=bool(raw_user.get("is_premium")),
         start_param=(matched.get("start_param") or "")[:64],
+        # عکس پروفایل (نسخه‌های تازهٔ تلگرام)؛ فقط از دامنهٔ خود تلگرام
+        photo_url=_photo(raw_user.get("photo_url")),
     )
+
+
+def _photo(value: object) -> str:
+    url = value if isinstance(value, str) else ""
+    return url[:300] if url.startswith("https://t.me/") and '"' not in url and "'" not in url else ""

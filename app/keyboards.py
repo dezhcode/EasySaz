@@ -23,6 +23,12 @@ def home() -> InlineKeyboardMarkup:
     )
 
 
+def web_login(code: str) -> InlineKeyboardMarkup:
+    """لینک QR سایت که با دوربین معمولی باز شده: پنل با صفحهٔ تأیید همان کد."""
+    return _kb([B(text="🔐 بررسی و تأیید", web_app=WebAppInfo(url=f"{config.panel_url}#weblogin={code}"))],
+               [B(text="‹ بازگشت", callback_data="home")])
+
+
 def back_home() -> InlineKeyboardMarkup:
     return _kb([B(text="‹ بازگشت", callback_data="home")])
 

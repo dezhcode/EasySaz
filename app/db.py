@@ -149,6 +149,9 @@ class Database:
         from . import kits
 
         await self.conn.executescript(kits.SCHEMA)
+        from .site import logins
+
+        await self.conn.executescript(logins.SCHEMA)
         for sql in MIGRATIONS:
             try:
                 await self.conn.execute(sql)

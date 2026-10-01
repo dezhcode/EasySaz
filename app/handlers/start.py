@@ -33,6 +33,13 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext,
     if arg == "help":
         await message.answer(texts.HELP, reply_markup=kb.back_home())
         return
+    if arg.startswith("wl_"):
+        # QR صفحهٔ ورود سایت که با دوربین معمولی اسکن شده
+        from ..site.logins import CODE_RE
+
+        if CODE_RE.match(arg[3:]):
+            await message.answer(texts.WEB_LOGIN, reply_markup=kb.web_login(arg[3:]))
+            return
     if arg == "myapp":
         from .myapp import show_apps
 

@@ -16,6 +16,7 @@
   GET  /u/<name>                 تصویرهای آپلودشده
   GET  /api/page/<slug>          سند منتشر شده (عمومی)
   POST /api/page/<slug>/view     ثبت بازدید                  (initData ربات مشتری)
+  *    /api/weblogin/*           ورود به سایت با QR و دستگاه‌ها  (initData ربات اصلی؛ app/site/miniapp.py)
 """
 from __future__ import annotations
 
@@ -78,7 +79,7 @@ def _send(start_response, status: str, body: bytes, ctype: str, extra: list | No
 
 def _json(start_response, status: int, body: dict):  # noqa: ANN001, ANN202
     reason = {200: "OK", 400: "Bad Request", 401: "Unauthorized", 402: "Payment Required",
-              403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed",
+              403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed", 409: "Conflict", 410: "Gone",
               413: "Payload Too Large", 429: "Too Many Requests", 500: "Internal Server Error"}
     return _send(
         start_response,
@@ -243,6 +244,14 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
                     raise ApiError(405, "روش نامعتبر")
             else:
                 raise ApiError(404, "پیدا نشد")
+        elif path.startswith("/api/weblogin/"):
+            # ورود به سایت با QR: اسکن، تأیید و دستگاه‌ها (app/site)
+            from app.site import miniapp
+
+            action = path[len("/api/weblogin/"):].strip("/")
+            if miniapp.ACTIONS.get(action) != method:
+                raise ApiError(404, "پیدا نشد")
+            coro = miniapp.handle(api, action, init_data, _body(environ, limit=8192) if method == "POST" else {})
         elif path.startswith("/api/kit/shab/"):
             # صاحب مینی‌اپ: کانال، آمار خواندن، اعلام فصل تازه
             action = path[len("/api/kit/shab/"):].strip("/")

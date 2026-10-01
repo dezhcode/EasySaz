@@ -8,6 +8,7 @@
   POST  <WEBHOOK_PATH>          وبهوک ربات اصلی @EasySazBot
   POST  /hook/<bot_id>          وبهوک ربات های مشتری (حالت کنترل کامل)
   GET   /panel, /a/<slug>, /static/*, /api/*   مینی اپ ها (app/webapp/wsgi.py)
+  GET   /, /login, /account, /site/*         وب‌سایت (app/site/wsgi.py)
   GET   /health                 سلامت و گرم نگه داشتن
   GET   /status?key=ADMIN_KEY       وضعیت کامل
   GET   /setwebhook?key=ADMIN_KEY   ثبت وبهوک + دستورها + دکمه منوی ربات اصلی
@@ -128,6 +129,17 @@ def application(environ, start_response):  # noqa: ANN001, ANN201, C901
         sys.stderr.write(traceback.format_exc())
         return _respond(start_response, "500 Internal Server Error", "webapp error")
 
+    # ---------- وب‌سایت (لندینگ، ورود با QR، حساب) ----------
+    try:
+        from app.site.wsgi import handle as site_handle, is_site_path
+
+        if is_site_path(path):
+            environ["_es_path"] = path
+            return site_handle(environ, start_response, runtime)
+    except Exception:  # noqa: BLE001
+        sys.stderr.write(traceback.format_exc())
+        return _respond(start_response, "500 Internal Server Error", "site error")
+
     # ---------- وبهوک ربات اصلی ----------
     if method == "POST" and path == config.webhook_path:
         secret = environ.get("HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN", "")
@@ -159,7 +171,7 @@ def application(environ, start_response):  # noqa: ANN001, ANN201, C901
         return _respond(start_response, "200 OK", "ok")
 
     # ---------- سلامت ----------
-    if path in ("/health", "/") and method == "GET":
+    if path == "/health" and method == "GET":
         warm = "cold"
         try:
             runtime.ensure_started()

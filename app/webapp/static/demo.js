@@ -130,6 +130,23 @@
     }
     // قسمت (app/kits/shab/api.py): در نسخهٔ نمایشی خواننده‌ای نیست
     if (path.indexOf('kit/shab/stats') === 0) return Promise.resolve({ readers: 0, followers: 0, stories: {}, chapters: {} });
+    // ورود به سایت (app/site/miniapp.py): در نسخهٔ نمایشی یک مرورگر ساختگی
+    if (path.indexOf('weblogin/') === 0) {
+      const webs = d.webs || (d.webs = [{ id: 1, device: { browser: 'Safari', os: 'macOS', mobile: false, label: 'Safari روی macOS' }, place: 'ایران', ip: '', created_at: now() - 86400, last_seen: now() - 80000, current: false }]);
+      const dev = { browser: 'Chrome', os: 'Windows', mobile: false, label: 'Chrome روی Windows' };
+      if (path === 'weblogin/inspect') return Promise.resolve({ device: dev, ip: '5.120.34.18', place: 'ایران', at: now() - 8 });
+      if (path === 'weblogin/deny') return Promise.resolve({ ok: true, status: 'denied' });
+      if (path === 'weblogin/approve') {
+        webs.unshift({ id: now(), device: dev, place: 'ایران', ip: '', created_at: now(), last_seen: now(), current: false }); save(d);
+        return Promise.resolve({ ok: true, status: 'approved' });
+      }
+      if (path === 'weblogin/sessions') return Promise.resolve({ sessions: webs });
+      if (path === 'weblogin/revoke') {
+        d.webs = body && body.all ? [] : webs.filter(w => String(w.id) !== String(body && body.id)); save(d);
+        return Promise.resolve({ revoked: 1, sessions: d.webs });
+      }
+      return fail(404, 'پیدا نشد');
+    }
     const a = find(body && body.id);
     if (!a) return fail(404, 'مینی‌اپ پیدا نشد');
     if (path === 'kit/shab/channel') return fail(400, 'در نسخهٔ نمایشی کانال وصل نمی‌شود؛ در ربات واقعی ربات را ادمین کانال کن و آیدی‌اش را بنویس.');

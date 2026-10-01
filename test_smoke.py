@@ -89,6 +89,18 @@ class FakeSession(BaseSession):
             uid = params["user_id"]
             status = "administrator" if uid == bot.id else ("member" if uid in FakeSession.members else "left")
             return SimpleNamespace(status=status)
+        if name == "CopyMessage":
+            from aiogram.types import MessageId
+
+            return MessageId(message_id=9000 + len(FakeSession.calls))
+        if name == "GetStickerSet":
+            from aiogram.types import Sticker, StickerSet
+
+            stk = [Sticker(file_id=f"f{i}", file_unique_id=f"u{i}", type="custom_emoji", width=100, height=100,
+                           is_animated=False, is_video=False, emoji="🔥", custom_emoji_id=f"5{i:018d}") for i in range(3)]
+            return StickerSet(name=params["name"], title="Pack", sticker_type="custom_emoji", stickers=stk)
+        if name == "GetManagedBotToken":
+            return "3000003:" + "C" * 35
         if name in ("SendMessage", "EditMessageText"):
             return Message.model_validate(
                 {"message_id": len(FakeSession.calls), "date": int(time.time()),
@@ -859,11 +871,242 @@ def test_mag() -> None:
     ok(st == 200, "بعد از قالب قسمت، مینی‌اپ دوباره طراحی را ذخیره می‌کند")
 
 
+# ---------------------------------------------------------------- ربات‌ساز
+def init_data_p(user_id: int, premium: bool) -> str:
+    fields = {
+        "auth_date": str(int(time.time())),
+        "query_id": "AAE",
+        "user": json.dumps({"id": user_id, "first_name": "Ali", "is_premium": premium}, separators=(",", ":")),
+    }
+    check = "\n".join(f"{k}={fields[k]}" for k in sorted(fields))
+    secret = hmac.new(b"WebAppData", MAIN_TOKEN.encode(), hashlib.sha256).digest()
+    fields["hash"] = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
+    return urlencode(fields, quote_via=quote)
+
+
+def chook(upd: dict, bot_id: int = 2000002) -> int:
+    return call("POST", f"/hook/{bot_id}", upd, {"X-Telegram-Bot-Api-Secret-Token": secure.client_hook_secret(bot_id)})["status"]
+
+
+def cmsg(uid: int, **fields) -> dict:
+    _UPD[0] += 1
+    msg = {"message_id": _UPD[0], "date": int(time.time()), "chat": {"id": uid, "type": "private"},
+           "from": {"id": uid, "is_bot": False, "first_name": "Sara", "username": "sara"}}
+    msg.update(fields)
+    if str(fields.get("text", "")).startswith("/"):
+        msg["entities"] = [{"type": "bot_command", "offset": 0, "length": len(fields["text"].split()[0])}]
+    return {"update_id": _UPD[0], "message": msg}
+
+
+def ccb(uid: int, data: str, text: str = "…") -> dict:
+    _UPD[0] += 1
+    return {"update_id": _UPD[0], "callback_query": {
+        "id": str(_UPD[0]), "from": {"id": uid, "is_bot": False, "first_name": "Sara"}, "chat_instance": "x", "data": data,
+        "message": {"message_id": 77, "date": int(time.time()), "chat": {"id": uid, "type": "private"}, "text": text}}}
+
+
+BOT_DOC = {
+    "start": "m_welcome",
+    "fallback": "m_dunno",
+    "vars": [
+        {"name": "امتیاز", "type": "number", "scope": "user", "init": "0"},
+        {"name": "قیمت", "type": "number", "scope": "bot", "init": "480000"},
+        {"name": "تعداد", "type": "number", "scope": "user", "init": "2"},
+        {"name": "جمع", "type": "number", "formula": "{قیمت} × {تعداد} − ۱۰٪"},
+        {"name": "شماره", "type": "text"},
+    ],
+    "msgs": [
+        {"id": "m_welcome", "name": "خوش‌آمد",
+         "text": '<div>سلام {نام} <tg-emoji emoji-id="5368324170671202286">📷</tg-emoji></div><div>جمع: <b>{جمع}</b></div><script>x</script>',
+         "kb": "inline", "opts": {"effect": "🎉"},
+         "rows": [[{"id": "b_more", "text": "📚 دوره‌ها", "style": "primary", "icon": "5368324170671202286",
+                    "act": {"type": "goto", "to": "m_more", "set": {"var": "امتیاز", "op": "+", "value": "10"}}},
+                   {"id": "b_copy", "text": "📋 کپی", "style": "success", "act": {"type": "copy", "text": "CODE-{شناسه}"}}],
+                  [{"id": "b_url", "text": "سایت", "act": {"type": "url", "url": "https://example.org"}},
+                   {"id": "b_js", "text": "بد", "style": "purple", "act": {"type": "url", "url": "javascript:alert(1)"}}],
+                  [{"id": "b_app", "text": "مینی‌اپ", "act": {"type": "app"}},
+                   {"id": "b_share", "text": "معرفی", "act": {"type": "share", "text": "این ربات رو ببین"}}],
+                  [{"id": "b_alert", "text": "؟", "act": {"type": "alert", "text": "امتیاز تو: {امتیاز}", "popup": True}},
+                   {"id": "b_pay", "text": "⭐ خرید", "act": {"type": "pay", "stars": 50, "title": "دوره", "to": "m_more"}},
+                   {"id": "b_sup", "text": "پشتیبانی", "style": "danger", "act": {"type": "goto", "to": "m_sup"}}]]},
+        {"id": "m_more", "name": "دوره‌ها", "text": "امتیاز تو: {امتیاز}", "kb": "inline", "then": "m_menu",
+         "rows": [[{"id": "b_back", "text": "↩️", "act": {"type": "goto", "to": "m_welcome"}}]]},
+        {"id": "m_menu", "name": "منوی پایین", "text": "از منو انتخاب کن", "kb": "reply",
+         "kbopt": {"resize": True, "placeholder": "یکی را بزن"},
+         "keys": [[{"id": "k_phone", "text": "📱 شماره", "style": "success", "act": {"type": "contact", "var": "شماره", "to": "m_thanks"}}],
+                  [{"id": "k_more", "text": "📚 دوره‌ها", "act": {"type": "text", "to": "m_more"}},
+                   {"id": "k_loc", "text": "📍", "act": {"type": "location", "to": "m_thanks"}}]]},
+        {"id": "m_thanks", "name": "ممنون", "text": "شماره‌ات {شماره} ثبت شد", "opts": {"remove_kb": True}},
+        {"id": "m_help", "name": "راهنما", "text": "راهنما", "cmd": "/help", "kw": ["کمک"]},
+        {"id": "m_sup", "name": "پشتیبانی", "text": "پیامت را بنویس", "wait": {"kind": "support", "to": "m_got"}},
+        {"id": "m_got", "name": "رسید", "text": "رسید ✅"},
+        {"id": "m_dunno", "name": "نفهمیدم", "text": "نفهمیدم 🙂", "then": "m_ghost"},
+        {"id": "BAD ID", "name": "x", "text": "x"},
+    ],
+}
+
+
+def test_botkit() -> None:  # noqa: C901
+    print("ربات‌ساز")
+    import sqlite3
+
+    from app.botkit import engine, schema
+
+    ok(schema.clean_html('<b>a<i>b</b>c</i><script>x</script><a href="javascript:x">y</a>') == "<b>a<i>b</i></b>cy",
+       "متن: فقط HTML مجاز تلگرام، برچسب‌ها درست بسته می‌شوند، اسکریپت و لینک خطرناک حذف")
+    g = {"قیمت": 480000, "تعداد": 2}.get
+    ok(schema.evaluate("{قیمت} × {تعداد} − ۱۰٪", g) == 864000 and schema.evaluate("گرد(۲.۶) + کمینه(۳، ۷)", g) == 6,
+       "فرمول امن: ضرب، درصد مثل ماشین‌حساب، تابع‌ها، ارقام فارسی")
+    try:
+        schema.evaluate("__import__('os')", g)
+        ok(False, "فرمول مخرب")
+    except schema.FormulaError:
+        ok(True, "فرمول مخرب پذیرفته نمی‌شود")
+    ok(schema.fa_number(864000) == "۸۶۴٬۰۰۰" and engine.jalali(2026, 10, 1) == (1405, 7, 9), "عدد فارسی با جداکننده و تاریخ شمسی")
+
+    con = sqlite3.connect(os.environ["DB_PATH"])
+    app_id, slug = con.execute("SELECT id, slug FROM apps WHERE owner_id = 7 ORDER BY id").fetchone()
+    st, res = jcall("GET", f"/api/bot?id={app_id}")
+    ok(st == 200 and res["fresh"] and res["doc"]["start"] == "m_welcome" and not res["bot"]["connected"],
+       "ربات تازه: سند آغازین با پیام خوش‌آمد")
+    st, res = jcall("GET", f"/api/bot?id={app_id}", uid=8)
+    ok(st == 404, "ربات‌ساز مینی‌اپ دیگران در دسترس نیست")
+
+    st, res = jcall("POST", "/api/bot/save", {"id": app_id, "doc": BOT_DOC})
+    doc = res["doc"]
+    ids = [m["id"] for m in doc["msgs"]]
+    w = doc["msgs"][0]
+    ok(st == 200 and "BAD ID" not in ids and doc["msgs"][-1]["then"] == "" and "<script>" not in w["text"]
+       and w["rows"][1][1]["style"] == "" and w["rows"][1][1]["act"]["url"] == "", "ذخیره: شناسهٔ بد، ارجاع ناموجود، رنگ و لینک نامعتبر پاک می‌شوند")
+    ok(next(v for v in doc["vars"] if v["name"] == "جمع")["formula"] and w["rows"][0][0]["act"]["set"]["op"] == "+",
+       "متغیر فرمولی و تغییر متغیر با دکمه ذخیره می‌شوند")
+
+    st, res = jcall("POST", "/api/bot/test", {"id": app_id})
+    ok(st == 400 and "وصل" in res["error"], "تست بدون ربات وصل‌شده ممکن نیست")
+    # وصل کردن دوبارهٔ ربات (در حالت منو)
+    hook(update("", callback="connect"))
+    hook(update(CLIENT_TOKEN))
+    hook(update("", callback=f"mode:{app_id}:menu"))
+    st, res = jcall("POST", "/api/bot/test", {"id": app_id})
+    ok(st == 409 and res["error"] == "need_full", "تست در حالت منو: اول اجازهٔ اجرای ربات روی ایزی‌ساز")
+    st, res = jcall("POST", "/api/bot/takeover", {"id": app_id})
+    ok(st == 200 and res["bot"]["mode"] == "full" and FakeSession.webhooks.get("2000002", "").endswith("/hook/2000002"), "اجرای ربات روی ایزی‌ساز")
+    wh = calls("SetWebhook", 2000002)[-1]
+    ok("pre_checkout_query" in wh["allowed_updates"], "وبهوک پرداخت ستاره را هم می‌گیرد")
+
+    n0 = len(FakeSession.calls)
+    st, res = jcall("POST", "/api/bot/test", {"id": app_id, "doc": BOT_DOC})
+    sent = [p for b, m, p in FakeSession.calls[n0:] if b == "2000002" and m == "SendMessage"]
+    ok(st == 200 and res["link"] == "https://t.me/cafe_bot" and len(sent) == 2 and "حالت تست" in sent[0]["text"],
+       "تست: پیام حالت تست و پیام شروع در چت واقعی صاحب ربات")
+    wl = sent[1]
+    kb = wl["reply_markup"]["inline_keyboard"]
+    ok("سلام Ali" in wl["text"] and "۸۶۴٬۰۰۰" in wl["text"] and "tg-emoji" not in wl["text"] and "📷" in wl["text"],
+       "متغیرها و فرمول جایگذاری؛ بدون پریمیوم ایموجی سفارشی معمولی می‌شود")
+    ok(kb[0][0]["style"] == "primary" and "icon_custom_emoji_id" not in kb[0][0] and kb[0][0]["callback_data"] == "bk|g|m_welcome|b_more"
+       and kb[0][1]["copy_text"]["text"] == "CODE-7" and kb[2][0]["web_app"]["url"].endswith(f"/a/{slug}")
+       and kb[2][1]["url"].startswith("https://t.me/share/url?url=https%3A%2F%2Ft.me%2Fcafe_bot") and wl.get("message_effect_id") == schema.EFFECTS["🎉"],
+       "دکمه‌ها: رنگ، کپی با متغیر، مینی‌اپ، اشتراک، افکت پیام")
+
+    # دکمهٔ شیشه‌ای: جای پیام قبلی + تغییر متغیر + پیام بعدی با کیبورد
+    n0 = len(FakeSession.calls)
+    chook(ccb(7, "bk|g|m_welcome|b_more"))
+    new = FakeSession.calls[n0:]
+    ed = [p for b, m, p in new if m == "EditMessageText"]
+    rk = [p for b, m, p in new if m == "SendMessage"]
+    ok(ed and ed[0]["message_id"] == 77 and "۱۰" in ed[0]["text"], "دکمه پیام بعدی را جای همان پیام می‌نشاند و متغیر را تغییر می‌دهد")
+    ok(rk and rk[0]["reply_markup"]["keyboard"][0][0]["request_contact"] and rk[0]["reply_markup"]["input_field_placeholder"] == "یکی را بزن",
+       "پیام بعدی همان مرحله با کیبورد (درخواست شماره)")
+    chook(ccb(7, "bk|a|m_welcome|b_alert"))
+    ans = calls("AnswerCallbackQuery", 2000002)[-1]
+    ok(ans.get("show_alert") and "۱۰" in ans["text"], "پیام کوتاه بالای چت با متغیر")
+    chook(ccb(7, "bk|p|m_welcome|b_pay"))
+    inv = calls("SendInvoice", 2000002)[-1]
+    ok(inv["currency"] == "XTR" and inv["prices"][0]["amount"] == 50, "پرداخت ستاره: صورت‌حساب XTR")
+
+    # کاربر عادی تا انتشار نسخهٔ ساده را می‌بیند
+    n0 = len(FakeSession.calls)
+    chook(cmsg(55, text="/start"))
+    s55 = [p for b, m, p in FakeSession.calls[n0:] if m == "SendMessage"]
+    ok(s55 and s55[-1]["reply_markup"]["inline_keyboard"][0][0].get("web_app"), "پیش‌نویس به کاربرها نمی‌رسد")
+
+    con.execute("UPDATE users SET is_premium = 1 WHERE tg_id = 7")
+    con.commit()
+    r = call("POST", "/api/bot/publish", {"id": app_id, "doc": BOT_DOC}, {"X-Init-Data": init_data_p(7, True)})
+    ok(r["status"] == 200 and json.loads(r["body"])["bot"]["live"], "انتشار")
+    n0 = len(FakeSession.calls)
+    chook(cmsg(55, text="/start"))
+    s55 = [p for b, m, p in FakeSession.calls[n0:] if m == "SendMessage"]
+    ok(s55 and "tg-emoji emoji-id" in s55[-1]["text"] and s55[-1]["reply_markup"]["inline_keyboard"][0][0]["icon_custom_emoji_id"],
+       "سازندهٔ پریمیوم: ایموجی سفارشی در متن و آیکن دکمه")
+    chook(cmsg(55, text="/help"))
+    ok(calls("SendMessage", 2000002)[-1]["text"] == "راهنما", "دستور /help")
+    chook(cmsg(55, text="یه کمک می‌خوام"))
+    ok(calls("SendMessage", 2000002)[-1]["text"] == "راهنما", "کلمهٔ کلیدی")
+    chook(cmsg(55, text="📚 دوره‌ها"))
+    ok("امتیاز تو" in calls("SendMessage", 2000002)[-2]["text"], "دکمهٔ کیبورد پیامش را می‌فرستد")
+    chook(cmsg(55, contact={"phone_number": "+989121234567", "first_name": "Sara", "user_id": 55}))
+    last = calls("SendMessage", 2000002)[-1]
+    ok("+989121234567" in last["text"] and last["reply_markup"].get("remove_keyboard"), "شماره در متغیر ذخیره و کیبورد برداشته می‌شود")
+    chook(cmsg(55, text="چیز عجیب"))
+    ok(calls("SendMessage", 2000002)[-1]["text"] == "نفهمیدم 🙂", "پیام «هر چیز دیگر»")
+
+    # پشتیبانی: پیام کاربر به صاحب، جواب صاحب به کاربر
+    chook(ccb(55, "bk|g|m_welcome|b_sup"))
+    n0 = len(FakeSession.calls)
+    chook(cmsg(55, text="کلاس کی شروع میشه؟"))
+    cp = [p for b, m, p in FakeSession.calls[n0:] if m == "CopyMessage"]
+    ok(cp and cp[0]["chat_id"] == 7 and calls("SendMessage", 2000002)[-1]["text"] == "رسید ✅", "پشتیبانی: پیام کاربر برای صاحب ربات کپی می‌شود")
+    admin_msg = con.execute("SELECT admin_msg FROM bk_support WHERE app_id = ?", (app_id,)).fetchone()[0]
+    chook(cmsg(7, text="شنبه ساعت ۱۰", reply_to_message={"message_id": admin_msg, "date": int(time.time()), "chat": {"id": 7, "type": "private"}, "text": "x"}))
+    ok(calls("CopyMessage", 2000002)[-1]["chat_id"] == 55, "جواب صاحب ربات به همان کاربر می‌رسد")
+
+    chook(cmsg(7, text="/exit"))
+    ok("بیرون آمدی" in calls("SendMessage", 2000002)[-2]["text"], "خروج از حالت تست")
+
+    # ایموجی پریمیوم از ربات اصلی
+    hook(update(f"/start emoji_{app_id}"))
+    ok("ایموجی‌هایت" in calls("SendMessage", 1000001)[-1]["text"], "ربات اصلی ایموجی پریمیوم می‌خواهد")
+    up = update("🔥 t.me/addemoji/SaraIcons")
+    up["message"]["entities"] = [{"type": "custom_emoji", "offset": 0, "length": 2, "custom_emoji_id": "5111111111111111111"}]
+    hook(up)
+    ok("ذخیره شد" in calls("SendMessage", 1000001)[-1]["text"], "ایموجی و بسته ذخیره می‌شوند")
+    hook(update("/start"))
+    ok("EasySaz" in calls("SendMessage", 1000001)[-1]["text"], "وسط افزودن ایموجی، /start کار خودش را می‌کند")
+    hook(update(f"/start emoji_{app_id}"))
+    hook(update("", callback="bkemoji:done"))
+    ok(calls("SendMessage", 1000001)[-1]["reply_markup"]["inline_keyboard"][0][0]["web_app"]["url"].endswith(f"#bot={app_id}&tab=emoji"),
+       "برگشت به ربات‌ساز از چت ایزی‌ساز")
+    st, res = jcall("GET", f"/api/bot?id={app_id}")
+    ok(len(res["emoji"]) == 4 and res["emoji"][0]["id"] == "5111111111111111111", "کتابخانهٔ ایموجی در ربات‌ساز")
+    st, res = jcall("POST", "/api/bot/emoji_del", {"id": app_id, "emoji": "5111111111111111111"})
+    st, res = jcall("POST", "/api/bot/emoji_pack", {"id": app_id, "link": "https://t.me/addemoji/Other"})
+    ok(st == 200 and len(res["emoji"]) == 3 and res["added"] == 0, "حذف ایموجی و بستهٔ تکراری")
+
+    st, res = jcall("POST", "/api/bot/off", {"id": app_id})
+    n0 = len(FakeSession.calls)
+    chook(cmsg(56, text="/start"))
+    s56 = [p for b, m, p in FakeSession.calls[n0:] if m == "SendMessage"]
+    ok(st == 200 and s56 and s56[-1]["reply_markup"]["inline_keyboard"][0][0].get("web_app"), "خاموش کردن ربات‌ساز: خوش‌آمد ساده")
+
+    # ساخت ربات با یک دکمه
+    hook(update(f"/start newbot_{app_id}"))
+    btn = calls("SendMessage", 1000001)[-1]["reply_markup"]["keyboard"][0][0]
+    ok(btn["request_managed_bot"]["request_id"] == 1, "دکمهٔ ساخت ربات مدیریت‌شده")
+    up = update("")
+    up["message"].pop("text")
+    up["message"]["managed_bot_created"] = {"bot": {"id": 3000003, "is_bot": True, "first_name": "New", "username": "new_bot"}}
+    hook(up)
+    row = con.execute("SELECT bot_id, bot_username, mode FROM apps WHERE id = ?", (app_id,)).fetchone()
+    ok(row == (3000003, "new_bot", "full") and calls("GetManagedBotToken", 1000001), "ربات تازه ساخته، توکنش گرفته و در حالت کامل وصل شد")
+
+
 if __name__ == "__main__":
     test_blocks()
     test_auth()
     test_web()
     test_bot()
+    test_botkit()
     test_site()
     test_mag()
     print(f"\nهمه {PASSED} تست گذشت ✅")

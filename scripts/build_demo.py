@@ -74,8 +74,8 @@ def build(out: Path) -> None:
 
     dst = out / "static"
     dst.mkdir(exist_ok=True)
-    for name in ("peyda.css", "tokens.css", "render.css", "panel.css", "page.css",
-                 "render.js", "demo.js", "panel.js", "page.js"):
+    for name in ("peyda.css", "tokens.css", "render.css", "panel.css", "bot.css", "page.css",
+                 "render.js", "demo.js", "panel.js", "bot.js", "page.js"):
         shutil.copy2(STATIC / name, dst / name)
     shutil.copytree(STATIC / "fonts", dst / "fonts", dirs_exist_ok=True)
     shutil.copytree(STATIC / "brand", dst / "brand", dirs_exist_ok=True)

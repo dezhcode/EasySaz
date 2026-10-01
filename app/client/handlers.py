@@ -11,9 +11,18 @@ import time
 from typing import Any, Awaitable, Callable
 
 from aiogram import BaseMiddleware, Bot, F, Router
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, TelegramObject, WebAppInfo
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    PreCheckoutQuery,
+    TelegramObject,
+    WebAppInfo,
+)
 
 from .. import texts
+from ..botkit import engine
 from ..clients import menu_text
 from ..config import config
 from ..db import Database
@@ -97,13 +106,38 @@ async def open_post(message: Message, app, db: Database, m) -> None:  # noqa: AN
     await message.answer(f"<b>{html.escape(title)}</b>", reply_markup=kb)
 
 
+@router.message(F.successful_payment)
+async def paid(message: Message, app, db: Database, bot: Bot) -> None:  # noqa: ANN001
+    """پرداخت ستاره از دکمهٔ ربات‌ساز."""
+    await engine.on_paid(bot, db, app, message)
+
+
+@router.pre_checkout_query()
+async def pre_checkout(query: PreCheckoutQuery, app, db: Database, bot: Bot) -> None:  # noqa: ANN001
+    if not await engine.on_pre_checkout(bot, db, app, query):
+        await query.answer(ok=False, error_message="این پرداخت دیگر معتبر نیست.")
+
+
+@router.callback_query()
+async def any_callback(call: CallbackQuery, app, db: Database, bot: Bot) -> None:  # noqa: ANN001
+    """دکمه‌های شیشه‌ای ربات‌ساز."""
+    if app["status"] != "active":
+        await call.answer("این ربات موقتاً در دسترس نیست.", show_alert=True)
+        return
+    if not await engine.on_callback(bot, db, app, call):
+        await call.answer()
+
+
 @router.message(F.chat.type == "private")
-async def any_private(message: Message, app, db: Database) -> None:  # noqa: ANN001
-    """/start و هر پیام دیگر: خوش آمد + دکمه ورود به مینی اپ."""
+async def any_private(message: Message, app, db: Database, bot: Bot) -> None:  # noqa: ANN001
+    """/start و هر پیام دیگر: اگر ربات‌ساز منتشر شده، موتور جواب می‌دهد؛
+    وگرنه خوش آمد + دکمه ورود به مینی اپ."""
     if app["status"] != "active":
         await message.answer("این ربات موقتاً در دسترس نیست.")
         return
     if (message.text or "").startswith("/start"):
         await _reader(db, app, message)
+    if await engine.on_message(bot, db, app, message):
+        return
     text = app["welcome"] or texts.default_welcome(app["name"])
     await message.answer(text, reply_markup=_open_kb(app))

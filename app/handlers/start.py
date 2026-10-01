@@ -40,6 +40,15 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext,
         if CODE_RE.match(arg[3:]):
             await message.answer(texts.WEB_LOGIN, reply_markup=kb.web_login(arg[3:]))
             return
+    from .botkit import parse_arg
+
+    bk = parse_arg(arg)
+    if bk:
+        # ربات‌ساز: افزودن ایموجی پریمیوم یا ساخت ربات با یک دکمه
+        from .botkit import start_emoji, start_newbot
+
+        await (start_emoji if bk[0] == "emoji" else start_newbot)(message, state, db, bk[1])
+        return
     if arg == "myapp":
         from .myapp import show_apps
 

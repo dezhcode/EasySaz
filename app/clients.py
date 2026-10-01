@@ -32,7 +32,7 @@ from .config import config
 
 log = logging.getLogger("easysaz.clients")
 
-CLIENT_UPDATES = ["message", "callback_query"]
+CLIENT_UPDATES = ["message", "callback_query", "pre_checkout_query"]
 
 
 class LinkError(Exception):
@@ -112,6 +112,26 @@ class ClientBots:
                 info = await bot.get_webhook_info()
                 if info.url and info.url.startswith(config.base_url):
                     await bot.delete_webhook()
+        except TelegramUnauthorizedError:
+            raise LinkError("توکن ربات باطل شده. از @BotFather توکن تازه بگیر و دوباره وصل کن.")
+        except TelegramAPIError as exc:
+            raise LinkError(f"تلگرام خطا داد: {exc.message}")
+
+    async def ensure_updates(self, app) -> None:  # noqa: ANN001
+        """ربات در حالت full: وبهوک همهٔ نوع‌های آپدیتِ لازم را بگیرد (مثلاً پرداخت ستاره).
+        آپدیت‌های در صف دور ریخته نمی‌شوند."""
+        bot = self.for_app(app)
+        if bot is None:
+            raise LinkError("توکن این ربات خوانده نشد. دوباره وصلش کن.")
+        try:
+            info = await bot.get_webhook_info()
+            if info.url == config.client_hook_url(bot.id) and set(info.allowed_updates or []) >= set(CLIENT_UPDATES):
+                return
+            await bot.set_webhook(
+                url=config.client_hook_url(bot.id),
+                secret_token=secure.client_hook_secret(bot.id),
+                allowed_updates=CLIENT_UPDATES,
+            )
         except TelegramUnauthorizedError:
             raise LinkError("توکن ربات باطل شده. از @BotFather توکن تازه بگیر و دوباره وصل کن.")
         except TelegramAPIError as exc:

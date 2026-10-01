@@ -273,7 +273,7 @@
 
   /* ---------- صفحه‌ها ---------- */
   const TABS = ['home', 'store', 'stats', 'account'];
-  const SCREENS = ['home', 'store', 'stats', 'account', 'app', 'onboard', 'stories', 'editor', 'blocked'];
+  const SCREENS = ['home', 'store', 'stats', 'account', 'app', 'onboard', 'stories', 'editor', 'bot', 'blocked'];
   function show(id, asTab) {
     SCREENS.forEach(s => { $(s).hidden = s !== id; });
     const splash = $('splash');
@@ -281,6 +281,8 @@
     S.screen = id;
     S.asTab = !!asTab;
     if (id !== 'editor') popAll();
+    if (id !== 'bot') document.body.classList.remove('in-bot');
+    else document.body.classList.add('in-bot');
     const withNav = asTab && TABS.indexOf(id) >= 0;
     $('nav').hidden = !withNav;
     document.body.classList.toggle('has-nav', withNav);
@@ -1065,7 +1067,7 @@
   function syncBack() {
     if (!tg || !tg.BackButton) return;
     const need = $('sheet').classList.contains('on') || (S.stack && S.stack.length)
-      || ['editor', 'app', 'stories'].includes(S.screen) || (!S.asTab && S.screen === 'onboard' && S.app);
+      || ['editor', 'app', 'stories', 'bot'].includes(S.screen) || (!S.asTab && S.screen === 'onboard' && S.app);
     if (need) tg.BackButton.show(); else tg.BackButton.hide();
   }
 
@@ -2905,6 +2907,9 @@
       plus.appendChild(ico('plus'));
       list.appendChild(mkOpt(plus, 'مینی‌اپ تازه', left > 0 ? 'اسم، رنگ و اولین قالب' : `پلن ${S.me.plan.title} فقط ${faN(S.me.plan.max_apps)} مینی‌اپ دارد`, () => { closeSheet(); newApp(); }));
       if (S.app) {
+        const bk = h('span', 'tq soft-act');
+        bk.appendChild(ico('bot'));
+        list.appendChild(mkOpt(bk, `ربات‌ساز «${S.app.name}»`, 'پیام، دکمه، کیبورد؛ تست در چت واقعی تلگرام', () => { closeSheet(); openBotBuilder(S.app.id); }));
         const g = h('span', 'tq soft-brand');
         g.appendChild(ico('grid'));
         list.appendChild(mkOpt(g, `نصب قالب روی «${S.app.name}»`, storeList().filter(e => e.status !== 'ready').slice(0, 3).map(e => e.title).join('، ') + ' و …', () => { closeSheet(); tab('store'); }));
@@ -3847,7 +3852,7 @@
     };
     const wl = decodeHtml(S.app.welcome).split('\n')[0];
     row3.append(
-      small('bot', 'tg', 'ربات', connected ? bdiAt(S.app.bot_username) : 'وصل کن', () => openBot(connected ? 'myapp' : 'connect')),
+      small('bot', 'tg', 'ربات‌ساز', connected ? bdiAt(S.app.bot_username) : 'بساز یا وصل کن', () => openBotBuilder(S.app.id)),
       small('chat', 'media', 'پیام خوش‌آمد', wl || 'متن پیش‌فرض', welcomeSheet),
       mag ? small('laptop', 'plain', 'قالب', 'از سایت', () => openSite('studio/' + S.app.id + '/settings'))
         : small('layers', 'plain', 'قالب', noKit ? 'انتخاب' : 'عوض یا حذف', noKit ? () => tab('store') : templateSheet));
@@ -5484,6 +5489,7 @@
     });
     if (tg) {
       tg.BackButton.onClick(() => {
+        if (S.screen === 'bot' && window.EasySazBot) { window.EasySazBot.back(); return; }
         if ($('sheet').classList.contains('on')) closeSheet();
         else if (S.stack.length) pop();
         else if (S.screen === 'editor') leaveEditor();
@@ -5498,6 +5504,25 @@
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyChrome(); if (S.doc && S.screen === 'editor') renderAll(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden && S.app && S.saveState === 'busy') saveNow(); });
   }
+  /* ربات‌ساز (bot.js): بخشی جدا با طراحی خودش؛ مینی‌اپ فعلی پنل همان می‌ماند */
+  async function openBotBuilder(id, tabName) {
+    if (!window.EasySazBot) { toast('ربات‌ساز بار نشد؛ دوباره باز کن', true); return; }
+    if (!S.app || String(S.app.id) !== String(id)) { await saveNow(); await openApp(id, true); }
+    window.EasySazBot.open(id, tabName);
+  }
+  /* برگشت از چت ایزی‌ساز (افزودن ایموجی، ساخت ربات): #bot=<مینی‌اپ>&tab=<تب> */
+  function pendingBot() {
+    const m = /bot=(\d{1,9})(?:&tab=(\w+))?/.exec(location.hash);
+    if (!m) return null;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    return { id: Number(m[1]), tab: m[2] || '' };
+  }
+  window.EasySazPanel = {
+    api, toast, failed, haptic, show, openBot, botLink,
+    confirm: confirmBox,
+    me: () => S.me,
+    openDash: id => openDash(id),
+  };
   /* کد ورود سایت از لینک ربات (#weblogin=…) یا startapp=wl_… ؛ یک بار مصرف می‌شود */
   function pendingWebLogin() {
     const m = /weblogin=([A-Za-z0-9_-]{20,40})/.exec(location.hash)
@@ -5525,6 +5550,8 @@
       const wl = pendingWebLogin();
       if (wl) setTimeout(() => loginConfirm(wl), 450);   // شیت تأیید روی هر صفحه‌ای که باز شد
       if (!me.apps.length) { onboard(); return; }
+      const bk = pendingBot();
+      if (bk && me.apps.some(a => a.id === bk.id)) { await openApp(bk.id, true); openBotBuilder(bk.id, bk.tab); return; }
       let last = 0;
       try { last = Number(localStorage.getItem('es-last-app')) || 0; } catch (e) {}
       const pick = me.apps.find(a => a.id === last) || me.apps[0];

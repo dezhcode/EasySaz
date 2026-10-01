@@ -20,6 +20,7 @@
   *    /api/kit/mag/<کار>         مجله: محتوا از مینی‌اپ           (initData ربات اصلی؛ app/kits/mag/api.py)
   GET  /api/page/<slug>/mag/list|post   خوانندهٔ مجله              (عمومی)
   *    /api/weblogin/*           ورود به سایت با QR و دستگاه‌ها  (initData ربات اصلی؛ app/site/miniapp.py)
+  *    /api/bot[/<کار>]          ربات‌ساز: سند، تست، انتشار، ایموجی  (initData ربات اصلی؛ app/botkit/api.py)
 """
 from __future__ import annotations
 
@@ -238,6 +239,15 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
                 return await media.save(runtime.db, user.id, data, ctype)
 
             coro = _media(media.read_body(environ), environ.get("CONTENT_TYPE", ""))
+        elif path == "/api/bot" or path.startswith("/api/bot/"):
+            # ربات‌ساز: پیام‌ها، دکمه‌ها، تست در چت واقعی، انتشار (app/botkit/api.py)
+            from app.botkit.api import ACTIONS, BotApi
+
+            action = path[len("/api/bot"):].strip("/")
+            if ACTIONS.get(action) != method:
+                raise ApiError(404, "پیدا نشد")
+            bapi = BotApi(api, runtime.bot)
+            coro = bapi.handle(action, init_data, query, _body(environ, limit=900_000) if method == "POST" else {})
         elif path.startswith("/api/kit/mag/"):
             # مجله از مینی‌اپ ایزی‌ساز: فقط محتوا (app/kits/mag/api.py)
             from app.kits.mag import api as mag_api

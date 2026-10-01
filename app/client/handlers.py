@@ -80,6 +80,23 @@ async def open_chapter(message: Message, app, db: Database, m) -> None:  # noqa:
     await message.answer(f"<b>{title}</b>\nاز «{story}»", reply_markup=kb)
 
 
+@router.message(F.chat.type == "private", F.text.regexp(r"^/start a_(p[a-z0-9]{7,12})$").as_("m"))
+async def open_post(message: Message, app, db: Database, m) -> None:  # noqa: ANN001
+    """لینک پست کانال مجله (t.me/<ربات>?start=a_<مطلب>): همان مطلب در مینی‌اپ باز می‌شود."""
+    if app["status"] != "active":
+        await message.answer("این ربات موقتاً در دسترس نیست.")
+        return
+    from ..kits import mag
+
+    title = await mag.title_of(db, app["id"], m.group(1))
+    if title is None:
+        await message.answer(app["welcome"] or texts.default_welcome(app["name"]), reply_markup=_open_kb(app))
+        return
+    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+        text="📖 خواندن", web_app=WebAppInfo(url=config.page_url(app["slug"]) + "#post=" + m.group(1)))]])
+    await message.answer(f"<b>{html.escape(title)}</b>", reply_markup=kb)
+
+
 @router.message(F.chat.type == "private")
 async def any_private(message: Message, app, db: Database) -> None:  # noqa: ANN001
     """/start و هر پیام دیگر: خوش آمد + دکمه ورود به مینی اپ."""

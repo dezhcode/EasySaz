@@ -84,6 +84,8 @@
     crown: 'M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z',
     help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 0 1 5 .5c0 1.7-2.5 2-2.5 3.5M12 17v.01',
     scan: 'M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10',
+    video: 'M3 6h13v12H3zM16 10l5-3v10l-5-3',
+    title: 'M5 6V5h14v1M12 5v14M9 19h6',
     laptop: 'M4 5h16v11H4zM2 19h20',
     mobile: 'M7 3h10v18H7zM11 18h2',
     logout: 'M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10',
@@ -576,6 +578,7 @@
      زیرصفحه‌اند (پشتهٔ S.stack) با مسیر بالا و پیش‌نمایش زنده؛ کارهای
      کوتاه (بیشتر، افزودن، انتشار) شیت‌اند. */
   function openEditor() {
+    if (S.doc && S.doc.kit === 'mag') { popAll(); showApp(); magList(); return; }
     popAll();
     show('editor');
     renderAll();
@@ -2265,12 +2268,15 @@
         const doc = mode ? Object.assign({}, S.doc, { theme: Object.assign({}, S.doc.theme, { mode }) }) : S.doc;
         ES.render(view, doc, {
           page: pid, appName: S.app.name,
+          mag: S.magHomes[S.app.id] || null,
+          magApi: doc.kit === 'mag' && !DEMO ? magApiFor(S.app.slug) : null,
           onNavigate: id => { pid = id; draw(); view.scrollTop = 0; },
           branding: S.plan && S.plan.branding ? { bot: S.me.bot } : null,
         });
       };
       drawSeg();
       draw();
+      if (S.doc.kit === 'mag' && !S.magHomes[S.app.id]) magHome(S.app).then(m => { if (m) draw(); });
       pg.refresh = draw;
     });
   }
@@ -2839,7 +2845,12 @@
       } else if (installed(e)) {
         ft.append(h('b', '', 'روی «' + S.app.name + '» نصب است'), h('span', '', 'مدیریت محتوا از داشبورد مینی‌اپ'));
         act.textContent = 'باز کردن';
-        act.addEventListener('click', () => { haptic(); if (S.doc.kit === 'shab') showStories(); else showApp(); });
+        act.addEventListener('click', () => { haptic(); if (S.doc.kit === 'shab') showStories(); else if (S.doc.kit === 'mag') { showApp(); magList(); } else showApp(); });
+      } else if (e.site_only) {
+        // قالب‌هایی مثل مجله فقط از سایت نصب و طراحی می‌شوند
+        ft.append(h('b', '', 'نصب از سایت'), h('span', '', 'قالب و ظاهرش در استودیوی سایت؛ مطلب از همین‌جا'));
+        act.append(ico('laptop'), document.createTextNode('باز کردن سایت'));
+        act.addEventListener('click', () => { haptic(); openSite('studio'); });
       } else {
         ft.append(h('b', '', 'روی کدام مینی‌اپ؟'), h('span', '', S.app ? 'مینی‌اپ تازه یا «' + S.app.name + '»' : 'یک مینی‌اپ تازه'));
         act.textContent = 'نصب';
@@ -3009,7 +3020,8 @@
     }
     const host = h('div', 'vph-page');
     inner.appendChild(host);
-    ES.render(host, doc, { page: doc.pages[0].id, appName: a.name, editing: true });
+    ES.render(host, doc, { page: doc.pages[0].id, appName: a.name, editing: true, mag: S.magHomes[a.id] || null });
+    if (doc.kit === 'mag' && !S.magHomes[a.id] && a.slug) magHome(a).then(m => { if (m && host.isConnected) drawPhone(box, a); });
     const r = host.firstElementChild;
     const cs = r ? getComputedStyle(r) : null;
     const bg = cs ? cs.backgroundColor : '#FFFFFF';
@@ -3055,6 +3067,7 @@
       if (!own) return ['plus', 'اولین داستانت را بنویس', async () => { await use(a); showStories(); newStorySheet(); }, ac];
       return ['pencil', 'قسمت تازه بنویس', async () => { await use(a); showStories(); newEpisode(); }, ac];
     }
+    if (kit === 'mag') return ['plus', 'مطلب تازه بنویس', async () => { await use(a); showApp(); magCompose(null); }, ac];
     return ['pencil', 'ویرایش صفحه‌ها', async () => { await use(a); openEditor(); }, ac];
   }
   function stateChip(a) {
@@ -3269,11 +3282,367 @@
     return null;
   }
 
+  /* ===================== مجله در مینی‌اپ ایزی‌ساز: فقط محتوا =====================
+     طراحی (بخش‌ها، رنگ، حال‌وهوا) فقط از سایت؛ این‌جا مطلب نوشته، ویرایش و
+     منتشر می‌شود (app/kits/mag/api.py). دسته‌ها و نویسنده‌ها از سایت ساخته
+     می‌شوند و این‌جا فقط انتخاب می‌شوند. */
+  S.magHomes = {};
+  const MAG_BLOCKS = [['p', 'text', 'متن'], ['h', 'title', 'تیتر'], ['img', 'image', 'عکس'], ['audio', 'music', 'صوت'],
+    ['video', 'video', 'ویدیو'], ['link', 'link', 'لینک'], ['btn', 'button', 'دکمه'], ['quote', 'quote', 'نقل‌قول']];
+  function siteUrl(path) { return location.origin + BASE + (path || 'studio'); }
+  function openSite(path) {
+    const url = siteUrl(path);
+    if (DEMO || !tg) { toast('در مرورگر باز می‌شود: ' + url); return; }
+    try { tg.openLink(url); } catch (e) { location.href = url; }
+  }
+  async function magHome(a) {
+    if (S.magHomes[a.id]) return S.magHomes[a.id];
+    if (DEMO) return null;
+    try {
+      const res = await fetch(BASE + 'api/page/' + encodeURIComponent(a.slug), { cache: 'no-store' });
+      const data = await res.json();
+      if (data.mag) S.magHomes[a.id] = data.mag;
+      return data.mag || null;
+    } catch (e) { return null; }
+  }
+  function magApiFor(slug) {
+    const get = async tail => {
+      const res = await fetch(BASE + 'api/page/' + encodeURIComponent(slug) + '/mag/' + tail, { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'خطا');
+      return data;
+    };
+    return {
+      post: async id => (await get('post?id=' + encodeURIComponent(id))).post,
+      list: q => get('list?' + Object.entries(q).filter(([, v]) => v !== undefined && v !== '' && v !== null).map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&')),
+    };
+  }
+  async function magData(force) {
+    if (!force && S.magData && S.magData.app === S.app.id) return S.magData;
+    const d = await api('kit/mag/data?app=' + S.app.id);
+    d.app = S.app.id;
+    S.magData = d;
+    return d;
+  }
+  const MAG_STATE = { pub: ['منتشر شده', 'live'], draft: ['پیش‌نویس', 'warn'], sched: ['زمان‌بندی‌شده', 'warn'] };
+  function magThumb(p, d, size) {
+    const c = (d.cats || []).find(x => x.id === p.cat);
+    const t = h('span', 'mgp-thumb' + (size ? ' ' + size : ''));
+    t.style.background = `linear-gradient(140deg, ${c ? c.color : '#4B2EE8'}, #0A0F24)`;
+    if (p.cover) { const i = h('img'); i.alt = ''; i.src = p.cover; t.appendChild(i); }
+    return t;
+  }
+  function magCatChip(id, d) {
+    const c = (d.cats || []).find(x => x.id === id);
+    if (!c) return null;
+    const s = h('span', 'mgp-chip', c.name);
+    s.style.setProperty('--c', c.color);
+    return s;
+  }
+  function siteNote() {
+    const n = h('button', 'mgp-site');
+    n.type = 'button';
+    const ic = h('span', 'mgp-site-ic');
+    ic.appendChild(ico('laptop'));
+    const tx = h('span', 'grow');
+    tx.append(h('b', '', 'ظاهر و قالب از سایت'), h('span', '', 'بخش‌ها، رنگ و حال‌وهوا را در استودیوی سایت عوض کن؛ این‌جا مطلب بنویس.'));
+    n.append(ic, tx, h('span', 'mgp-site-go', 'باز کردن سایت'));
+    n.addEventListener('click', () => { haptic(); openSite('studio/' + S.app.id); });
+    return n;
+  }
+
+  /* ---------- فهرست مطالب ---------- */
+  function magList() {
+    let filter = 'all';
+    push((el, pg) => {
+      subTop(el, S.app.name, 'مطالب');
+      const body = h('div', 'sbody mgp');
+      el.appendChild(body);
+      const fab = h('button', 'btn btn-p mgp-fab');
+      fab.type = 'button';
+      fab.append(ico('plus'), document.createTextNode('مطلب تازه'));
+      fab.addEventListener('click', () => { haptic(); magCompose(null, pg); });
+      el.appendChild(fab);
+      const draw = async () => {
+        let d;
+        try { d = await magData(true); } catch (err) { failed(err); return; }
+        body.textContent = '';
+        body.appendChild(siteNote());
+        const chips = h('div', 'mgp-filters');
+        [['all', 'همه', d.counts.all], ['pub', 'منتشر شده', d.counts.pub], ['draft', 'پیش‌نویس', d.counts.draft + d.counts.sched]].forEach(([k, t, n]) => {
+          const b = h('button', 'mgp-filter' + (filter === k ? ' on' : ''));
+          b.type = 'button';
+          b.append(document.createTextNode(t), h('small', '', faN(n)));
+          b.addEventListener('click', () => { haptic(); filter = k; draw(); });
+          chips.appendChild(b);
+        });
+        body.appendChild(chips);
+        const rows = d.posts.filter(p => filter === 'all' || (filter === 'pub' ? p.state === 'pub' : p.state !== 'pub'));
+        const list = h('div', 'mgp-list');
+        if (!rows.length) {
+          const e = h('div', 'mgp-empty');
+          e.append(h('b', '', d.posts.length ? 'مطلبی در این فهرست نیست' : 'هنوز مطلبی ننوشتی'), h('span', '', 'با «مطلب تازه» از همین‌جا بنویس؛ متن، عکس، صوت یا ویدیو.'));
+          list.appendChild(e);
+        }
+        rows.forEach(p => {
+          const r = h('button', 'mgp-row');
+          r.type = 'button';
+          const tx = h('span', 'grow');
+          const meta = h('span', 'mgp-meta');
+          const chip = magCatChip(p.cat, d);
+          if (chip) meta.appendChild(chip);
+          const [label, cls] = MAG_STATE[p.state];
+          meta.append(h('span', 'mgp-st ' + cls, p.state === 'pub' ? agoFa(p.at) : label));
+          if (p.source === 'tg') { const s = h('span', 'mgp-src'); s.appendChild(ico('send')); meta.appendChild(s); }
+          tx.append(h('b', '', p.title), meta);
+          r.append(magThumb(p, d), tx);
+          r.addEventListener('click', () => { haptic(); magCompose(p.id, pg); });
+          list.appendChild(r);
+        });
+        body.appendChild(list);
+      };
+      pg.refresh = draw;
+      draw();
+    });
+  }
+
+  /* ---------- نوشتن / ویرایش یک مطلب ---------- */
+  async function uploadMediaFile(kind) {
+    const file = await new Promise(resolve => {
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = kind === 'audio' ? 'audio/*' : 'video/*';
+      inp.onchange = () => resolve(inp.files && inp.files[0]);
+      inp.click();
+    });
+    if (!file) return null;
+    if (DEMO) throw Object.assign(new Error('در نسخهٔ نمایشی فایل صوتی و ویدیو بارگذاری نمی‌شود'), { status: 400 });
+    const res = await fetch(BASE + 'api/upload_media', { method: 'POST', headers: { 'X-Init-Data': (tg && tg.initData) || '', 'Content-Type': file.type || 'application/octet-stream' }, body: file });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(data.error || 'بارگذاری نشد'), { status: res.status });
+    return data.url;
+  }
+  async function magCompose(id, listPg) {
+    let d, p;
+    try {
+      d = await magData();
+      p = id ? (await api('kit/mag/get?app=' + S.app.id + '&id=' + encodeURIComponent(id))).post
+        : { id: '', title: '', lead: '', cover: '', body: [{ t: 'p', text: '' }], cat: (d.cats[0] || {}).id || '', tags: [], author: '', state: 'draft' };
+    } catch (err) { failed(err); return; }
+    let dirty = false, toChannel = false;
+    const canPost = !!(d.channel && d.bot && d.mode === 'full');
+    push((el, pg) => {
+      subTop(el, S.app.name, id ? 'ویرایش مطلب' : 'مطلب تازه');
+      const body = h('div', 'sbody mgp mgp-compose');
+      el.appendChild(body);
+      pg.onPop = () => { if (listPg && listPg.refresh) listPg.refresh(); };
+      const mark = () => { dirty = true; };
+      // کاور
+      const cov = h('div', 'mgp-cover');
+      const drawCover = () => {
+        cov.textContent = '';
+        cov.classList.toggle('has', !!p.cover);
+        if (p.cover) { const i = h('img'); i.alt = ''; i.src = p.cover; cov.appendChild(i); }
+        const b = h('button', 'mgp-cbtn');
+        b.type = 'button';
+        b.append(ico('image'), document.createTextNode(p.cover ? 'عوض کردن کاور' : 'کاور مطلب'));
+        b.addEventListener('click', async () => {
+          try { const url = await uploadImage(); if (url) { p.cover = url; mark(); drawCover(); } } catch (err) { failed(err); }
+        });
+        cov.appendChild(b);
+        if (p.cover) {
+          const x = h('button', 'mgp-cbtn');
+          x.type = 'button';
+          x.appendChild(ico('trash'));
+          x.addEventListener('click', () => { p.cover = ''; mark(); drawCover(); });
+          cov.appendChild(x);
+        }
+      };
+      drawCover();
+      const title = h('textarea', 'mgp-title');
+      title.rows = 1;
+      title.maxLength = 140;
+      title.placeholder = 'تیتر مطلب';
+      title.value = p.title;
+      const grow = t => { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; };
+      title.addEventListener('input', () => { p.title = title.value; grow(title); mark(); });
+      const lead = h('textarea', 'mgp-lead');
+      lead.rows = 1;
+      lead.maxLength = 300;
+      lead.placeholder = 'یک جملهٔ کوتاه برای کارت و پست کانال (اختیاری)';
+      lead.value = p.lead;
+      lead.addEventListener('input', () => { p.lead = lead.value; grow(lead); mark(); });
+      // دسته و برچسب
+      const cats = h('div', 'mgp-chips');
+      const drawCats = () => {
+        cats.textContent = '';
+        d.cats.forEach(c => {
+          const b = h('button', 'mgp-chip mgp-chip--b' + (p.cat === c.id ? ' on' : ''), c.name);
+          b.type = 'button';
+          b.style.setProperty('--c', c.color);
+          b.addEventListener('click', () => { haptic(); p.cat = p.cat === c.id ? '' : c.id; mark(); drawCats(); });
+          cats.appendChild(b);
+        });
+        if (!d.cats.length) cats.appendChild(h('span', 'caption', 'دسته‌ها را از سایت بساز'));
+      };
+      drawCats();
+      const tags = h('div', 'mgp-chips');
+      const drawTags = () => {
+        tags.textContent = '';
+        p.tags.forEach((t, i) => {
+          const b = h('button', 'mgp-tag', '#' + t);
+          b.type = 'button';
+          b.appendChild(ico('x'));
+          b.addEventListener('click', () => { p.tags.splice(i, 1); mark(); drawTags(); });
+          tags.appendChild(b);
+        });
+        if (p.tags.length < 8) {
+          const inp = h('input', 'mgp-taginp');
+          inp.placeholder = '+ برچسب';
+          inp.enterKeyHint = 'done';
+          const add = () => { const t = inp.value.trim().replace(/^#/, '').replace(/\s+/g, '_').slice(0, 24); if (t && !p.tags.includes(t)) { p.tags.push(t); mark(); } drawTags(); };
+          inp.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ',' || e.key === '،') { e.preventDefault(); add(); } });
+          inp.addEventListener('blur', () => { if (inp.value.trim()) add(); });
+          tags.appendChild(inp);
+        }
+      };
+      drawTags();
+      // بلوک‌ها
+      const blocks = h('div', 'mgp-blocks');
+      const field = (b, key, ph, opt) => {
+        opt = opt || {};
+        const t = h(opt.multi ? 'textarea' : 'input', 'mgp-in' + (opt.cls ? ' ' + opt.cls : ''));
+        t.value = b[key] || '';
+        t.placeholder = ph;
+        if (opt.ltr) t.dir = 'ltr';
+        if (opt.multi) { t.rows = 1; setTimeout(() => grow(t), 0); }
+        t.addEventListener('input', () => { b[key] = t.value; mark(); if (opt.multi) grow(t); });
+        return t;
+      };
+      const drawBlocks = () => {
+        blocks.textContent = '';
+        p.body.forEach((b, i) => {
+          const card = h('div', 'mgp-blk mgp-blk--' + b.t);
+          const top = h('div', 'mgp-blk-top');
+          top.appendChild(h('span', 'grow', (MAG_BLOCKS.find(x => x[0] === b.t) || [, , 'جداکننده'])[2]));
+          const btnI = (icon, label, fn) => { const x = h('button', 'mgp-ib'); x.type = 'button'; x.setAttribute('aria-label', label); x.appendChild(ico(icon)); x.addEventListener('click', () => { haptic(); fn(); }); return x; };
+          if (i > 0) top.appendChild(btnI('order', 'جابه‌جایی', () => { p.body.splice(i - 1, 0, p.body.splice(i, 1)[0]); mark(); drawBlocks(); }));
+          top.appendChild(btnI('trash', 'حذف', () => { p.body.splice(i, 1); mark(); drawBlocks(); }));
+          card.appendChild(top);
+          if (b.t === 'p') card.appendChild(field(b, 'text', 'بنویس… (برای پررنگ: **کلمه**)', { multi: true, cls: 'mgp-p' }));
+          else if (b.t === 'h') card.appendChild(field(b, 'text', 'تیتر بخش', { cls: 'mgp-h' }));
+          else if (b.t === 'quote') card.append(field(b, 'text', 'جمله', { multi: true, cls: 'mgp-q' }), field(b, 'by', 'از کیست (اختیاری)'));
+          else if (b.t === 'link') card.append(field(b, 'url', 'https://…', { ltr: true }), field(b, 'title', 'عنوان کارت'));
+          else if (b.t === 'btn') card.append(field(b, 'label', 'متن دکمه'), field(b, 'url', 'https://… یا t.me/…', { ltr: true }));
+          else if (b.t === 'img' || b.t === 'audio' || b.t === 'video') {
+            const media = h('div', 'mgp-media');
+            const drawM = () => {
+              media.textContent = '';
+              if (b.src && b.t === 'img') { const im = h('img'); im.alt = ''; im.src = b.src; media.appendChild(im); }
+              else if (b.src) media.appendChild(h('span', 'mgp-file', (b.t === 'audio' ? '♪ ' : '▶ ') + (/\/u\/[a-f0-9]{24}\./.test(b.src) ? 'فایل بارگذاری شد' : b.src)));
+              const up = h('button', 'btn btn-s btn-sm');
+              up.type = 'button';
+              up.append(ico('upload'), document.createTextNode(b.src ? 'فایل دیگر' : (b.t === 'img' ? 'انتخاب عکس' : b.t === 'audio' ? 'فایل صوتی (تا ۲۰ مگ)' : 'ویدیو (تا ۴۰ مگ)')));
+              up.addEventListener('click', async () => {
+                up.disabled = true;
+                try {
+                  const url = b.t === 'img' ? await uploadImage() : await uploadMediaFile(b.t);
+                  if (url) { b.src = url; mark(); }
+                } catch (err) { failed(err); }
+                up.disabled = false;
+                drawM();
+              });
+              media.appendChild(up);
+            };
+            drawM();
+            card.appendChild(media);
+            if (b.t === 'video') card.appendChild(field(b, 'src', 'یا لینک ویدیو (آپارات، یوتیوب…)', { ltr: true }));
+            card.appendChild(field(b, b.t === 'audio' ? 'title' : 'cap', b.t === 'audio' ? 'عنوان (مثلاً «نسخهٔ صوتی»)' : 'زیرنویس (اختیاری)'));
+          }
+          blocks.appendChild(card);
+        });
+      };
+      drawBlocks();
+      const tools = h('div', 'mgp-tools');
+      MAG_BLOCKS.forEach(([t, icon, label]) => {
+        const b = h('button', 'mgp-tool');
+        b.type = 'button';
+        b.append(ico(UI[icon] ? icon : 'text'), h('span', '', label));
+        b.addEventListener('click', () => {
+          haptic();
+          p.body.push(t === 'hr' ? { t } : { t, text: '', src: '', cap: '', title: '', url: '', label: '', by: '' });
+          mark();
+          drawBlocks();
+          const last = blocks.lastElementChild;
+          if (last) { last.scrollIntoView({ block: 'center', behavior: 'smooth' }); const f = last.querySelector('textarea,input'); if (f && t !== 'img' && t !== 'audio' && t !== 'video') f.focus(); }
+        });
+        tools.appendChild(b);
+      });
+      body.append(cov, title, lead, h('span', 'mgp-lbl', 'دسته'), cats, h('span', 'mgp-lbl', 'برچسب‌ها'), tags, h('span', 'mgp-lbl', 'متن مطلب'), blocks, tools);
+      if (canPost && p.state !== 'pub') {
+        const row = switchControl({ label: 'پست در کانال هم بگذار' }, false, v => { toChannel = v; });
+        row.appendChild(h('span', 'caption', 'با دکمهٔ «ادامه در مینی‌اپ» در ' + (d.channel.title || '@' + d.channel.username)));
+        row.classList.add('mgp-post');
+        body.appendChild(row);
+      }
+      if (p.link) {
+        const lk = h('div', 'mgp-link');
+        lk.append(h('span', 'grow ltr', p.link.replace('https://', '')));
+        const cp = h('button', 'btn btn-s btn-sm');
+        cp.type = 'button';
+        cp.append(ico('copy'), document.createTextNode('کپی'));
+        cp.addEventListener('click', () => copyText(p.link));
+        lk.appendChild(cp);
+        body.append(h('span', 'mgp-lbl', 'لینک این مطلب'), lk);
+      }
+      if (p.id) {
+        const del = h('button', 'btn danger btn-sm mgp-del');
+        del.type = 'button';
+        del.append(ico('trash'), document.createTextNode('حذف مطلب'));
+        del.addEventListener('click', () => confirmBox('این مطلب برای همیشه پاک شود؟', async () => {
+          try { await api('kit/mag/delete', { app: S.app.id, id: p.id }); notify('success'); toast('مطلب پاک شد'); dirty = false; pop(); } catch (err) { failed(err); }
+        }, { yes: 'پاک کن', danger: true }));
+        body.appendChild(del);
+      }
+      // دکمه‌های پایین
+      const foot = h('div', 'mgp-foot');
+      const save = async status => {
+        if (!p.title.trim()) { toast('تیتر مطلب را بنویس', true); title.focus(); return; }
+        const payload = { app: S.app.id, id: p.id || undefined, title: p.title, lead: p.lead, cover: p.cover,
+          body: p.body.filter(b => b.text || b.src || b.url), cat: p.cat, tags: p.tags, author: p.author, status, to_channel: status === 'pub' && toChannel };
+        try {
+          const res = await api('kit/mag/save', payload);
+          Object.assign(p, res.post);
+          dirty = false;
+          notify('success');
+          toast(status === 'draft' ? 'پیش‌نویس ذخیره شد' : res.channel ? 'منتشر شد و در کانال پست شد' : 'منتشر شد');
+          delete S.magHomes[S.app.id];
+          pop();
+        } catch (err) { failed(err); }
+      };
+      const draft = h('button', 'btn btn-s');
+      draft.type = 'button';
+      draft.textContent = p.state === 'pub' ? 'برگرداندن به پیش‌نویس' : 'پیش‌نویس';
+      draft.addEventListener('click', () => { haptic(); save('draft'); });
+      const pub = h('button', 'btn btn-p');
+      pub.type = 'button';
+      pub.append(ico('send'), document.createTextNode(p.state === 'pub' ? 'به‌روزرسانی' : 'انتشار'));
+      pub.addEventListener('click', () => { haptic('medium'); save('pub'); });
+      foot.append(draft, pub);
+      el.appendChild(foot);
+      setTimeout(() => { grow(title); grow(lead); if (!p.title) title.focus(); }, 60);
+      const off = pg.onPop;
+      pg.onPop = () => { off && off(); };
+      el.__dirty = () => dirty;
+    });
+  }
+
   function renderApp() {
     if (S.screen !== 'app' || !S.doc) return;
     const entry = storeOfKit(S.doc.kit);
     const shab = S.doc.kit === 'shab';
-    const noKit = !shab && !totalBlocks();
+    const mag = S.doc.kit === 'mag';
+    const noKit = !shab && !mag && !totalBlocks();
     const connected = !!S.app.bot_username;
     const on = S.app.status !== 'paused';
     const live = !!S.app.published_at;
@@ -3286,7 +3655,7 @@
     g.textContent = '';
 
     // انتشار: فقط وقتی چیزی منتشرنشده هست
-    if (!noKit && (!live || S.app.dirty)) {
+    if (!noKit && !mag && (!live || S.app.dirty)) {
       const t = tile('wide t-pub');
       const ic = h('span', 't-ic');
       ic.appendChild(ico('send'));
@@ -3324,7 +3693,7 @@
     peek.setAttribute('aria-label', 'دیدن مثل خواننده');
     peek.appendChild(box.el);
     peek.addEventListener('click', () => { haptic(); S.pageId = S.doc.pages[0].id; previewPage(); });
-    pv.append(peek, h('i', 't-fade'), tBtn('pencil', noKit ? 'صفحه‌ها' : 'ویرایش', 'ink t-edit', openEditor));
+    pv.append(peek, h('i', 't-fade'), tBtn(mag ? 'list' : 'pencil', mag ? 'مطالب' : noKit ? 'صفحه‌ها' : 'ویرایش', 'ink t-edit', mag ? magList : openEditor));
     g.appendChild(pv);
 
     // روشن / خاموش
@@ -3392,6 +3761,35 @@
       row.appendChild(go);
       t.append(head, row);
       g.appendChild(t);
+    } else if (mag) {
+      // مجله: آخرین مطلب و «مطلب تازه»؛ طراحی فقط از سایت
+      const t = tile('wide t-ep');
+      const head = h('span', 't-row t-head');
+      const all = h('button', 't-link-btn');
+      all.type = 'button';
+      all.append(document.createTextNode('همهٔ مطالب'), ico('arrow'));
+      all.addEventListener('click', () => { haptic(); magList(); });
+      head.append(tLbl('list', 'مطالب'), all);
+      const row = h('span', 't-row');
+      const tx = h('span', 't-tx grow');
+      const d = S.magData && S.magData.app === S.app.id ? S.magData : null;
+      const last = d && d.posts[0];
+      if (last) {
+        row.appendChild(magThumb(last, d, 'sm'));
+        tx.append(h('b', '', last.title), h('span', '', `${faN(d.counts.pub)} منتشر شده · ${faN(d.counts.draft + d.counts.sched)} پیش‌نویس`));
+      } else tx.append(h('b', '', d ? 'هنوز مطلبی ننوشتی' : 'مطالب'), h('span', '', 'از همین‌جا یا سایت بنویس'));
+      row.append(tx, tBtn('plus', 'مطلب تازه', 'main', () => magCompose(null)));
+      t.append(head, row);
+      g.appendChild(t);
+      const site = tile('wide t-site', 'button');
+      const sic = h('span', 't-ic plain');
+      sic.appendChild(ico('laptop'));
+      const stx = h('span', 't-tx grow');
+      stx.append(h('b', '', 'ظاهر و قالب از سایت'), h('span', '', 'بخش‌ها، رنگ و حال‌وهوا در استودیوی سایت'));
+      site.append(sic, stx, ico('arrow'));
+      site.addEventListener('click', () => { haptic(); openSite('studio/' + S.app.id); });
+      g.appendChild(site);
+      if (!d) magData().then(() => renderApp()).catch(() => {});
     } else if (!noKit) {
       const t = tile('wide t-ep');
       const row = h('span', 't-row');
@@ -3451,7 +3849,8 @@
     row3.append(
       small('bot', 'tg', 'ربات', connected ? bdiAt(S.app.bot_username) : 'وصل کن', () => openBot(connected ? 'myapp' : 'connect')),
       small('chat', 'media', 'پیام خوش‌آمد', wl || 'متن پیش‌فرض', welcomeSheet),
-      small('layers', 'plain', 'قالب', noKit ? 'انتخاب' : 'عوض یا حذف', noKit ? () => tab('store') : templateSheet));
+      mag ? small('laptop', 'plain', 'قالب', 'از سایت', () => openSite('studio/' + S.app.id + '/settings'))
+        : small('layers', 'plain', 'قالب', noKit ? 'انتخاب' : 'عوض یا حذف', noKit ? () => tab('store') : templateSheet));
     g.appendChild(row3);
   }
 

@@ -16,6 +16,9 @@
   GET  /u/<name>                 تصویرهای آپلودشده
   GET  /api/page/<slug>          سند منتشر شده (عمومی)
   POST /api/page/<slug>/view     ثبت بازدید                  (initData ربات مشتری)
+  POST /api/upload_media         صوت/ویدیوی مطلب (بدنه = فایل)   (initData ربات اصلی)
+  *    /api/kit/mag/<کار>         مجله: محتوا از مینی‌اپ           (initData ربات اصلی؛ app/kits/mag/api.py)
+  GET  /api/page/<slug>/mag/list|post   خوانندهٔ مجله              (عمومی)
   *    /api/weblogin/*           ورود به سایت با QR و دستگاه‌ها  (initData ربات اصلی؛ app/site/miniapp.py)
 """
 from __future__ import annotations
@@ -34,13 +37,14 @@ from app.config import config
 
 from app.kits.shab.api import ShabApi
 
+from . import media
 from .api import Api, ApiError, dumps
 
 log = logging.getLogger("easysaz.web")
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 _SLUG = re.compile(r"^[a-z0-9]{6,16}$")
-_UPLOAD = re.compile(r"^[a-f0-9]{24}\.(jpg|png|webp)$")
+_UPLOAD = re.compile(r"^[a-f0-9]{24}\.(jpg|png|webp|mp3|m4a|ogg|wav|mp4|webm)$")
 _STATIC_EXT = {".js", ".css", ".woff2", ".png", ".jpg", ".webp", ".svg", ".ico"}
 
 CSP = (
@@ -170,9 +174,12 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
         full = os.path.join(config.upload_dir, name)
         if not _UPLOAD.match(name) or not os.path.isfile(full):
             return _send(start_response, "404 Not Found", b"not found", "text/plain")
+        ext = name.rsplit(".", 1)[1]
+        if ext in media.TYPES:  # صوت و ویدیوی مطلب‌ها؛ با Range برای جلو/عقب بردن
+            return media.serve(start_response, full, media.TYPES[ext], environ.get("HTTP_RANGE", ""), _send)
         with open(full, "rb") as fh:
             data = fh.read()
-        ctype = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp"}[name.rsplit(".", 1)[1]]
+        ctype = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp"}[ext]
         # نام فایل از محتواست، پس هرگز عوض نمی‌شود
         return _send(start_response, "200 OK", data, ctype, [("Cache-Control", "public, max-age=31536000, immutable")])
 
@@ -224,6 +231,19 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
             coro = getattr(api, action)(init_data, _body(environ, limit=1_000_000 if action in ("save", "publish") else 262_144))
         elif method == "POST" and path == "/api/upload":
             coro = api.upload(init_data, _body(environ, limit=2_200_000))
+        elif method == "POST" and path == "/api/upload_media":
+            # صوت و ویدیوی مطلب (بدنه خود فایل است)
+            async def _media(data: bytes, ctype: str):  # noqa: ANN202
+                user, _ = await api._owner(init_data, write=True)
+                return await media.save(runtime.db, user.id, data, ctype)
+
+            coro = _media(media.read_body(environ), environ.get("CONTENT_TYPE", ""))
+        elif path.startswith("/api/kit/mag/"):
+            # مجله از مینی‌اپ ایزی‌ساز: فقط محتوا (app/kits/mag/api.py)
+            from app.kits.mag import api as mag_api
+
+            action = path[len("/api/kit/mag/"):].strip("/")
+            coro = mag_api.panel(api, action, method, init_data, query, _body(environ, limit=600_000) if method == "POST" else {})
         elif path.startswith("/api/page/"):
             rest = path[len("/api/page/"):].strip("/")
             slug, _, tail = rest.partition("/")
@@ -233,6 +253,17 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
                 coro = api.page(slug)
             elif method == "POST" and tail == "view":
                 coro = api.view(slug, init_data)
+            elif method == "GET" and tail.startswith("mag/"):
+                # خوانندهٔ مجله: فهرست و متن مطلب (عمومی)
+                from app.kits.mag import api as mag_api
+
+                async def _mag(action: str):  # noqa: ANN202
+                    app = await runtime.db.get_app_by_slug(slug)
+                    if not app or app["status"] != "active":
+                        raise ApiError(404, "این مینی اپ در دسترس نیست")
+                    return await mag_api.reader(runtime.db, app, action, dict(query, _ip=environ.get("REMOTE_ADDR", "")))
+
+                coro = _mag(tail[4:])
             elif tail in ShabApi.READER:
                 # خوانندهٔ شب‌نوشت: متن فصل، وضعیت خواندن، نشان‌ها
                 shab = ShabApi(runtime.db, runtime.parts.clients, api)
@@ -266,7 +297,7 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201, C90
             raise ApiError(404, "پیدا نشد")
 
         return _json(start_response, 200, runtime.run(coro, timeout=30))
-    except ApiError as exc:
+    except (ApiError, media.MediaError) as exc:
         return _json(start_response, exc.status, {"error": exc.message})
     except Exception:  # noqa: BLE001
         log.exception("api error on %s", path)

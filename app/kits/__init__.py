@@ -16,15 +16,22 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import shab
+from . import mag, shab
 
-KITS: dict[str, Any] = {"shab": shab}
+KITS: dict[str, Any] = {"shab": shab, "mag": mag}
 
 SCHEMA = "".join(k.SCHEMA for k in KITS.values())
 
 
 def of(doc: dict | None):  # noqa: ANN201
     return KITS.get((doc or {}).get("kit") or "")
+
+
+def site_only(doc: dict | None) -> bool:
+    """طراحی این قالب فقط از سایت عوض می‌شود (مینی‌اپ ایزی‌ساز فقط محتوا)."""
+    from app import blocks
+
+    return bool(blocks.KITS.get((doc or {}).get("kit") or "", {}).get("site_only"))
 
 
 def public_view(doc: dict) -> dict:

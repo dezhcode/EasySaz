@@ -214,9 +214,17 @@ class Api:
         except blocks.PageError as exc:
             raise ApiError(402, str(exc)) from exc
 
+    @staticmethod
+    def _design_lock(app, body: dict | None = None) -> None:  # noqa: ANN001
+        """طراحی قالب‌هایی مثل «مجله» فقط از سایت عوض می‌شود؛ مینی‌اپ فقط محتوا."""
+        new = body.get("doc") if isinstance((body or {}).get("doc"), dict) else None
+        if kits.site_only(load_doc(app["draft"])) or kits.site_only(new):
+            raise ApiError(403, "قالب و ظاهر این مینی‌اپ فقط از سایت ایزی‌ساز عوض می‌شود؛ این‌جا مطلب بنویس")
+
     async def save(self, init_data: str, body: dict) -> dict:
         user, plan = await self._owner(init_data, write=True)
         app = await self._owned(user.id, body.get("id"))
+        self._design_lock(app, body)
         doc = self._clean(body, plan)
         await self.db.save_draft(app["id"], doc)
         app = await self.db.get_app(app["id"])
@@ -225,6 +233,7 @@ class Api:
     async def publish(self, init_data: str, body: dict) -> dict:
         user, plan = await self._owner(init_data, write=True)
         app = await self._owned(user.id, body.get("id"))
+        self._design_lock(app, body)
         doc = self._clean(body, plan)
         await self.db.publish(app["id"], doc)
         app = await self.db.get_app(app["id"])
@@ -245,6 +254,7 @@ class Api:
         منتشرشده) همان لحظه خالی می‌شود تا صاحبش قالب تازه‌ای انتخاب کند."""
         user, _ = await self._owner(init_data, write=True)
         app = await self._owned(user.id, body.get("id"))
+        self._design_lock(app)
         await kits.remove(self.db, app["id"])
         doc = blocks.empty_page(kit="base")
         await self.db.publish(app["id"], doc)
@@ -291,7 +301,9 @@ class Api:
         # پریمیوم نمایش داده نمی‌شوند؛ صفحه نمی‌شکند، فقط کوتاه می‌شود.
         budget = plan.max_blocks
         pages = []
-        for pg in doc.get("pages", [])[: plan.max_pages]:
+        # قالب‌های سایت (مجله) صفحه‌های ثابت خودشان را دارند و جزو سقف صفحه نیستند
+        max_pages = max(plan.max_pages, 4) if kits.site_only(doc) else plan.max_pages
+        for pg in doc.get("pages", [])[:max_pages]:
             visible = [
                 b for b in pg.get("blocks", [])
                 if plan.premium_blocks or not blocks.SCHEMA.get(b.get("type"), {}).get("premium")
@@ -301,12 +313,19 @@ class Api:
         doc["pages"] = pages
         blocks.reader_view(doc)
         kits.public_view(doc)
-        return {
+        out = {
             "name": app["name"],
             "doc": doc,
             "branding": plan.branding,
             "brand_bot": await self.db.get_setting("bot_username", "EasySazBot"),
         }
+        if doc.get("kit") == "mag":  # خانهٔ مجله: دسته‌ها، نویسنده‌ها، تازه‌ها، پرخواننده‌ها
+            from app.kits import mag
+
+            out["mag"] = await mag.home(self.db, app["id"])
+            # لینک هم‌رسانی هر مطلب (فقط وقتی ربات در حالت کنترل کامل است، start=a_ کار می‌کند)
+            out["mag"]["bot"] = app["bot_username"] if app["mode"] == "full" and app["bot_username"] else ""
+        return out
 
     async def view(self, slug: str, init_data: str) -> dict:
         """ثبت بازدید. فقط با initData معتبرِ ربات همین اپ شمرده می شود."""

@@ -69,6 +69,23 @@ KITS: dict[str, dict[str, Any]] = {
         "accents": [["شفق", "#D0452B"], ["جوهر", "#2C4BC0"], ["زیتون", "#4F7A3A"], ["بنفش", "#6A3FC8"], ["شب", "#2A2226"]],
         "generic": ["text", "notice", "button", "links", "social", "image", "faq", "divider"],
     },
+    # مجله: مطلب‌ها در جدول‌های app/kits/mag است، نه در سند؛ سند فقط طراحی است
+    # و فقط از سایت عوض می‌شود (طراحی را مینی‌اپ ایزی‌ساز ذخیره نمی‌کند).
+    "mag": {
+        "title": "مجله",
+        "desc": "برای کانال‌هایی که مطلب می‌نویسند: پست کوتاه در کانال، نسخهٔ کامل با عکس، صوت و ویدیو در مینی‌اپ",
+        "tagline": "مطلب با متن، تصویر، صوت، ویدیو، لینک و دکمه؛ دسته، برچسب و نویسنده.",
+        "accent": "#1D55F0",
+        "accents": [["آبی", "#1D55F0"], ["فیروزه‌ای", "#0E8FAE"], ["سبز", "#12A071"], ["مرجانی", "#E0573E"], ["گلی", "#E0457B"], ["جوهر", "#17142B"]],
+        "generic": ["text", "notice", "button", "links", "social", "image", "divider"],
+        "site_only": True,
+        "opts": [
+            {"key": "mood", "label": "حال‌وهوا", "type": "select", "default": "news",
+             "options": [["news", "روزنامه"], ["classic", "کلاسیک"], ["warm", "گرم"]]},
+            {"key": "readtime", "label": "زمان خواندن روی کارت‌ها", "type": "bool", "default": True},
+            {"key": "post_cta", "label": "متن دکمهٔ پست کانال", "type": "text", "max": 30, "default": "ادامه در مینی‌اپ"},
+        ],
+    },
 }
 STORY_TEXT_MAX = 200_000  # مجموع حرف‌های همهٔ قسمت‌ها در یک مینی‌اپ
 
@@ -553,6 +570,66 @@ SCHEMA: dict[str, dict[str, Any]] = {
             {"key": "source", "label": "از کجا", "type": "text", "max": 60, "default": ""},
         ],
     },
+    # ----- قالب مجله (فقط در kit=mag؛ داده از app/kits/mag) -----
+    "mag_cats": {
+        "cat": "write", "kit": "mag", "title": "نوار دسته‌ها", "icon": "list", "premium": False,
+        "desc": "دسته‌ها کنار هم؛ زدن هر کدام مطالب همان دسته را باز می‌کند",
+        "fields": [
+            {"key": "style", "label": "شکل", "type": "select", "default": "chips", "options": [["chips", "برچسبی"], ["tiles", "کاشی با آیکن"]]},
+        ],
+    },
+    "mag_featured": {
+        "cat": "write", "kit": "mag", "title": "مطلب ویژه", "icon": "star", "premium": False,
+        "desc": "یک مطلب بزرگ با عکس؛ تازه‌ترین یا مطلبی که خودت انتخاب کنی",
+        "fields": [
+            {"key": "post", "label": "کدام مطلب (خالی = تازه‌ترین)", "type": "text", "max": 16, "default": ""},
+            {"key": "label", "label": "برچسب", "type": "text", "max": 16, "default": "ویژه"},
+        ],
+    },
+    "mag_latest": {
+        "cat": "write", "kit": "mag", "title": "تازه‌ها", "icon": "list", "premium": False,
+        "desc": "آخرین مطالب، همه یا فقط یک دسته",
+        "fields": [
+            {"key": "title", "label": "عنوان", "type": "text", "max": 30, "default": "تازه‌ها"},
+            {"key": "count", "label": "چند مطلب", "type": "int", "min": 2, "max": 20, "default": 6},
+            {"key": "layout", "label": "چیدمان", "type": "select", "default": "list",
+             "options": [["list", "فهرست"], ["grid", "شبکه"], ["big", "کارت بزرگ"]]},
+            {"key": "cat", "label": "فقط این دسته (خالی = همه)", "type": "text", "max": 16, "default": ""},
+            {"key": "skip_featured", "label": "مطلب ویژه تکرار نشود", "type": "bool", "default": True},
+        ],
+    },
+    "mag_popular": {
+        "cat": "write", "kit": "mag", "title": "پرخواننده‌ها", "icon": "flame", "premium": False,
+        "desc": "پربازدیدترین مطالب این روزها، شماره‌دار",
+        "fields": [
+            {"key": "title", "label": "عنوان", "type": "text", "max": 30, "default": "پرخواننده‌ها"},
+            {"key": "count", "label": "چند مطلب", "type": "int", "min": 3, "max": 10, "default": 5},
+        ],
+    },
+    "mag_authors": {
+        "cat": "write", "kit": "mag", "title": "نویسنده‌ها", "icon": "user", "premium": False,
+        "desc": "نویسنده‌ها با عکس؛ زدن هر کدام صفحهٔ نویسنده را باز می‌کند",
+        "fields": [
+            {"key": "title", "label": "عنوان", "type": "text", "max": 30, "default": "نویسنده‌ها"},
+            {"key": "style", "label": "شکل", "type": "select", "default": "row", "options": [["row", "ردیف آواتار"], ["list", "فهرست"]]},
+        ],
+    },
+    "mag_catgrid": {
+        "cat": "write", "kit": "mag", "title": "همهٔ دسته‌ها", "icon": "grid", "premium": False,
+        "desc": "کاشی همهٔ دسته‌ها با تعداد مطلب",
+        "fields": [
+            {"key": "title", "label": "عنوان", "type": "text", "max": 30, "default": "دسته‌ها"},
+        ],
+    },
+    "mag_saved": {
+        "cat": "write", "kit": "mag", "title": "ذخیره‌ها", "icon": "bookmark", "premium": False,
+        "desc": "مطالبی که هر خواننده ذخیره کرده (روی گوشی خودش)",
+        "fields": [
+            {"key": "title", "label": "عنوان", "type": "text", "max": 30, "default": "ذخیره‌ها"},
+            {"key": "empty", "label": "متن وقتی خالی است", "type": "text", "max": 120,
+             "default": "هنوز چیزی ذخیره نکردی. وسط خواندن، نشان بالای مطلب را بزن."},
+        ],
+    },
 }
 
 
@@ -571,6 +648,7 @@ CATALOG_ORDER = [
     "cards", "pricing", "features", "passcard", "calc",
     "divider",
     "story", "shab_continue", "shab_shelf", "shab_latest", "shab_marks", "shab_quote",
+    "mag_cats", "mag_featured", "mag_latest", "mag_popular", "mag_authors", "mag_catgrid", "mag_saved",
 ]
 
 # مقدارهای قدیمی که هنوز در صفحه‌های ذخیره‌شده هستند
@@ -1011,7 +1089,7 @@ def clean_page(doc: Any, *, max_blocks: int, premium: bool, max_pages: int = 1) 
         raise PageError(f"متن همهٔ قسمت‌ها با هم حداکثر {STORY_TEXT_MAX // 1000} هزار حرف می‌شود")
 
     theme = doc.get("theme") if isinstance(doc.get("theme"), dict) else {}
-    return {
+    out = {
         "v": SCHEMA_VERSION,
         "kit": kit,
         "theme": clean_theme(theme),
@@ -1019,6 +1097,9 @@ def clean_page(doc: Any, *, max_blocks: int, premium: bool, max_pages: int = 1) 
         "tabbar": _clean_group(TABBAR_FIELDS, doc.get("tabbar")),
         "pages": pages,
     }
+    if KITS[kit].get("opts"):  # تنظیم‌های خود قالب (مثلاً حال‌وهوای مجله)
+        out["opts"] = _clean_group(KITS[kit]["opts"], doc.get("opts"))
+    return out
 
 
 def reader_view(doc: dict) -> dict:
@@ -1056,7 +1137,7 @@ def empty_page(accent: str | None = None, kit: str = "shab") -> dict:
     """صفحه خالی شروع کار. عمدا هیچ کامپوننتی ندارد. مینی‌اپ تازه روی قسمت است."""
     kit = clean_kit(kit)
     theme = clean_theme({"accent": accent or KITS[kit].get("accent")} if (accent or KITS[kit].get("accent")) else {})
-    return {
+    out = {
         "v": SCHEMA_VERSION,
         "kit": kit,
         "theme": theme,
@@ -1064,6 +1145,9 @@ def empty_page(accent: str | None = None, kit: str = "shab") -> dict:
         "tabbar": _clean_group(TABBAR_FIELDS, {}),
         "pages": [{"id": "home", "title": "خانه", "icon": "home", "blocks": []}],
     }
+    if KITS[kit].get("opts"):
+        out["opts"] = _clean_group(KITS[kit]["opts"], {})
+    return out
 
 
 def public_schema() -> dict:

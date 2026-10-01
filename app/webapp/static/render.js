@@ -99,11 +99,21 @@
     shab: { radius: 16, accent: '#D0452B',
       day: { bg: '#F6F1EB', surface: '#FFFFFF', sunk: '#EDE5DC', ink: '#1C1512', ink2: '#4A3F38', ink3: '#76695F', line: '#E5DBD0', nav: '#1C1512' },
       night: { bg: '#131012', surface: '#1D191B', sunk: '#2A2427', ink: '#F3EDE7', ink2: '#D0C6BE', ink3: '#9C9089', line: '#342D30', nav: '#241F22' } },
+    // «مجله»: سه حال‌وهوا (opts.mood)؛ رنگ اصلی از صاحب مینی‌اپ، شب برای همه یکی
+    mag: { radius: 18, accent: '#1D55F0', moods: {
+      news: { bg: '#F3F5F9', surface: '#FFFFFF', sunk: '#E7EBF2', ink: '#0F1424', ink2: '#3B4256', ink3: '#5D6478', line: '#E1E5EE', nav: '#0F1424' },
+      classic: { bg: '#F4EFE6', surface: '#FFFDF8', sunk: '#EBE3D4', ink: '#1E1A14', ink2: '#4A4235', ink3: '#766B5A', line: '#E3D9C8', nav: '#1E1A14' },
+      warm: { bg: '#FFF4EC', surface: '#FFFFFF', sunk: '#FBE6DA', ink: '#2A1D3F', ink2: '#4E3F63', ink3: '#7A6B88', line: '#F2DDD0', nav: '#2A1D3F' } },
+      night: { bg: '#0C1020', surface: '#151A2E', sunk: '#1D2340', ink: '#ECEFFA', ink2: '#B9C0D9', ink3: '#8B93B0', line: '#262D4A', nav: '#1D2340' } },
   };
 
-  function palette(theme, kitName) {
+  function palette(theme, kitName, opts) {
     theme = theme || {};
-    const kit = KITS[kitName] || null;
+    let kit = KITS[kitName] || null;
+    if (kit && kit.moods) {
+      const mood = kit.moods[(opts || {}).mood] || kit.moods[Object.keys(kit.moods)[0]];
+      kit = Object.assign({}, kit, { day: mood });
+    }
     const dark = kit && kit.base ? !!kit.dark : isDark(theme.mode || (kit ? 'light' : ''));
     let accent = /^#[0-9a-f]{6}$/i.test(theme.accent || '') ? theme.accent : (kit ? kit.accent : '#1D55F0');
     let [h, s, l] = rgbToHsl(...hexToRgb(accent));
@@ -113,9 +123,10 @@
     const base = kit ? (kit.base || (dark ? kit.night : kit.day)) : (dark ? BASE.dark : BASE.light);
     const bg = kit || theme.bg === 'plain' ? base.bg : mix(base.bg, accent, dark ? 0.06 : 0.05);
     const onAccent = contrast(accent, '#FFFFFF') >= contrast(accent, '#0A1633') ? '#FFFFFF' : '#0A1633';
-    const radius = kit ? kit.radius : theme.radius === 'custom'
+    // گوشه‌ها: قالب‌های ثابت (قسمت) گوشهٔ خودشان را دارند؛ مجله مثل پایه از تم
+    const radius = kit && !kit.moods ? kit.radius : theme.radius === 'custom'
       ? Math.max(0, Math.min(32, Number(theme.radius_px) || 0))
-      : (RADIUS[theme.radius] || RADIUS.soft);
+      : (RADIUS[theme.radius] || (kit ? kit.radius : RADIUS.soft));
     return {
       dark,
       bg,
@@ -155,8 +166,8 @@
     };
   }
 
-  function applyTheme(el, theme, kit) {
-    const p = palette(theme, kit);
+  function applyTheme(el, theme, kit, opts) {
+    const p = palette(theme, kit, opts);
     for (const [k, v] of Object.entries(p.vars)) el.style.setProperty(k, v);
     el.classList.toggle('pg-dark', p.dark);
     Object.keys(KITS).forEach(k => el.classList.toggle('pg-kit-' + k, k === kit));
@@ -224,6 +235,16 @@
     scroll: 'M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4',
     tap: 'M10 13V5.5a1.5 1.5 0 0 1 3 0V11l4.6 1a2 2 0 0 1 1.5 2.3L18.2 20H11l-4.4-4.6a1.4 1.4 0 0 1 2-2L10 15',
     bell: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21a2 2 0 0 0 4 0',
+    // قالب مجله
+    search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
+    play: 'M8 5.5v13l10.5-6.5z',
+    pause: 'M8 5h3v14H8zM13 5h3v14h-3z',
+    headph: 'M4 15v-3a8 8 0 0 1 16 0v3M4 15h3v5H4zM17 15h3v5h-3z',
+    cap: 'M2.5 9 12 4.5 21.5 9 12 13.5zM6.5 11v5c3.2 2 7.8 2 11 0v-5',
+    cup: 'M5 8h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5zM17 10h1.5a2 2 0 0 1 0 4H17M9 3v2M13 3v2',
+    globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18',
+    heart: 'M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.3a4.2 4.2 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z',
+    music: 'M9 18V6l10-2v12M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM19 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
   };
   function icon(name, cls, size) {
     const s = document.createElementNS(SVG_NS, 'svg');
@@ -1760,6 +1781,521 @@
     return e;
   }
 
+  /* ===================== قالب «مجله» =====================
+     داده از سرور می‌آید (app/kits/mag)، نه از سند: ctx.mag = خانه (دسته‌ها،
+     نویسنده‌ها، تازه‌ها، پرخواننده‌ها) و ctx.magApi برای متن مطلب و فهرست‌ها.
+     سند فقط طراحی است: حال‌وهوا (opts.mood)، رنگ و بخش‌ها.
+     مطلب، دسته، برچسب، نویسنده و جستجو هر کدام یک لایه روی صفحه‌اند (مثل قسمت). */
+  const MAG_FA = n => Number(n || 0).toLocaleString('fa-IR');
+  const MAG_GRAD = c => `linear-gradient(140deg, ${c}, ${mix(c, '#0A0F24', 0.45)})`;
+  function magDate(t) {
+    if (!t) return '';
+    const s = Date.now() / 1000 - t;
+    if (s < 0) return new Date(t * 1000).toLocaleDateString('fa-IR', { month: 'long', day: 'numeric' });
+    if (s < 3600) return 'همین حالا';
+    if (s < 86400) return MAG_FA(Math.floor(s / 3600)) + ' ساعت پیش';
+    if (s < 172800) return 'دیروز';
+    if (s < 7 * 86400) return MAG_FA(Math.floor(s / 86400)) + ' روز پیش';
+    return new Date(t * 1000).toLocaleDateString('fa-IR', { month: 'long', day: 'numeric' });
+  }
+  function magStore(appKey) {
+    const key = 'es-mag-saved:' + (appKey || 'preview');
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { list = []; }
+    if (!Array.isArray(list)) list = [];
+    return {
+      list: () => list,
+      has: id => list.some(p => p.id === id),
+      toggle(p) {
+        const on = !this.has(p.id);
+        list = on ? [{ id: p.id, title: p.title, cover: p.cover, cat: p.cat, author: p.author, at: p.at, mins: p.mins }].concat(list).slice(0, 120)
+          : list.filter(x => x.id !== p.id);
+        try { localStorage.setItem(key, JSON.stringify(list)); } catch (e) {}
+        return on;
+      },
+    };
+  }
+  function magCat(ctx, id) { return (ctx.mag.cats || []).find(c => c.id === id) || null; }
+  function magAuthor(ctx, id) { return (ctx.mag.authors || []).find(a => a.id === id) || null; }
+  function magPosts(ctx) { return ctx.mag.latest || []; }
+  function magTap(el, ctx, fn) {
+    el.classList.add('mg-tap');
+    if (ctx.editing) return el;
+    el.setAttribute('role', 'button');
+    el.tabIndex = 0;
+    el.addEventListener('click', ev => { ev.stopPropagation(); try { tg && tg.HapticFeedback.selectionChanged(); } catch (e) {} fn(); });
+    el.addEventListener('keydown', ev => { if (ev.key === 'Enter') fn(); });
+    return el;
+  }
+  function magCover(ctx, p, cls) {
+    const c = magCat(ctx, p.cat);
+    const box = h('div', 'mg-cover ' + (cls || ''));
+    box.style.background = MAG_GRAD(c ? c.color : 'var(--pg-accent)');
+    if (safeUrl(p.cover, true)) box.appendChild(imageEl(p.cover, 'mg-cover-img', ctx));
+    else box.appendChild(icon(c && c.icon && ICONS[c.icon] ? c.icon : 'book', 'mg-cover-ico'));
+    if (p.video || p.audio) {
+      const b = h('span', 'mg-media');
+      b.appendChild(icon(p.video ? 'play' : 'headph'));
+      box.appendChild(b);
+    }
+    return box;
+  }
+  function magChip(ctx, catId, onImg) {
+    const c = magCat(ctx, catId);
+    if (!c) return null;
+    const chip = h('span', 'mg-chip' + (onImg ? ' mg-chip--on' : ''), c.name);
+    chip.style.setProperty('--c', c.color);
+    return chip;
+  }
+  function magMeta(ctx, p, withAuthor) {
+    const a = magAuthor(ctx, p.author);
+    const parts = [];
+    if (withAuthor && a) parts.push(a.name);
+    parts.push(magDate(p.at));
+    if (ctx.readtime && p.mins) parts.push(MAG_FA(p.mins) + ' دقیقه');
+    const m = h('span', 'mg-meta');
+    parts.forEach((t, i) => { if (i) m.appendChild(h('i', 'mg-sep')); m.appendChild(document.createTextNode(t)); });
+    return m;
+  }
+  function magRow(ctx, p) {
+    const row = h('article', 'mg-row');
+    const tx = h('div', 'mg-row-tx');
+    const chip = magChip(ctx, p.cat);
+    if (chip) tx.appendChild(chip);
+    tx.append(h('b', 'mg-title', p.title), magMeta(ctx, p, true));
+    row.append(magCover(ctx, p, 'mg-thumb'), tx);
+    return magTap(row, ctx, () => ctx.openPost(p.id, p));
+  }
+  function magCard(ctx, p) {
+    const card = h('article', 'mg-card');
+    card.appendChild(magCover(ctx, p, 'mg-card-cov'));
+    const chip = magChip(ctx, p.cat);
+    if (chip) card.appendChild(chip);
+    card.append(h('b', 'mg-title', p.title), magMeta(ctx, p, false));
+    return magTap(card, ctx, () => ctx.openPost(p.id, p));
+  }
+  function magBig(ctx, p, label) {
+    const card = h('article', 'mg-big');
+    card.appendChild(magCover(ctx, p, 'mg-big-cov'));
+    const over = h('div', 'mg-big-tx');
+    if (label) over.appendChild(h('span', 'mg-label', label));
+    else { const chip = magChip(ctx, p.cat, true); if (chip) over.appendChild(chip); }
+    over.append(h('b', '', p.title), magMeta(ctx, p, true));
+    card.appendChild(over);
+    return magTap(card, ctx, () => ctx.openPost(p.id, p));
+  }
+  function magHead(title, more) {
+    const hd = h('div', 'mg-head');
+    hd.appendChild(h('b', '', title));
+    if (more) hd.appendChild(more);
+    return hd;
+  }
+  function magEmpty(text) { return h('p', 'mg-empty', text); }
+  function magAvatar(a, cls) {
+    const av = h('span', 'mg-av ' + (cls || ''));
+    if (safeUrl(a.avatar, true)) { av.style.backgroundImage = `url("${safeUrl(a.avatar, true).replace(/"/g, '')}")`; av.classList.add('mg-av--img'); }
+    else av.textContent = (a.name || '؟').trim().charAt(0);
+    return av;
+  }
+
+  R.mag_cats = (p, ctx) => {
+    const cats = ctx.mag.cats || [];
+    if (p.style === 'tiles') {
+      const g = h('div', 'mg-cattiles');
+      cats.forEach(c => {
+        const t = h('div', 'mg-cattile');
+        t.style.setProperty('--c', c.color);
+        t.append(icon(ICONS[c.icon] ? c.icon : 'list'), h('b', '', c.name));
+        g.appendChild(magTap(t, ctx, () => ctx.openList({ cat: c.id, title: c.name, color: c.color })));
+      });
+      return g;
+    }
+    const row = h('div', 'mg-cats');
+    const all = h('span', 'mg-catchip mg-catchip--on', 'همه');
+    row.appendChild(all);
+    cats.forEach(c => {
+      const chip = h('span', 'mg-catchip', c.name);
+      row.appendChild(magTap(chip, ctx, () => ctx.openList({ cat: c.id, title: c.name, color: c.color })));
+    });
+    if (!cats.length) row.appendChild(h('span', 'mg-catchip', 'دسته‌ها این‌جا می‌آیند'));
+    return row;
+  };
+  R.mag_featured = (p, ctx) => {
+    const list = magPosts(ctx);
+    const post = (p.post && list.find(x => x.id === p.post)) || list.find(x => x.cover) || list[0];
+    if (!post) return magEmpty('مطلب ویژه این‌جا می‌آید؛ اولین مطلبت را بنویس.');
+    ctx.magFeatured = post.id;
+    return magBig(ctx, post, p.label);
+  };
+  R.mag_latest = (p, ctx) => {
+    let list = magPosts(ctx);
+    if (p.cat) list = list.filter(x => x.cat === p.cat);
+    if (p.skip_featured && ctx.magFeatured) list = list.filter(x => x.id !== ctx.magFeatured);
+    list = list.slice(0, p.count || 6);
+    const box = h('section', 'mg-sec mg-latest mg-latest--' + (p.layout || 'list'));
+    const more = h('span', 'mg-more', 'همه');
+    const c = p.cat ? magCat(ctx, p.cat) : null;
+    box.appendChild(magHead(p.title || 'تازه‌ها', magTap(more, ctx, () => ctx.openList(c ? { cat: c.id, title: c.name, color: c.color } : { title: p.title || 'همهٔ مطالب' }))));
+    if (!list.length) { box.appendChild(magEmpty('هنوز مطلبی منتشر نشده.')); return box; }
+    const wrap = h('div', 'mg-list');
+    list.forEach(x => wrap.appendChild(p.layout === 'grid' ? magCard(ctx, x) : p.layout === 'big' ? magBig(ctx, x) : magRow(ctx, x)));
+    box.appendChild(wrap);
+    return box;
+  };
+  R.mag_popular = (p, ctx) => {
+    const list = (ctx.mag.popular || []).slice(0, p.count || 5);
+    const box = h('section', 'mg-sec mg-pop');
+    box.appendChild(magHead(p.title || 'پرخواننده‌ها'));
+    if (!list.length) { box.appendChild(magEmpty('وقتی مطالب خوانده شوند، پرخواننده‌ها این‌جا می‌آیند.')); return box; }
+    list.forEach((x, i) => {
+      const row = h('div', 'mg-poprow');
+      const tx = h('div', 'mg-row-tx');
+      tx.append(h('b', 'mg-title', x.title), magMeta(ctx, x, true));
+      row.append(h('span', 'mg-num', MAG_FA(i + 1)), tx);
+      box.appendChild(magTap(row, ctx, () => ctx.openPost(x.id, x)));
+    });
+    return box;
+  };
+  R.mag_authors = (p, ctx) => {
+    const list = ctx.mag.authors || [];
+    const box = h('section', 'mg-sec mg-authors mg-authors--' + (p.style || 'row'));
+    box.appendChild(magHead(p.title || 'نویسنده‌ها'));
+    if (!list.length) { box.appendChild(magEmpty('نویسنده‌ها این‌جا می‌آیند.')); return box; }
+    const wrap = h('div', 'mg-au-list');
+    list.forEach(a => {
+      const it = h('div', 'mg-au');
+      const tx = h('div', 'mg-au-tx');
+      tx.append(h('b', '', a.name), h('small', '', p.style === 'list' ? (a.bio || MAG_FA(a.count) + ' مطلب') : MAG_FA(a.count) + ' مطلب'));
+      it.append(magAvatar(a), tx);
+      wrap.appendChild(magTap(it, ctx, () => ctx.openList({ author: a.id, title: a.name, who: a })));
+    });
+    box.appendChild(wrap);
+    return box;
+  };
+  R.mag_catgrid = (p, ctx) => {
+    const box = h('section', 'mg-sec');
+    box.appendChild(magHead(p.title || 'دسته‌ها'));
+    const g = h('div', 'mg-catgrid');
+    (ctx.mag.cats || []).forEach(c => {
+      const t = h('div', 'mg-cg');
+      t.style.setProperty('--c', c.color);
+      t.append(icon(ICONS[c.icon] ? c.icon : 'list'), h('b', '', c.name), h('small', '', MAG_FA(c.count) + ' مطلب'));
+      g.appendChild(magTap(t, ctx, () => ctx.openList({ cat: c.id, title: c.name, color: c.color })));
+    });
+    if (!(ctx.mag.cats || []).length) g.appendChild(magEmpty('دسته‌ای ساخته نشده.'));
+    box.appendChild(g);
+    return box;
+  };
+  R.mag_saved = (p, ctx) => {
+    const box = h('section', 'mg-sec');
+    box.appendChild(magHead(p.title || 'ذخیره‌ها'));
+    const list = ctx.editing ? magPosts(ctx).slice(0, 2) : ctx.magSaved.list();
+    if (!list.length) { box.appendChild(magEmpty(p.empty || 'هنوز چیزی ذخیره نکردی.')); return box; }
+    const wrap = h('div', 'mg-list');
+    list.forEach(x => wrap.appendChild(magRow(ctx, x)));
+    box.appendChild(wrap);
+    return box;
+  };
+
+  /* ---------- سربرگ مجله: نشان، اسم، جستجو و ذخیره‌ها ---------- */
+  function magHeader(hd, ctx, fallbackTitle) {
+    const e = h('header', 'pg-header pg-header--mag');
+    const inner = h('div', 'pg-header-in');
+    const title = hd.title || fallbackTitle || '';
+    if (safeUrl(hd.logo, true)) inner.appendChild(imageEl(hd.logo, 'mg-logo mg-logo--img', ctx));
+    else inner.appendChild(h('span', 'mg-logo', title.trim().charAt(0) || '؟'));
+    const txt = h('div', 'pg-header-txt');
+    const tb = h('b', '', title);
+    if (ctx.editing) tb.dataset.edit = 'title';
+    txt.appendChild(tb);
+    if (hd.subtitle) { const sb = h('small', '', hd.subtitle); if (ctx.editing) sb.dataset.edit = 'subtitle'; txt.appendChild(sb); }
+    inner.appendChild(txt);
+    const search = h('button', 'mg-hb');
+    search.type = 'button';
+    search.setAttribute('aria-label', 'جستجو');
+    search.appendChild(icon('search'));
+    if (!ctx.editing) search.addEventListener('click', ev => { ev.stopPropagation(); ctx.openSearch(); });
+    inner.appendChild(search);
+    e.appendChild(inner);
+    return e;
+  }
+
+  /* ---------- لایهٔ مطلب ---------- */
+  function magInline(el, text) {
+    String(text || '').split(/(\*\*[^*\n]+?\*\*)/).forEach(part => {
+      if (/^\*\*[^*\n]+\*\*$/.test(part)) el.appendChild(h('b', '', part.slice(2, -2)));
+      else if (part) el.appendChild(document.createTextNode(part));
+    });
+    return el;
+  }
+  const OWN_MEDIA = /\/u\/[a-f0-9]{24}\.(mp3|m4a|ogg|wav|mp4|webm)$/;
+  function magAudio(b) {
+    const box = h('div', 'mg-audio');
+    const btn = h('button', 'mg-play');
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'پخش');
+    btn.appendChild(icon('play'));
+    const mid = h('div', 'mg-audio-m');
+    const bar = h('span', 'mg-bar');
+    const fill = h('i', '');
+    bar.appendChild(fill);
+    mid.append(h('b', '', b.title || 'نسخهٔ صوتی'), bar);
+    const time = h('span', 'mg-time', '');
+    box.append(btn, mid, time);
+    const au = document.createElement('audio');
+    au.preload = 'metadata';
+    au.src = safeUrl(b.src) || '';
+    const fmt = s => isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '';
+    au.addEventListener('loadedmetadata', () => { time.textContent = fmt(au.duration); });
+    au.addEventListener('timeupdate', () => {
+      fill.style.width = (au.duration ? au.currentTime / au.duration * 100 : 0) + '%';
+      time.textContent = fmt(au.currentTime) + ' / ' + fmt(au.duration);
+    });
+    au.addEventListener('ended', () => { btn.textContent = ''; btn.appendChild(icon('play')); });
+    btn.addEventListener('click', () => {
+      if (au.paused) { au.play().catch(() => {}); btn.textContent = ''; btn.appendChild(icon('pause')); }
+      else { au.pause(); btn.textContent = ''; btn.appendChild(icon('play')); }
+    });
+    bar.addEventListener('click', ev => {
+      const r = bar.getBoundingClientRect();
+      if (au.duration) au.currentTime = Math.max(0, Math.min(1, (r.right - ev.clientX) / r.width)) * au.duration;
+    });
+    box.appendChild(au);
+    return box;
+  }
+  function magBlock(b, ctx) {
+    if (b.t === 'p') {
+      const frag = document.createDocumentFragment();
+      String(b.text || '').split(/\n\s*\n/).forEach(par => frag.appendChild(magInline(h('p', 'mg-p'), par)));
+      return frag;
+    }
+    if (b.t === 'h') return h('h2', 'mg-h', b.text);
+    if (b.t === 'img') {
+      const f = h('figure', 'mg-fig');
+      f.appendChild(imageEl(b.src, 'mg-img', ctx));
+      if (b.cap) f.appendChild(h('figcaption', '', b.cap));
+      return f;
+    }
+    if (b.t === 'audio') return magAudio(b);
+    if (b.t === 'video') {
+      const f = h('figure', 'mg-fig');
+      if (OWN_MEDIA.test(b.src || '')) {
+        const v = document.createElement('video');
+        v.className = 'mg-video';
+        v.controls = true;
+        v.preload = 'metadata';
+        v.setAttribute('playsinline', '');
+        v.src = safeUrl(b.src) || '';
+        f.appendChild(v);
+      } else {
+        const ext = linkEl('a', 'mg-vlink', b.src, ctx);
+        ext.append(icon('play'), h('span', '', 'دیدن ویدیو'));
+        f.appendChild(ext);
+      }
+      if (b.cap) f.appendChild(h('figcaption', '', b.cap));
+      return f;
+    }
+    if (b.t === 'link') {
+      const a = linkEl('a', 'mg-link', b.url, ctx);
+      let host = '';
+      try { host = new URL(b.url).hostname.replace(/^www\./, ''); } catch (e) {}
+      const tx = h('span', 'mg-link-tx');
+      tx.append(h('b', '', b.title || host), h('small', '', b.note || host));
+      a.append(icon('website'), tx, icon('arrow', 'mg-link-go'));
+      return a;
+    }
+    if (b.t === 'btn') {
+      const a = linkEl('a', 'mg-btn', b.url, ctx);
+      a.appendChild(h('span', '', b.label || 'باز کردن'));
+      return a;
+    }
+    if (b.t === 'quote') {
+      const q = h('blockquote', 'mg-quote');
+      q.appendChild(magInline(h('p', ''), b.text));
+      if (b.by) q.appendChild(h('cite', '', b.by));
+      return q;
+    }
+    if (b.t === 'hr') return h('hr', 'mg-hr');
+    return document.createTextNode('');
+  }
+  function magArticle(ctx, post) {
+    const art = h('article', 'mg-art');
+    if (safeUrl(post.cover, true)) art.appendChild(imageEl(post.cover, 'mg-art-cov', ctx));
+    const body = h('div', 'mg-art-b');
+    const top = h('div', 'mg-art-top');
+    const chip = magChip(ctx, post.cat);
+    if (chip) { magTap(chip, ctx, () => { const c = magCat(ctx, post.cat); ctx.openList({ cat: c.id, title: c.name, color: c.color }); }); top.appendChild(chip); }
+    if (post.mins) top.appendChild(h('span', 'mg-meta', MAG_FA(post.mins) + ' دقیقه خواندن'));
+    body.append(top, h('h1', 'mg-art-t', post.title));
+    const a = magAuthor(ctx, post.author);
+    if (a) {
+      const by = h('div', 'mg-by');
+      const tx = h('div', 'mg-au-tx');
+      tx.append(h('b', '', a.name), h('small', '', magDate(post.at)));
+      by.append(magAvatar(a, 'mg-av--s'), tx);
+      body.appendChild(magTap(by, ctx, () => ctx.openList({ author: a.id, title: a.name, who: a })));
+    }
+    if (post.lead) body.appendChild(h('p', 'mg-lead', post.lead));
+    (post.body || []).forEach(b => body.appendChild(magBlock(b, ctx)));
+    if ((post.tags || []).length) {
+      const tags = h('div', 'mg-tags');
+      post.tags.forEach(t => tags.appendChild(magTap(h('span', 'mg-tag', '#' + t.replace(/_/g, ' ')), ctx, () => ctx.openList({ tag: t, title: '#' + t.replace(/_/g, ' ') }))));
+      body.appendChild(tags);
+    }
+    if (a) {
+      const card = h('div', 'mg-aucard');
+      const tx = h('div', 'mg-au-tx');
+      tx.append(h('small', '', 'نویسنده'), h('b', '', a.name), h('small', '', a.bio || MAG_FA(a.count) + ' مطلب'));
+      card.append(magAvatar(a, 'mg-av--l'), tx, h('span', 'mg-more', 'همهٔ مطالب'));
+      body.appendChild(magTap(card, ctx, () => ctx.openList({ author: a.id, title: a.name, who: a })));
+    }
+    const related = magPosts(ctx).filter(x => x.id !== post.id && x.cat === post.cat).slice(0, 3);
+    if (related.length) {
+      const rel = h('section', 'mg-sec mg-rel');
+      rel.appendChild(magHead('از همین دسته'));
+      related.forEach(x => rel.appendChild(magRow(ctx, x)));
+      body.appendChild(rel);
+    }
+    art.appendChild(body);
+    return art;
+  }
+  function magOpenPost(ctx, id, summary) {
+    const layer = shabLayer(ctx, 'mag');
+    layer.classList.add('mg-layer');
+    const save = h('button', 'sh-ib');
+    save.type = 'button';
+    save.setAttribute('aria-label', 'ذخیره');
+    const share = h('button', 'sh-ib');
+    share.type = 'button';
+    share.setAttribute('aria-label', 'هم‌رسانی');
+    share.appendChild(icon('send'));
+    const paintSave = () => { save.textContent = ''; save.appendChild(icon('bookmark')); save.classList.toggle('mg-on', ctx.magSaved.has(id)); };
+    paintSave();
+    const prog = h('i', 'mg-prog');
+    const bar = layerTop(ctx, h('span', 'sh-r-c'), [save, share]);
+    bar.appendChild(prog);
+    layer.appendChild(bar);
+    const scroll = layer.scroll;
+    layer.appendChild(scroll);
+    scroll.appendChild(h('div', 'mg-loading'));
+    let post = summary || null;
+    const show = p => {
+      post = p;
+      scroll.textContent = '';
+      scroll.appendChild(magArticle(ctx, p));
+    };
+    if (summary && summary.body) show(summary);
+    const api = ctx.magApi;
+    if (api) {
+      api.post(id).then(show).catch(err => {
+        scroll.textContent = '';
+        scroll.appendChild(magEmpty(err && err.message ? err.message : 'این مطلب باز نشد.'));
+      });
+    } else if (!(summary && summary.body)) {
+      scroll.textContent = '';
+      scroll.appendChild(magEmpty('متن کامل مطلب در مینی‌اپ منتشرشده باز می‌شود.'));
+    }
+    save.addEventListener('click', () => {
+      if (!post) return;
+      const on = ctx.magSaved.toggle(post);
+      paintSave();
+      try { tg && tg.HapticFeedback.notificationOccurred(on ? 'success' : 'warning'); } catch (e) {}
+    });
+    share.addEventListener('click', () => {
+      const link = ctx.mag.bot ? `https://t.me/${ctx.mag.bot}?start=a_${id}` : location.href.split('#')[0] + '#post=' + id;
+      const u = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(post ? post.title : '');
+      try { if (tg && tg.openTelegramLink) { tg.openTelegramLink(u); return; } } catch (e) {}
+      window.open(u, '_blank', 'noopener');
+    });
+    scroll.addEventListener('scroll', () => {
+      const max = scroll.scrollHeight - scroll.clientHeight;
+      prog.style.width = (max > 0 ? Math.min(1, scroll.scrollTop / max) * 100 : 0) + '%';
+    }, { passive: true });
+  }
+
+  /* ---------- لایهٔ فهرست: دسته، برچسب، نویسنده، جستجو ---------- */
+  function magOpenList(ctx, q) {
+    const layer = shabLayer(ctx, 'mag');
+    layer.classList.add('mg-layer');
+    const c = h('span', 'sh-r-c');
+    c.appendChild(h('b', '', q.title || ''));
+    layer.appendChild(layerTop(ctx, c));
+    const scroll = layer.scroll;
+    layer.appendChild(scroll);
+    const inner = h('div', 'mg-listpage');
+    scroll.appendChild(inner);
+    if (q.who) {
+      const a = q.who;
+      const hero = h('div', 'mg-auhero');
+      hero.append(magAvatar(a, 'mg-av--xl'), h('b', '', a.name));
+      if (a.bio) hero.appendChild(h('small', '', a.bio));
+      hero.appendChild(h('span', 'mg-meta', MAG_FA(a.count) + ' مطلب'));
+      inner.appendChild(hero);
+    } else if (q.cat) {
+      const hero = h('div', 'mg-cathero');
+      hero.style.setProperty('--c', q.color || 'var(--pg-accent)');
+      hero.append(h('b', '', q.title), h('small', '', MAG_FA((magCat(ctx, q.cat) || {}).count) + ' مطلب'));
+      inner.appendChild(hero);
+    }
+    const list = h('div', 'mg-list');
+    inner.appendChild(list);
+    let offset = 0;
+    const more = h('button', 'mg-loadmore', 'مطالب بیشتر');
+    more.type = 'button';
+    more.hidden = true;
+    inner.appendChild(more);
+    const local = () => magPosts(ctx).filter(x => (!q.cat || x.cat === q.cat) && (!q.author || x.author === q.author)
+      && (!q.tag || (x.tags || []).includes(q.tag)) && (!q.q || (x.title + ' ' + x.lead).includes(q.q)));
+    const fill = posts => {
+      posts.forEach(x => list.appendChild(magRow(ctx, x)));
+      if (!list.childElementCount) list.appendChild(magEmpty(q.q ? 'چیزی پیدا نشد.' : 'هنوز مطلبی این‌جا نیست.'));
+    };
+    const load = () => {
+      if (!ctx.magApi) { fill(local()); return; }
+      more.disabled = true;
+      ctx.magApi.list({ cat: q.cat, tag: q.tag, author: q.author, q: q.q, offset }).then(r => {
+        offset += r.posts.length;
+        fill(r.posts);
+        more.hidden = !r.more;
+        more.disabled = false;
+      }).catch(() => { fill(local()); more.hidden = true; });
+    };
+    more.addEventListener('click', load);
+    load();
+  }
+  function magOpenSearch(ctx) {
+    const layer = shabLayer(ctx, 'mag');
+    layer.classList.add('mg-layer');
+    const form = h('form', 'mg-search');
+    const input = h('input', '');
+    input.type = 'search';
+    input.placeholder = 'جستجو در مطالب…';
+    input.enterKeyHint = 'search';
+    form.appendChild(input);
+    layer.appendChild(layerTop(ctx, form));
+    const scroll = layer.scroll;
+    layer.appendChild(scroll);
+    const inner = h('div', 'mg-listpage');
+    scroll.appendChild(inner);
+    const tags = {};
+    magPosts(ctx).forEach(p => (p.tags || []).forEach(t => { tags[t] = (tags[t] || 0) + 1; }));
+    const top = Object.keys(tags).sort((a, b) => tags[b] - tags[a]).slice(0, 12);
+    if (top.length) {
+      inner.appendChild(magHead('برچسب‌ها'));
+      const row = h('div', 'mg-tags');
+      top.forEach(t => row.appendChild(magTap(h('span', 'mg-tag', '#' + t.replace(/_/g, ' ')), ctx, () => ctx.openList({ tag: t, title: '#' + t.replace(/_/g, ' ') }))));
+      inner.appendChild(row);
+    }
+    form.addEventListener('submit', ev => {
+      ev.preventDefault();
+      const term = input.value.trim();
+      if (term.length < 2) return;
+      input.blur();
+      ctx.openList({ q: term, title: '«' + term + '»' });
+    });
+    setTimeout(() => input.focus(), 250);
+  }
+
   /* سند نسخهٔ ۱ ({blocks}) را به شکل نسخهٔ ۲ درمی‌آورد */
   function normalize(doc) {
     doc = doc || {};
@@ -1774,6 +2310,7 @@
   /* ---------- سربرگ مینی‌اپ ---------- */
   function renderHeader(hd, ctx, fallbackTitle) {
     if (ctx.kit === 'shab') return shabHeader(hd, ctx, fallbackTitle);
+    if (ctx.kit === 'mag') return magHeader(hd, ctx, fallbackTitle);
     const e = h('header', `pg-header pg-header--${hd.style || 'bar'} pg-align-${hd.align || 'start'}`);
     const inner = h('div', 'pg-header-in');
     if (safeUrl(hd.logo, true)) inner.appendChild(imageEl(hd.logo, 'pg-header-logo', ctx));
@@ -1879,11 +2416,22 @@
       ctx.book = sid => openBook(ctx, sid);
       ctx.refresh = () => render(root, rawDoc, opts);
     }
+    if (kit === 'mag') {
+      ctx.mag = opts.mag || { cats: [], authors: [], latest: [], popular: [] };
+      ctx.magApi = opts.editing ? null : (opts.magApi || null);
+      ctx.magSaved = magStore(opts.editing ? '' : opts.appKey);
+      ctx.readtime = !(doc.opts && doc.opts.readtime === false);
+      ctx.refresh = () => render(root, rawDoc, opts);
+      ctx.openPost = (id, summary) => magOpenPost(ctx, id, summary);
+      ctx.openList = q => magOpenList(ctx, q);
+      ctx.openSearch = () => magOpenSearch(ctx);
+      root.__ctx = ctx;
+    }
     if (root.__shab && root.__shab.length) { root.__shab.forEach(l => l.__off && l.__off()); root.__shab = []; }
     root.classList.remove('sh-open');
     root.textContent = '';
     root.classList.add('pg-page');
-    const pal = applyTheme(root, doc.theme, kit);
+    const pal = applyTheme(root, doc.theme, kit, doc.opts);
     const page = doc.pages.find(p => p.id === opts.page) || doc.pages[0];
     const hasTabs = !!(doc.tabbar && doc.tabbar.enabled && doc.pages.length > 1);
     root.classList.toggle('pg-has-tabs', hasTabs);
@@ -1938,12 +2486,19 @@
       root.appendChild(badge);
     }
     if (hasTabs) root.appendChild(renderTabbar(doc, page.id, opts.onNavigate));
+    // پیش‌نمایش صفحهٔ مطلب/فهرست مجله در استودیو (بدون کلیک)
+    if (kit === 'mag' && opts.magView) {
+      const v = opts.magView;
+      if (v.post) magOpenPost(ctx, v.post.id, v.post);
+      else if (v.list) magOpenList(ctx, v.list);
+    }
     pal.page = page;
     pal.doc = doc;
     return pal;
   }
 
   window.EasySaz = { render, normalize, applyTheme, palette, accentVars, icon, h, openUrl, safeUrl, isDark, ICONS, KITS: Object.keys(KITS),
+    magOpen: (root, id) => (root.__ctx && root.__ctx.openPost ? (root.__ctx.openPost(id), true) : false), magBlock,
     storyText, storyPara, paragraphs, paraKind, inlineRuns, shabSeed, shabOpen, minutes, words, shabCover: p => coverEl(p || {}, '', { editing: false }),
     parseLines, parseLine, joinLines, lineText, castOf, episodeView, Q_COLORS,
     lineNodes: (lines, p) => lineNodes(lines, castOf(p || {}), { avatars: (p || {}).avatars !== false, ctx: { editing: false } }),

@@ -1378,3 +1378,74 @@ button.tile:active{transform:scale(.98)}
 .wl-all{background:#FCE4DE; color:var(--danger); margin-top:12px}
 .wl-note{text-align:center; margin:10px 0 0}
 .wl-empty{display:flex; flex-direction:column; gap:12px; padding:6px 0}
+
+/* مجله: فقط محتوا (طراحی از سایت) */
+.t-site{background:var(--surface-sunk); box-shadow:none}
+.t-site > .ico{width:18px; height:18px; color:var(--ink-3)}
+.mgp{display:flex; flex-direction:column; gap:12px; padding-bottom:110px}
+.mgp-site{display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:18px; background:var(--surface); box-shadow:inset 0 0 0 1px var(--line); text-align:right}
+.mgp-site-ic{width:40px; height:40px; border-radius:13px; background:var(--surface-sunk); color:var(--ink-2); display:grid; place-items:center; flex:none}
+.mgp-site-ic .ico{width:19px; height:19px}
+.mgp-site .grow{display:flex; flex-direction:column; line-height:1.5}
+.mgp-site b{font-size:14px}
+.mgp-site .grow span{font-size:11.5px; color:var(--ink-3)}
+.mgp-site-go{font-size:12px; font-weight:800; color:var(--brand); white-space:nowrap}
+.mgp-filters{display:flex; gap:8px}
+.mgp-filter{height:34px; padding:0 14px; border-radius:17px; display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:800; background:var(--surface); box-shadow:inset 0 0 0 1px var(--line)}
+.mgp-filter small{opacity:.55}
+.mgp-filter.on{background:var(--ink); color:var(--surface); box-shadow:none}
+.mgp-list{display:flex; flex-direction:column; background:var(--surface); border-radius:22px; padding:2px 14px}
+.mgp-row{display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--line); text-align:right; width:100%}
+.mgp-row:first-child{border-top:0}
+.mgp-row .grow{display:flex; flex-direction:column; gap:3px; min-width:0}
+.mgp-row b{font-size:14px; line-height:1.55; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.mgp-thumb{width:64px; height:52px; border-radius:12px; overflow:hidden; flex:none; position:relative}
+.mgp-thumb.sm{width:48px; height:40px; border-radius:10px}
+.mgp-thumb img{width:100%; height:100%; object-fit:cover; display:block}
+.mgp-meta{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+.mgp-chip{height:22px; padding:0 9px; border-radius:11px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; background:color-mix(in srgb, var(--c) 13%, transparent); color:var(--c)}
+.mgp-st{font-size:11px; color:var(--ink-3)}
+.mgp-st.warn{color:#9A6412; font-weight:800}
+.mgp-src{display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; background:#E3F1FB; color:#2A8BD6}
+.mgp-src .ico{width:11px; height:11px}
+.mgp-empty{display:flex; flex-direction:column; gap:4px; padding:22px 6px; text-align:center}
+.mgp-empty span{font-size:12.5px; color:var(--ink-3)}
+.mgp-fab{position:fixed; left:16px; right:16px; bottom:calc(var(--tg-safe-bottom, 0px) + 22px); height:54px; z-index:6; box-shadow:0 16px 30px -14px rgba(75,46,232,.7)}
+.mgp-cover{position:relative; height:120px; border-radius:20px; overflow:hidden; background:linear-gradient(140deg, #E8EEFF, var(--surface-sunk)); display:flex; align-items:flex-end; gap:8px; padding:10px}
+.mgp-cover.has{height:180px}
+.mgp-cover img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+.mgp-cbtn{position:relative; height:32px; padding:0 12px; border-radius:16px; background:rgba(255,255,255,.92); color:var(--ink); font-size:12.5px; font-weight:800; display:inline-flex; align-items:center; gap:6px}
+.mgp-cbtn .ico{width:15px; height:15px}
+.mgp-title,.mgp-lead{border:0; outline:none; resize:none; background:none; font:inherit; color:var(--ink); padding:0; overflow:hidden; width:100%}
+.mgp-title{font-size:22px; font-weight:800; line-height:1.5}
+.mgp-lead{font-size:14.5px; line-height:1.9; color:var(--ink-3)}
+.mgp-lbl{font-size:12px; font-weight:800; color:var(--ink-3); margin-top:4px}
+.mgp-chips{display:flex; flex-wrap:wrap; gap:6px; align-items:center}
+.mgp-chip--b{height:32px; padding:0 13px; border-radius:16px; font-size:12.5px; background:var(--surface); box-shadow:inset 0 0 0 1px var(--line); color:var(--ink-2)}
+.mgp-chip--b.on{background:var(--c); color:#FFFFFF; box-shadow:none}
+.mgp-tag{height:30px; padding:0 8px 0 12px; border-radius:15px; display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700; background:var(--surface-sunk)}
+.mgp-tag .ico{width:12px; height:12px; color:var(--ink-3)}
+.mgp-taginp{height:30px; width:110px; border:0; outline:none; background:none; font:inherit; font-size:13px}
+.mgp-blocks{display:flex; flex-direction:column; gap:10px}
+.mgp-blk{display:flex; flex-direction:column; gap:8px; padding:10px 12px; border-radius:18px; background:var(--surface)}
+.mgp-blk-top{display:flex; align-items:center; gap:4px; font-size:11px; font-weight:800; color:var(--ink-3)}
+.mgp-ib{width:28px; height:28px; border-radius:9px; display:grid; place-items:center; color:var(--ink-3)}
+.mgp-ib .ico{width:15px; height:15px}
+.mgp-in{width:100%; border:0; outline:none; background:var(--ground); border-radius:12px; padding:8px 10px; font:inherit; font-size:14px; color:var(--ink); resize:none; box-sizing:border-box}
+.mgp-p{background:none; padding:0; font-size:15.5px; line-height:2; overflow:hidden}
+.mgp-h{background:none; padding:0; font-size:18px; font-weight:800}
+.mgp-q{background:none; padding:0 10px 0 0; border-right:3px solid var(--brand); border-radius:0; font-size:16px; font-weight:700; line-height:1.9; overflow:hidden}
+.mgp-media{display:flex; flex-direction:column; align-items:flex-start; gap:8px}
+.mgp-media img{width:100%; max-height:220px; object-fit:cover; border-radius:14px}
+.mgp-file{font-size:12.5px; color:var(--ink-2); direction:ltr; word-break:break-all}
+.mgp-tools{display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; padding:8px; border-radius:18px; background:var(--surface)}
+.mgp-tool{display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 2px; border-radius:12px; font-size:11px; font-weight:800; color:var(--ink-2)}
+.mgp-tool:active{background:var(--ground)}
+.mgp-tool .ico{width:20px; height:20px}
+.mgp-post{padding:12px 14px; border-radius:18px; background:var(--surface)}
+.mgp-link{display:flex; align-items:center; gap:8px; padding:8px 8px 8px 12px; border-radius:14px; background:var(--surface); font-size:12px; overflow:hidden}
+.mgp-link .grow{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.mgp-del{align-self:flex-start}
+.mgp-foot{position:fixed; left:0; right:0; bottom:0; z-index:6; display:flex; gap:8px; padding:10px 14px calc(var(--tg-safe-bottom, 0px) + 18px); background:var(--surface); box-shadow:0 -1px 0 var(--line)}
+.mgp-foot .btn{flex:1}
+.mgp-foot .btn-p{flex:1.6}

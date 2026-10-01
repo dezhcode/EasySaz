@@ -95,7 +95,7 @@
       if (r.status === 'scanned' && S.state !== 'scanned') setState('scanned');
       else if (r.status === 'approved') done(r.user || {});
       else if (r.status === 'denied') { S.code = ''; setState('denied'); }
-      else if (r.status === 'used') location.href = BASE + 'account';
+      else if (r.status === 'used') location.href = BASE + 'studio';
       else if (r.status === 'expired') { S.code = ''; fresh(); }
     } catch (e) {
       if (e.status === 404 || e.status === 400) { S.code = ''; fresh(); }
@@ -118,7 +118,7 @@
       sub.append(b, ' به این مرورگر وصل شد.');
     }
     setState('done');
-    setTimeout(() => { location.href = BASE + 'account'; }, 2400);
+    setTimeout(() => { location.href = BASE + 'studio'; }, 2400);
   }
 
   /* شمارش معکوس و QR تازه */

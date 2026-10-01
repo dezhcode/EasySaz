@@ -82,6 +82,29 @@
     };
   }
   const remote = shabRemote();
+
+  /* ---------- مجله: متن مطلب و فهرست‌ها (عمومی) ---------- */
+  function magRemote() {
+    if (demo) return null;
+    const url = tail => BASE + 'api/page/' + encodeURIComponent(slug) + '/mag/' + tail;
+    const get = async tail => {
+      const res = await fetch(url(tail), { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'error');
+      return data;
+    };
+    const seen = new Set();
+    return {
+      post: async id => {
+        const first = !seen.has(id);
+        seen.add(id);
+        return (await get('post?id=' + encodeURIComponent(id) + (first ? '&v=1' : ''))).post;
+      },
+      list: q => get('list?' + Object.entries(q).filter(([, v]) => v !== undefined && v !== '' && v !== null)
+        .map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&')),
+    };
+  }
+  const magApi = magRemote();
   document.addEventListener('visibilitychange', () => { if (document.hidden && remote) remote.flush(); });
 
   async function load() {
@@ -100,13 +123,17 @@
     const hash = decodeURIComponent(location.hash.slice(1));
     const startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '';
     let readId = /^read=/.test(hash) ? hash.slice(5) : (/^c_/.test(startParam) ? startParam.slice(2) : '');
-    let current = hash && !/^read=/.test(hash) ? hash : null;
+    // مجله: #post=<مطلب> یا startapp=a_<مطلب>
+    let postId = /^post=/.test(hash) ? hash.slice(5) : (/^a_/.test(startParam) ? startParam.slice(2) : '');
+    let current = hash && !/^(read|post)=/.test(hash) ? hash : null;
     const draw = () => {
       const pal = ES.render(root, doc, {
         page: current,
         appName: data.name,
         appKey: slug,
         remote: doc.kit === 'shab' ? remote : null,
+        mag: data.mag || null,
+        magApi: doc.kit === 'mag' ? magApi : null,
         fixedChrome: true,
         branding: data.branding ? { bot: data.brand_bot } : null,
         onNavigate: id => {
@@ -127,6 +154,11 @@
         ES.shabSeed(slug, me);
         if (!(root.__shab && root.__shab.length)) draw();
       }).catch(() => {});
+    }
+    if (postId && doc.kit === 'mag') {
+      ES.magOpen(root, postId);
+      postId = '';
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
     }
     if (readId) {
       const opened = ES.shabOpen && ES.shabOpen(root, readId);

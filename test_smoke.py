@@ -237,8 +237,8 @@ def test_blocks() -> None:
     for t in templates.TEMPLATES:
         again = blocks.clean_page(t["doc"], max_blocks=100, premium=True, max_pages=12)
         assert again["pages"] and t["category"] in templates.CATEGORIES, t["id"]
-    ok([t["id"] for t in templates.TEMPLATES] == ["shab"] and templates.TEMPLATES[0]["kit"] == "shab",
-       "فقط قالب قسمت عرضه می‌شود و معتبر است")
+    ok([t["id"] for t in templates.TEMPLATES] == ["shab", "mag"] and [t["kit"] for t in templates.TEMPLATES] == ["shab", "mag"],
+       "قالب‌های قسمت و مجله عرضه می‌شوند و معتبرند")
     doms = {d["id"] for d in templates.DOMAINS}
     hexok = lambda c: bool(re.fullmatch(r"#[0-9A-Fa-f]{6}", c or ""))
     ok(all(e["domain"] in doms and hexok(e["color"]) and hexok(e["tint"]) and e["status"] in ("ready", "soon")
@@ -645,7 +645,7 @@ def test_site() -> None:
        "توکن نشست خام در دیتابیس نیست")
 
     r = call("GET", "/login", headers={"Cookie": "es_site=" + token})
-    ok(r["status"] == 302 and r["headers"]["Location"] == "/easysaz/account", "وارد شده ← ورود به حساب می‌رود")
+    ok(r["status"] == 302 and r["headers"]["Location"] == "/easysaz/studio", "وارد شده ← ورود به استودیو می‌رود")
     ok(call("GET", "/account", headers={"Cookie": "es_site=" + token})["status"] == 200, "صفحهٔ حساب با کوکی")
     st, me, _ = site("GET", "/site/api/me", cookie=token)
     ok(st == 200 and me["user"]["id"] == 7 and len(me["sessions"]) == 1 and me["sessions"][0]["current"]
@@ -689,10 +689,156 @@ def test_site() -> None:
     ok(btn["web_app"]["url"].endswith("/panel#weblogin=" + lg["code"]), "لینک QR در ربات ← پنل با صفحهٔ تأیید")
 
 
+def site_login(uid: int) -> str:
+    """ورود به سایت با QR برای کاربر uid؛ توکن کوکی برمی‌گردد."""
+    h = {"X-ES": "1"}
+    st = json.loads(call("POST", "/site/api/login/start", None, h)["body"])
+    jcall("POST", "/api/weblogin/inspect", {"code": st["code"]}, uid=uid)
+    jcall("POST", "/api/weblogin/approve", {"code": st["code"]}, uid=uid)
+    r = call("POST", "/site/api/login/poll", {"code": st["code"], "poll": st["poll"]}, h)
+    return r["headers"]["Set-Cookie"].split(";")[0].split("=", 1)[1]
+
+
+def test_mag() -> None:
+    print("قالب مجله: سایت، مینی‌اپ و خواننده")
+    import sqlite3
+    uid = 31
+    jcall("GET", "/api/me", uid=uid)
+    tok = site_login(uid)
+
+    def site(method: str, path: str, body=None, raw: bytes | None = None, extra: dict | None = None):  # noqa: ANN001, ANN202
+        h = {"X-ES": "1", "Cookie": "es_site=" + tok, **(extra or {})}
+        r = call(method, path, raw if raw is not None else body, h)
+        return r["status"], json.loads(r["body"] or b"{}") if r["headers"].get("Content-Type", "").startswith("application/json") else r["body"], r["headers"]
+
+    ok(call("GET", "/studio", headers={"Cookie": "es_site=" + tok})["status"] == 200
+       and call("GET", "/studio/12")["status"] == 302, "استودیو فقط با ورود")
+    st, apps, _ = site("GET", "/site/api/apps")
+    ok(st == 200 and apps["apps"] == [] and any(t["id"] == "mag" for t in apps["templates"]), "استودیو: قالب مجله در فهرست")
+    st, res, _ = site("POST", "/site/api/app/create", {"name": "دیجی‌نوشت", "template": "mag"})
+    ok(st == 200 and res["app"]["kit"] == "mag", "ساختن مینی‌اپ با قالب مجله از سایت")
+    aid, slug = res["app"]["id"], res["app"]["slug"]
+    st, app, _ = site("GET", f"/site/api/app?id={aid}")
+    ok(st == 200 and [p["id"] for p in app["doc"]["pages"]] == ["home", "cats", "saved", "authors"]
+       and app["doc"]["opts"]["mood"] == "news" and len(app["mag_home"]["cats"]) == 3 and len(app["mag_home"]["latest"]) == 1,
+       "مجلهٔ تازه: چهار صفحه، سه دسته و مطلب خوش‌آمد")
+
+    # طراحی فقط از سایت
+    doc = app["doc"]
+    st, _ = jcall("POST", "/api/app/save", {"id": aid, "doc": doc}, uid=uid)
+    st2, _ = jcall("POST", "/api/app/publish", {"id": aid, "doc": doc}, uid=uid)
+    st3, _ = jcall("POST", "/api/app/remove_kit", {"id": aid}, uid=uid)
+    ok(st == st2 == st3 == 403, "مینی‌اپ ایزی‌ساز طراحی مجله را عوض نمی‌کند (ذخیره، انتشار، حذف قالب)")
+    shab_doc = dict(doc, kit="shab")
+    st, _, _ = site("POST", "/site/api/app/save", {"id": aid, "doc": shab_doc})
+    ok(st == 400, "ذخیرهٔ طراحی قالب را عوض نمی‌کند")
+    doc["opts"]["mood"] = "classic"
+    doc["pages"][0]["blocks"][2]["props"]["layout"] = "grid"
+    st, res, _ = site("POST", "/site/api/app/publish", {"id": aid, "doc": doc})
+    st2, page = jcall("GET", f"/api/page/{slug}", uid=None)
+    ok(st == 200 and page["doc"]["opts"]["mood"] == "classic" and page["doc"]["pages"][0]["blocks"][2]["props"]["layout"] == "grid"
+       and len(page["doc"]["pages"]) == 4 and page["mag"]["latest"][0]["title"] == "به مجلهٔ ما خوش آمدی",
+       "انتشار طراحی از سایت؛ صفحهٔ خواننده با دادهٔ خانهٔ مجله")
+
+    # محتوا از مینی‌اپ (تلگرام)
+    st, data = jcall("GET", f"/api/kit/mag/data?app={aid}", uid=uid)
+    cats = {c["name"]: c["id"] for c in data["cats"]}
+    ok(st == 200 and data["counts"]["pub"] == 1 and len(data["authors"]) == 1, "دادهٔ مجله در مینی‌اپ")
+    body = [{"t": "p", "text": "متن **اول**"}, {"t": "h", "text": "تیتر"}, {"t": "img", "src": "javascript:alert(1)"},
+            {"t": "link", "url": "https://example.org", "title": "لینک"}, {"t": "evil", "x": 1}, {"t": "hr"}]
+    st, res = jcall("POST", "/api/kit/mag/save", {"app": aid, "title": "عکاسی در شب", "lead": "پنج ترفند",
+                                                  "body": body, "cat": cats["آموزش"], "tags": ["#عکاسی", "موبایل شب"], "status": "pub"}, uid=uid)
+    p1 = res["post"]
+    ok(st == 200 and p1["state"] == "pub" and p1["source"] == "tg" and [b["t"] for b in p1["body"]] == ["p", "h", "link", "hr"]
+       and p1["tags"] == ["عکاسی", "موبایل_شب"], "مطلب از تلگرام: بلوک‌ها و برچسب‌ها پاکسازی می‌شوند")
+    st, res = jcall("POST", "/api/kit/mag/save", {"app": aid, "title": "پیش‌نویس", "status": "draft"}, uid=uid)
+    draft = res["post"]["id"]
+    st, res = jcall("POST", "/api/kit/mag/save", {"app": aid, "title": "فردا", "status": "sched", "pub_at": int(time.time()) + 86400}, uid=uid)
+    ok(res["post"]["state"] == "sched", "مطلب زمان‌بندی‌شده")
+    st, _ = jcall("POST", "/api/kit/mag/cat_save", {"app": aid, "name": "سفر"}, uid=uid)
+    ok(st == 403, "دسته‌ها فقط از سایت")
+    st, _ = jcall("GET", f"/api/kit/mag/data?app={aid}", uid=8)
+    ok(st == 404, "مجلهٔ دیگران دیده نمی‌شود")
+
+    # خواننده
+    st, lst = jcall("GET", f"/api/page/{slug}/mag/list", uid=None)
+    titles = [p["title"] for p in lst["posts"]]
+    ok(st == 200 and "عکاسی در شب" in titles and "پیش‌نویس" not in titles and "فردا" not in titles,
+       "خواننده پیش‌نویس و زمان‌بندی‌شده را نمی‌بیند")
+    st, lst = jcall("GET", f"/api/page/{slug}/mag/list?cat={cats['آموزش']}", uid=None)
+    st2, lst2 = jcall("GET", f"/api/page/{slug}/mag/list?tag=" + quote("موبایل_شب"), uid=None)
+    st3, lst3 = jcall("GET", f"/api/page/{slug}/mag/list?q=" + quote("ترفند"), uid=None)
+    ok(len(lst["posts"]) == 2 and [p["id"] for p in lst2["posts"]] == [p1["id"]] and [p["id"] for p in lst3["posts"]] == [p1["id"]],
+       "فیلتر دسته، برچسب و جستجو")
+    st, one = jcall("GET", f"/api/page/{slug}/mag/post?id={p1['id']}&v=1", uid=None)
+    st2, _ = jcall("GET", f"/api/page/{slug}/mag/post?id={draft}", uid=None)
+    ok(st == 200 and one["post"]["body"][0]["text"] == "متن **اول**" and st2 == 404, "متن کامل مطلب؛ پیش‌نویس نه")
+    st, data = jcall("GET", f"/api/kit/mag/data?app={aid}", uid=uid)
+    ok(next(p for p in data["posts"] if p["id"] == p1["id"])["views"] == 1, "شمارش بازدید مطلب")
+
+    # دسته و نویسنده از سایت
+    st, res, _ = site("POST", "/site/api/mag/cat_save", {"app": aid, "name": "سفر", "color": "#12A071", "icon": "globe"})
+    ok(st == 200 and res["id"].startswith("c"), "دستهٔ تازه از سایت")
+    st, _, _ = site("POST", "/site/api/mag/cat_delete", {"app": aid, "id": cats["آموزش"]})
+    st2, one = jcall("GET", f"/api/page/{slug}/mag/post?id={p1['id']}", uid=None)
+    ok(st == 200 and one["post"]["cat"] == "", "حذف دسته: مطلب‌هایش بی‌دسته می‌شوند")
+    st, res, _ = site("POST", "/site/api/mag/author_save", {"app": aid, "name": "سارا", "bio": "عکاس"})
+    st2, res2, _ = site("POST", "/site/api/mag/save", {"app": aid, "id": p1["id"], "title": "عکاسی در شب", "author": res["id"], "status": "pub", "body": body})
+    ok(st == 200 and res2["post"]["author"] == res["id"] and res2["post"]["source"] == "tg", "نویسندهٔ تازه؛ منبع مطلب عوض نمی‌شود")
+    st, _, _ = site("POST", "/site/api/mag/author_delete", {"app": aid, "id": res["id"]})
+    ok(st == 400, "نویسندهٔ دارای مطلب پاک نمی‌شود")
+
+    # صوت و ویدیو
+    mp3 = b"ID3\x03\x00\x00\x00" + b"\x00" * 200
+    st, res, _ = site("POST", "/site/api/upload_media", raw=mp3, extra={"Content-Type": "audio/mpeg"})
+    ok(st == 200 and res["url"].endswith(".mp3") and res["kind"] == "audio", "آپلود صوت از سایت")
+    name = res["url"].rsplit("/", 1)[1]
+    r = call("GET", "/u/" + name, headers={"Range": "bytes=0-3"})
+    ok(r["status"] == 206 and r["body"] == b"ID3\x03" and r["headers"]["Content-Range"] == f"bytes 0-3/{len(mp3)}",
+       "پخش صوت با Range")
+    st, _, _ = site("POST", "/site/api/upload_media", raw=b"<html>not media</html>")
+    ok(st == 400, "فایل غیرصوتی/تصویری رد می‌شود")
+    r = call("POST", "/api/upload_media", b"\x00\x00\x00\x18ftypisom" + b"\x00" * 64, {"X-Init-Data": init_data(uid)})
+    ok(r["status"] == 200 and json.loads(r["body"])["url"].endswith(".mp4"), "آپلود ویدیو از مینی‌اپ")
+
+    # لینک عمیق و پست کانال (ربات در حالت کنترل کامل)
+    db = sqlite3.connect(os.environ["DB_PATH"])
+    db.execute("UPDATE apps SET bot_id = 2000002, bot_username = 'cafe_bot', bot_token_enc = ?, mode = 'full', "
+               "channel_id = -1001234567890, channel_title = 'Kaboos' WHERE id = ?", (secure.encrypt_token(CLIENT_TOKEN), aid))
+    db.commit()
+    upd = update(f"/start a_{p1['id']}", uid=77)
+    call("POST", "/hook/2000002", upd, {"X-Telegram-Bot-Api-Secret-Token": secure.client_hook_secret(2000002)})
+    btn = calls("SendMessage", 2000002)[-1]["reply_markup"]["inline_keyboard"][0][0]
+    ok(btn["web_app"]["url"].endswith(f"/a/{slug}#post={p1['id']}"), "لینک پست کانال (start=a_…) همان مطلب را باز می‌کند")
+    st, res, _ = site("POST", "/site/api/mag/channel_post", {"app": aid, "id": draft})
+    ok(st == 400, "پیش‌نویس به کانال نمی‌رود")
+    st, res, _ = site("POST", "/site/api/mag/channel_post", {"app": aid, "id": p1["id"], "text": "متن پست", "button": "بخوان"})
+    sent = calls("SendMessage", 2000002)[-1]
+    ok(st == 200 and sent["chat_id"] == -1001234567890 and "start=a_" + p1["id"] in sent["reply_markup"]["inline_keyboard"][0][0]["url"]
+       and "بخوان" in sent["reply_markup"]["inline_keyboard"][0][0]["text"], "پست کانال با دکمهٔ لینک عمیق")
+    st, data = jcall("GET", f"/api/kit/mag/data?app={aid}", uid=uid)
+    ok(next(p for p in data["posts"] if p["id"] == p1["id"])["link"] == f"https://t.me/cafe_bot?start=a_{p1['id']}",
+       "لینک هر مطلب در دادهٔ صاحب")
+    st, _ = jcall("POST", "/api/kit/mag/delete", {"app": aid, "id": draft}, uid=uid)
+    st2, _ = jcall("GET", f"/api/kit/mag/get?app={aid}&id={draft}", uid=uid)
+    ok(st == 200 and st2 == 404, "حذف مطلب از مینی‌اپ")
+
+    r = call("GET", f"/studio/{aid}/design", headers={"Cookie": "es_site=" + tok})
+    ok(r["status"] == 200 and b"site/static/studio.js?v=" in r["body"] and b"static/render.js" in r["body"], "صفحهٔ استودیو با موتور پیش‌نمایش")
+    st, _, _ = site("POST", "/site/api/app/save", {"id": aid, "doc": doc}, extra={"Cookie": "es_site=bad"})
+    ok(st == 401, "استودیو بدون نشست معتبر کاری نمی‌کند")
+    st, res, _ = site("POST", "/site/api/app/template", {"id": aid, "template": "shab"})
+    left = sqlite3.connect(os.environ["DB_PATH"]).execute("SELECT COUNT(*) FROM mag_posts WHERE app_id = ?", (aid,)).fetchone()[0]
+    ok(st == 200 and res["doc"]["kit"] == "shab" and left == 0, "عوض کردن قالب از سایت: دادهٔ مجله پاک می‌شود")
+    st, _ = jcall("POST", "/api/app/save", {"id": aid, "doc": res["doc"]}, uid=uid)
+    ok(st == 200, "بعد از قالب قسمت، مینی‌اپ دوباره طراحی را ذخیره می‌کند")
+
+
 if __name__ == "__main__":
     test_blocks()
     test_auth()
     test_web()
     test_bot()
     test_site()
+    test_mag()
     print(f"\nهمه {PASSED} تست گذشت ✅")

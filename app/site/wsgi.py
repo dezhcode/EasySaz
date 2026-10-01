@@ -9,6 +9,8 @@
   GET  /site/api/me             کاربر، مینی‌اپ‌ها و دستگاه‌ها        (کوکی)
   POST /site/api/logout         خروج همین مرورگر                    (کوکی)
   POST /site/api/revoke         خروج یک دستگاه یا همه {id|all}      (کوکی)
+  GET  /studio, /studio/<id>    استودیو: ساختن و طراحی مینی‌اپ       (app/site/studio.py)
+  *    /site/api/apps|app/*|upload*|mag/*                            (کوکی)
 
 POSTها هدر X-ES می‌خواهند: فرم یا سایت دیگری نمی‌تواند بدون پیش‌پرواز CORS
 آن را بفرستد، پس کوکی SameSite=Lax به‌علاوهٔ این هدر جلوی CSRF را می‌گیرد.
@@ -27,6 +29,9 @@ from http.cookies import SimpleCookie
 from app.config import config
 from app.db import effective_plan
 
+from app.webapp.api import ApiError
+from app.webapp.media import MediaError
+
 from . import logins
 
 log = logging.getLogger("easysaz.site")
@@ -42,13 +47,19 @@ CSP = (
     "img-src 'self' https: data:; font-src 'self'; connect-src 'self'; "
     "frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
 )
-PAGES = {"/": ("landing.html", "ایزی‌ساز — مینی‌اپ تلگرامت را بساز"),
+PAGES = {"/studio": ("studio.html", "استودیو — ایزی‌ساز"),
+         "/": ("landing.html", "ایزی‌ساز — مینی‌اپ تلگرامت را بساز"),
          "/login": ("login.html", "ورود با تلگرام — ایزی‌ساز"),
          "/account": ("account.html", "حساب — ایزی‌ساز")}
 
 
+def _page_key(path: str) -> str:
+    """/studio/<شناسه> همان صفحهٔ استودیو است (مسیر داخلی را JS می‌خواند)."""
+    return "/studio" if re.match(r"^/studio/\d{1,9}(/[a-z]+)?$", path) else path
+
+
 def is_site_path(path: str) -> bool:
-    return path in PAGES or path.startswith("/site/")
+    return _page_key(path) in PAGES or path.startswith("/site/")
 
 
 class SiteError(Exception):
@@ -145,12 +156,12 @@ def _set_cookie(token: str, max_age: int) -> tuple[str, str]:
     return ("Set-Cookie", "; ".join(parts))
 
 
-def _body(environ: dict) -> dict:
+def _body(environ: dict, limit: int = 8192) -> dict:
     try:
         size = int(environ.get("CONTENT_LENGTH") or 0)
     except ValueError:
         size = 0
-    if size > 8192:
+    if size > limit:
         raise SiteError(413, "داده خیلی بزرگ است")
     if size <= 0:
         return {}
@@ -201,6 +212,38 @@ def _api(environ: dict, start_response, runtime, path: str, method: str):  # noq
     row = runtime.run(logins.session(db, _cookie(environ)), timeout=20)
     if not row:
         return _json(start_response, 401, {"error": "وارد نشده‌ای"}, [_set_cookie("", 0)] if _cookie(environ) else [])
+    # ---------- استودیو (app/site/studio.py) ----------
+    from urllib.parse import parse_qs
+
+    from .studio import Studio
+
+    st = Studio(db, runtime.parts.clients, row["tg_id"])
+    query = {k: v[0] for k, v in parse_qs(environ.get("QUERY_STRING", "")).items()}
+    run = lambda coro: _json(start_response, 200, runtime.run(coro, timeout=40))  # noqa: E731
+    if method == "GET" and path == "/site/api/apps":
+        return run(st.apps())
+    if method == "GET" and path == "/site/api/app":
+        return run(st.app(query))
+    if method == "POST" and path.startswith("/site/api/app/"):
+        action = path.rsplit("/", 1)[1]
+        if action in ("create", "save", "publish", "template", "rename", "channel"):
+            return run(getattr(st, action)(_body(environ, 1_000_000)))
+    if method == "POST" and path == "/site/api/upload":
+        return run(st.upload(_body(environ, 2_200_000)))
+    if method == "POST" and path == "/site/api/upload_media":
+        from app.webapp import media
+
+        data = media.read_body(environ)
+
+        async def _media():  # noqa: ANN202
+            st._write()
+            return await media.save(db, row["tg_id"], data, environ.get("CONTENT_TYPE", ""))
+
+        return run(_media())
+    if path.startswith("/site/api/mag/"):
+        action = path[len("/site/api/mag/"):].strip("/")
+        return run(st.mag(action, method, query, _body(environ, 700_000) if method == "POST" else {}))
+
     if method == "GET" and path == "/site/api/me":
         return _json(start_response, 200, runtime.run(_me(db, row), timeout=20))
     if method == "POST" and path == "/site/api/logout":
@@ -223,13 +266,14 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201
     if path.startswith("/site/static/") and method == "GET":
         return _static(start_response, path[len("/site/static/"):], environ.get("QUERY_STRING", ""))
 
-    if path in PAGES and method in ("GET", "HEAD"):
-        if path in ("/login", "/account"):
+    if _page_key(path) in PAGES and method in ("GET", "HEAD"):
+        path = _page_key(path)
+        if path in ("/login", "/account", "/studio"):
             runtime.ensure_started()
             signed_in = bool(runtime.run(logins.session(runtime.db, _cookie(environ)), timeout=20))
             if path == "/login" and signed_in:
-                return _redirect(start_response, "/account")
-            if path == "/account" and not signed_in:
+                return _redirect(start_response, "/studio")
+            if path in ("/account", "/studio") and not signed_in:
                 return _redirect(start_response, "/login")
         name, title = PAGES[path]
         return _send(start_response, 200, render(name, title), "text/html; charset=utf-8",
@@ -239,7 +283,7 @@ def handle(environ: dict, start_response, runtime):  # noqa: ANN001, ANN201
         try:
             runtime.ensure_started()
             return _api(environ, start_response, runtime, path, method)
-        except (SiteError, logins.LoginError) as exc:
+        except (SiteError, logins.LoginError, ApiError, MediaError) as exc:
             return _json(start_response, exc.status, {"error": exc.message})
         except Exception:  # noqa: BLE001
             log.exception("site api error on %s", path)

@@ -55,7 +55,7 @@ PAGES = {"/studio": ("studio.html", "استودیو — ایزی‌ساز"),
 
 def _page_key(path: str) -> str:
     """/studio/<شناسه> همان صفحهٔ استودیو است (مسیر داخلی را JS می‌خواند)."""
-    return "/studio" if re.match(r"^/studio/\d{1,9}(/[a-z]+)?$", path) else path
+    return "/studio" if re.match(r"^/studio/(\d{1,9}(/[a-z]+)?|templates)$", path) else path
 
 
 def is_site_path(path: str) -> bool:

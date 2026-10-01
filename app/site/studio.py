@@ -24,6 +24,12 @@ from app.db import effective_plan, load_doc
 from app.webapp.api import ApiError, _app_json, _decode_image, _plan_json, _rate_ok, clean_name, UPLOAD_MAX_BYTES, UPLOAD_MAX_FILES
 
 
+def _mag_demo() -> dict:
+    from app.kits import mag
+
+    return mag.demo_home(blocks.sample_prefix())
+
+
 class Studio:
     def __init__(self, db, clients, uid: int) -> None:  # noqa: ANN001
         self.db, self.clients, self.uid = db, clients, uid
@@ -55,7 +61,12 @@ class Studio:
             "apps": [dict(_app_json(a), stats=await self.db.app_stats(a["id"])) for a in apps],
             "plan": _plan_json(plan),
             "can_create": len(apps) < plan.max_apps,
-            "templates": [{k: t[k] for k in ("id", "title", "desc", "kit", "accent", "note")} for t in templates.TEMPLATES],
+            "templates": [dict({k: t[k] for k in ("id", "title", "desc", "kit", "accent", "note", "pages")},
+                               doc=self._template_doc(t["id"], t["title"]),
+                               parts=len({b["type"] for b in blocks.all_blocks(t["doc"])}),
+                               store=next((x for x in templates.STORE if x.get("template") == t["id"]), {}))
+                          for t in templates.TEMPLATES],
+            "demo": {"mag": _mag_demo()},
             "store": templates.STORE,
             "bot": await self.db.get_setting("bot_username", "") or "EasySazBot",
         }
@@ -102,12 +113,15 @@ class Studio:
         app = await self._app(query.get("id"))
         _, plan = await self._user()
         doc = load_doc(app["draft"])
-        out = {"app": _app_json(app), "doc": doc, "plan": _plan_json(plan), "stats": await self.db.app_stats(app["id"]),
-               "schema": {"kits": blocks.KITS}}
+        # نسخهٔ منتشرشده برای فهرست «تغییرهای منتشرنشده» و برگرداندن تکی
+        published = load_doc(app["published"]) if app["published"] else None
+        out = {"app": _app_json(app), "doc": doc, "published": published, "plan": _plan_json(plan),
+               "stats": await self.db.app_stats(app["id"]), "schema": {"kits": blocks.KITS}}
         if doc.get("kit") == "mag":
             from app.kits import mag
 
             out["mag_home"] = await mag.home(self.db, app["id"])
+            out["demo_mag"] = _mag_demo()
         return out
 
     async def _clean(self, app, body: dict) -> dict:  # noqa: ANN001

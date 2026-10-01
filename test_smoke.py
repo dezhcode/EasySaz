@@ -823,6 +823,31 @@ def test_mag() -> None:
     st2, _ = jcall("GET", f"/api/kit/mag/get?app={aid}&id={draft}", uid=uid)
     ok(st == 200 and st2 == 404, "حذف مطلب از مینی‌اپ")
 
+    # استودیوی مینی‌اپ: پنهان، پس‌زمینه، سربرگ و نوار پایین؛ نسخهٔ منتشرشده برای فهرست تغییرها
+    d2 = json.loads(json.dumps(doc))
+    d2["pages"][0]["blocks"][0]["hidden"] = True
+    d2["theme"].update({"bg": "gradient", "bg_color": "#FFF4EC", "bg_image": "javascript:x"})
+    d2["header"].update({"style": "cover", "cover": "https://example.org/c.jpg", "sticky": False, "search": False})
+    d2["tabbar"]["labels"] = False
+    st, res, _ = site("POST", "/site/api/app/save", {"id": aid, "doc": d2})
+    sd = res["doc"]
+    ok(st == 200 and sd["pages"][0]["blocks"][0].get("hidden") is True and sd["theme"]["bg"] == "gradient"
+       and sd["theme"]["bg_color"] == "#FFF4EC" and sd["theme"]["bg_image"] == "" and sd["header"]["style"] == "cover"
+       and sd["header"]["sticky"] is False and sd["tabbar"]["labels"] is False, "طراحی تازه ذخیره می‌شود (بخش پنهان، گرادیان، کاور، بی‌نام)")
+    st, app2, _ = site("GET", f"/site/api/app?id={aid}")
+    ok(app2["published"]["pages"][0]["blocks"][0].get("hidden") is None and app2["app"]["dirty"] and len(app2["demo_mag"]["latest"]) == 5,
+       "استودیو نسخهٔ منتشرشده را برای «تغییرهای منتشرنشده» می‌دهد")
+    hid = sd["pages"][0]["blocks"][0]["id"]
+    site("POST", "/site/api/app/publish", {"id": aid, "doc": sd})
+    st, page = jcall("GET", f"/api/page/{slug}", uid=None)
+    ok(all(b["id"] != hid for b in page["doc"]["pages"][0]["blocks"]) and page["doc"]["header"]["style"] == "cover",
+       "بخش پنهان به خواننده نمی‌رسد")
+    st, apps, _ = site("GET", "/site/api/apps")
+    tpl = {t["id"]: t for t in apps["templates"]}
+    ok("{name}" not in json.dumps(tpl["mag"]["doc"], ensure_ascii=False) and tpl["mag"]["parts"] >= 4 and apps["demo"]["mag"]["cats"],
+       "گالری قالب‌ها: سند پیش‌نمایش و دادهٔ نمایشی")
+    ok(call("GET", "/studio/templates", headers={"Cookie": "es_site=" + tok})["status"] == 200, "صفحهٔ قالب‌ها")
+
     r = call("GET", f"/studio/{aid}/design", headers={"Cookie": "es_site=" + tok})
     ok(r["status"] == 200 and b"site/static/studio.js?v=" in r["body"] and b"static/render.js" in r["body"], "صفحهٔ استودیو با موتور پیش‌نمایش")
     st, _, _ = site("POST", "/site/api/app/save", {"id": aid, "doc": doc}, extra={"Cookie": "es_site=bad"})

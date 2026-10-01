@@ -12,7 +12,7 @@
   min-height:100%;
   box-sizing:border-box;
   padding:calc(var(--pg-top) + 18px) var(--space-4) calc(var(--pg-bottom) + 28px);
-  background:var(--pg-bg);
+  background:var(--pg-bg) var(--pg-bg-img, none) top center / var(--pg-bg-size, auto);
   color:var(--pg-ink);
   font-family:var(--font-sans);
   font-size:15px;
@@ -961,3 +961,22 @@
 .mg-search input{width:100%; height:42px; border-radius:14px; border:0; padding:0 14px; background:var(--pg-surface); color:var(--pg-ink); font:inherit; font-size:15px; box-shadow:inset 0 0 0 1px var(--pg-line); outline:none}
 .mg-search input:focus{box-shadow:inset 0 0 0 2px var(--pg-accent)}
 .pg-dark .mg-catchip--on{background:var(--pg-ink); color:var(--pg-bg)}
+
+/* ---------- سربرگ: کاور، جستجو، غیرچسبیده؛ نوار پایین بی‌نام؛ بخش پنهان ---------- */
+.pg-fixed .pg-header.pg-header--flow{position:relative}
+.pg-header--cover{min-height:150px; display:flex; align-items:flex-end; color:#FFFFFF;
+  background:linear-gradient(180deg, rgba(10,8,30,.08), rgba(10,8,30,.72)), var(--pg-hcover, linear-gradient(140deg, var(--pg-accent), var(--pg-deep, #0A2572))) center / cover;
+  border-bottom:0}
+.pg-header--cover .pg-header-in{width:100%}
+.pg-header--cover .pg-header-txt small{color:inherit; opacity:.86}
+.pg-header--cover .mg-logo,.pg-header--cover .pg-header-logo{box-shadow:0 0 0 3px rgba(255,255,255,.9)}
+.pg-header--cover .mg-hb{background:rgba(255,255,255,.18); color:#FFFFFF; box-shadow:none}
+.mg-hsearch{flex:1; height:44px; display:flex; align-items:center; gap:8px; padding:0 14px; border:0; border-radius:14px; background:var(--pg-surface);
+  color:var(--pg-ink-3); font:inherit; font-size:14px; cursor:pointer; box-shadow:0 1px 0 var(--pg-line); text-align:right}
+.mg-hsearch .pg-ico{width:18px; height:18px; flex:none}
+.mg-hsearch span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.pg-tabbar--nolabel .pg-tab-label{display:none !important}
+.pg-tabbar--docked.pg-tabbar--nolabel .pg-tab{height:46px}
+.pg-hidden{opacity:.35}
+.pg-tabbar.pg-editable{cursor:pointer}
+.pg-page.pg-fixed{overflow-x:clip}

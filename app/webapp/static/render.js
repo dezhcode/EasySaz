@@ -121,7 +121,17 @@
     if (!kit && !dark && l > 62) accent = hslToHex(h, s, 52);
     [h, s, l] = rgbToHsl(...hexToRgb(accent));
     const base = kit ? (kit.base || (dark ? kit.night : kit.day)) : (dark ? BASE.dark : BASE.light);
-    const bg = kit || theme.bg === 'plain' ? base.bg : mix(base.bg, accent, dark ? 0.06 : 0.05);
+    let bg = kit || theme.bg === 'plain' ? base.bg : mix(base.bg, accent, dark ? 0.06 : 0.05);
+    // رنگ زمینهٔ دلخواه فقط در حالت روشن؛ در تیره زمینهٔ تیرهٔ قالب می‌ماند تا متن خوانا بماند
+    if (!dark && /^#[0-9a-f]{6}$/i.test(theme.bg_color || '')) bg = theme.bg_color;
+    // گرادیان، الگو یا تصویر روی همان رنگ زمینه
+    let bgImg = 'none', bgSize = 'auto';
+    if (theme.bg === 'gradient') bgImg = `linear-gradient(170deg, ${mix(bg, accent, dark ? 0.2 : 0.16)} 0%, ${bg} 62%)`;
+    else if (theme.bg === 'pattern') { bgImg = `radial-gradient(${alpha(accent, dark ? 0.22 : 0.18)} 1.3px, transparent 1.6px)`; bgSize = '18px 18px'; }
+    else if (theme.bg === 'image' && safeUrl(theme.bg_image, true)) {
+      bgImg = `linear-gradient(${alpha(bg, 0.5)}, ${alpha(bg, 0.86)} 380px), url("${encodeURI(safeUrl(theme.bg_image, true)).replace(/"/g, '%22')}")`;
+      bgSize = 'cover';
+    }
     const onAccent = contrast(accent, '#FFFFFF') >= contrast(accent, '#0A1633') ? '#FFFFFF' : '#0A1633';
     // گوشه‌ها: قالب‌های ثابت (قسمت) گوشهٔ خودشان را دارند؛ مجله مثل پایه از تم
     const radius = kit && !kit.moods ? kit.radius : theme.radius === 'custom'
@@ -136,6 +146,8 @@
         '--pg-accent-ink': dark ? hslToHex(h, Math.min(100, s), kit ? 66 : 76) : hslToHex(h, Math.min(100, s + 6), Math.max(26, l - 12)),
         '--pg-soft': alpha(accent, dark ? 0.16 : 0.10),
         '--pg-bg': bg,
+        '--pg-bg-img': bgImg,
+        '--pg-bg-size': bgSize,
         '--pg-surface': base.surface,
         '--pg-ink': base.ink,
         '--pg-ink-2': base.ink2,
@@ -1999,25 +2011,45 @@
 
   /* ---------- سربرگ مجله: نشان، اسم، جستجو و ذخیره‌ها ---------- */
   function magHeader(hd, ctx, fallbackTitle) {
-    const e = h('header', 'pg-header pg-header--mag');
+    const style = hd.style === 'search' || hd.style === 'cover' ? hd.style : 'bar';
+    const e = h('header', 'pg-header pg-header--mag pg-header--' + style);
     const inner = h('div', 'pg-header-in');
     const title = hd.title || fallbackTitle || '';
     if (safeUrl(hd.logo, true)) inner.appendChild(imageEl(hd.logo, 'mg-logo mg-logo--img', ctx));
     else inner.appendChild(h('span', 'mg-logo', title.trim().charAt(0) || '؟'));
-    const txt = h('div', 'pg-header-txt');
-    const tb = h('b', '', title);
-    if (ctx.editing) tb.dataset.edit = 'title';
-    txt.appendChild(tb);
-    if (hd.subtitle) { const sb = h('small', '', hd.subtitle); if (ctx.editing) sb.dataset.edit = 'subtitle'; txt.appendChild(sb); }
-    inner.appendChild(txt);
-    const search = h('button', 'mg-hb');
-    search.type = 'button';
-    search.setAttribute('aria-label', 'جستجو');
-    search.appendChild(icon('search'));
-    if (!ctx.editing) search.addEventListener('click', ev => { ev.stopPropagation(); ctx.openSearch(); });
-    inner.appendChild(search);
+    const openSearch = el => { if (!ctx.editing) el.addEventListener('click', ev => { ev.stopPropagation(); ctx.openSearch(); }); };
+    if (style === 'search') {
+      // نوار جستجوی بزرگ به‌جای اسم
+      const pill = h('button', 'mg-hsearch');
+      pill.type = 'button';
+      pill.append(icon('search'), h('span', '', 'جستجو در ' + (title || 'مطالب') + '…'));
+      openSearch(pill);
+      inner.appendChild(pill);
+    } else {
+      const txt = h('div', 'pg-header-txt');
+      const tb = h('b', '', title);
+      if (ctx.editing) tb.dataset.edit = 'title';
+      txt.appendChild(tb);
+      if (hd.subtitle) { const sb = h('small', '', hd.subtitle); if (ctx.editing) sb.dataset.edit = 'subtitle'; txt.appendChild(sb); }
+      inner.appendChild(txt);
+      if (hd.search !== false) {
+        const search = h('button', 'mg-hb');
+        search.type = 'button';
+        search.setAttribute('aria-label', 'جستجو');
+        search.appendChild(icon('search'));
+        openSearch(search);
+        inner.appendChild(search);
+      }
+    }
+    if (style === 'cover') headerCover(e, hd);
     e.appendChild(inner);
     return e;
+  }
+  /* سربرگ با کاور: تصویر (یا گرادیان رنگ اصلی) پشت اسم */
+  function headerCover(e, hd) {
+    const url = safeUrl(hd.cover, true);
+    if (url) e.style.setProperty('--pg-hcover', `url("${encodeURI(url).replace(/"/g, '%22')}")`);
+    e.classList.add('pg-header--cover');
   }
 
   /* ---------- لایهٔ مطلب ---------- */
@@ -2311,7 +2343,9 @@
   function renderHeader(hd, ctx, fallbackTitle) {
     if (ctx.kit === 'shab') return shabHeader(hd, ctx, fallbackTitle);
     if (ctx.kit === 'mag') return magHeader(hd, ctx, fallbackTitle);
-    const e = h('header', `pg-header pg-header--${hd.style || 'bar'} pg-align-${hd.align || 'start'}`);
+    const style = hd.style === 'search' ? 'bar' : (hd.style || 'bar');
+    const e = h('header', `pg-header pg-header--${style} pg-align-${hd.align || 'start'}`);
+    if (style === 'cover') headerCover(e, hd);
     const inner = h('div', 'pg-header-in');
     if (safeUrl(hd.logo, true)) inner.appendChild(imageEl(hd.logo, 'pg-header-logo', ctx));
     const txt = h('div', 'pg-header-txt');
@@ -2344,6 +2378,11 @@
     steps: [['.pg-steps > .pg-h2', 'title']],
     apps: [['.pg-h2', 'title']],
     stats: [{ each: '.pg-stat', list: 'items', fields: [['.pg-stat-v', 'value'], ['.pg-stat-l', 'label']] }],
+    mag_latest: [['.mg-head > b', 'title']],
+    mag_popular: [['.mg-head > b', 'title']],
+    mag_authors: [['.mg-head > b', 'title']],
+    mag_catgrid: [['.mg-head > b', 'title']],
+    mag_saved: [['.mg-head > b', 'title']],
   };
   function markEdits(node, type) {
     (EDIT_MAP[type] || []).forEach(rule => {
@@ -2364,7 +2403,7 @@
   /* ---------- نوار پایین (تب‌ها = صفحه‌ها) ---------- */
   function renderTabbar(doc, current, onNavigate) {
     const style = (doc.tabbar && doc.tabbar.style) || 'floating';
-    const nav = h('nav', `pg-tabbar pg-tabbar--${style}`);
+    const nav = h('nav', `pg-tabbar pg-tabbar--${style}` + (doc.tabbar && doc.tabbar.labels === false ? ' pg-tabbar--nolabel' : ''));
     nav.setAttribute('aria-label', 'صفحه‌ها');
     doc.pages.forEach(pg => {
       const on = pg.id === current;
@@ -2444,13 +2483,14 @@
         if (opts.selected === 'header') { hd.classList.add('pg-selected'); hd.appendChild(h('span', 'pg-selected-tag', 'ویرایش')); }
         hd.addEventListener('click', ev => { ev.preventDefault(); opts.onPickHeader && opts.onPickHeader(); });
       }
+      if (doc.header.sticky === false) hd.classList.add('pg-header--flow');
       root.appendChild(hd);
     }
 
     const list = h('div', 'pg-blocks');
     (page.blocks || []).forEach((b, i) => {
       const fn = R[b.type];
-      if (!fn) return;
+      if (!fn || (b.hidden && !ctx.editing)) return;
       let node;
       try { node = fn(b.props || {}, ctx, b); } catch (e) { return; }
       const wrap = h('div', 'pg-block pg-t-' + b.type);
@@ -2462,6 +2502,7 @@
       if (ctx.editing) {
         markEdits(node, b.type);
         wrap.classList.add('pg-editable');
+        if (b.hidden) wrap.classList.add('pg-hidden');
         if (opts.selected === b.id) {
           wrap.classList.add('pg-selected');
           wrap.appendChild(h('span', 'pg-selected-tag', 'ویرایش'));
@@ -2485,7 +2526,16 @@
       badge.appendChild(h('span', '', 'ساخته شده با ایزی‌ساز'));
       root.appendChild(badge);
     }
-    if (hasTabs) root.appendChild(renderTabbar(doc, page.id, opts.onNavigate));
+    if (hasTabs) {
+      // در استودیو زدن روی نوار پایین یعنی انتخاب آن (و رفتن به همان صفحه)
+      const nav = renderTabbar(doc, page.id, ctx.editing && opts.onPickTabbar ? opts.onPickTabbar : opts.onNavigate);
+      if (ctx.editing && opts.onPickTabbar) {
+        nav.classList.add('pg-editable');
+        if (opts.selected === 'tabbar') nav.classList.add('pg-selected');
+        nav.addEventListener('click', ev => { if (ev.target === nav) opts.onPickTabbar(page.id); });
+      }
+      root.appendChild(nav);
+    }
     // پیش‌نمایش صفحهٔ مطلب/فهرست مجله در استودیو (بدون کلیک)
     if (kit === 'mag' && opts.magView) {
       const v = opts.magView;

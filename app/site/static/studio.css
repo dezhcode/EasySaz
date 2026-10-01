@@ -322,3 +322,243 @@ select.st-in{cursor:pointer}
 .st-wrapr{flex-wrap:wrap}
 .st-wrapr .st-in{flex:1 1 180px}
 .st-phone-scr > div{position:relative}
+
+/* ===================== استودیوی مینی‌اپ (طراحی) ===================== */
+.st-ed{display:grid; grid-template-columns:380px minmax(0, 1fr); height:calc(100vh - 66px); overflow:hidden}
+.ed-modes{display:flex; gap:2px; padding:4px; border-radius:13px; background:var(--ground)}
+.ed-modes button{height:34px; padding:0 14px; border:0; border-radius:10px; background:none; color:var(--ink-3); font:inherit; font-size:13.5px; font-weight:800; display:inline-flex; align-items:center; gap:7px; cursor:pointer}
+.ed-modes button .ic{width:15px; height:15px}
+.ed-modes button.on{background:var(--surface); color:var(--ink); box-shadow:0 1px 3px rgba(23,20,43,.14)}
+.ed-changes{height:34px; padding:0 12px; border:0; border-radius:17px; background:#FDF0D5; color:#8A5200; font:inherit; font-size:12.5px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:7px}
+.ed-changes::before{content:""; width:7px; height:7px; border-radius:50%; background:#B26A00}
+.ed-changes.none{background:#DDF3EA; color:#0B7A55; cursor:default}
+.ed-changes.none::before{background:#0B7A55}
+.st-ib:disabled{opacity:.4; cursor:default}
+
+/* ستون راست */
+.ed-panel{display:flex; flex-direction:column; overflow-y:auto; background:var(--surface); box-shadow:inset 1px 0 0 var(--line); scrollbar-width:thin}
+.ed-ptabs{position:sticky; top:0; z-index:3; display:flex; gap:20px; height:54px; padding:0 18px; background:var(--surface); box-shadow:0 1px 0 var(--line); flex:none}
+.ed-ptabs button{height:54px; border:0; background:none; color:var(--ink-3); font:inherit; font-size:14px; font-weight:800; display:inline-flex; align-items:center; gap:7px; cursor:pointer; box-shadow:inset 0 -3px 0 transparent}
+.ed-ptabs button .ic{width:16px; height:16px}
+.ed-ptabs button.on{color:var(--ink); box-shadow:inset 0 -3px 0 var(--brand)}
+.ed-pbody{display:flex; flex-direction:column; gap:14px; padding:14px 18px 24px}
+.ed-hint{margin:0; font-size:12.5px}
+.ed-hint--pen{padding:10px 12px; border-radius:12px; background:var(--brand-tint); color:var(--brand-deep)}
+.ed-wide{width:100%}
+.ed-search{height:42px}
+.ed-parts{display:flex; flex-direction:column; gap:10px}
+.ed-parts-h{display:flex; align-items:baseline; gap:8px; padding-top:6px}
+.ed-parts-h b{font-size:14px}
+.ed-part{display:flex; flex-direction:column; gap:8px; padding:8px; border-radius:16px; box-shadow:inset 0 0 0 1px var(--line); background:var(--surface); cursor:grab; user-select:none; transition:box-shadow .15s}
+.ed-part:hover{box-shadow:inset 0 0 0 1.5px var(--brand), 0 14px 30px -22px rgba(75,46,232,.7)}
+.ed-part-r{display:flex; align-items:center; gap:8px; padding:0 4px 2px}
+.ed-part-g{color:#B3B0C6; width:16px; height:16px}
+.ed-part-t{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.45}
+.ed-part-t b{font-size:13.5px}
+.ed-part-t .cap{font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.ed-add{background:var(--brand-tint); color:var(--brand); box-shadow:none; width:34px; height:34px}
+.ed-mini{position:relative; overflow:hidden; border-radius:12px; background:var(--ground); pointer-events:none; flex:none}
+.ed-mini-in{position:absolute; top:0; right:0; width:390px; transform-origin:top right}
+.ed-mini-in > div{min-height:0 !important}
+.ed-mini.cut::after{content:""; position:absolute; left:0; right:0; bottom:0; height:26px; background:linear-gradient(transparent, rgba(244,243,250,.95))}
+.ed-mini--bottom .ed-mini-in{top:auto; bottom:0; transform-origin:bottom right}
+.ed-mini--off{display:grid; place-items:center; width:150px; height:70px; color:var(--ink-4); font-size:12.5px; font-weight:700; border:1.5px dashed #CFCBE0; background:none}
+.ed-part-pv{width:100% !important}
+
+/* ساختار */
+.ed-tree,.ed-tabs{display:flex; flex-direction:column; gap:4px}
+.ed-tr{display:flex; align-items:center; gap:10px; height:46px; padding:0 10px; border:0; border-radius:12px; background:var(--surface); color:var(--ink); font:inherit; text-align:right; cursor:pointer; box-shadow:inset 0 0 0 1px var(--line)}
+.ed-tr .pg-ico,.ed-tr .ic{width:17px; height:17px; color:var(--ink-2)}
+.ed-tr b{flex:1; font-size:13.5px}
+.ed-tr.fixed{background:var(--ground); box-shadow:none}
+.ed-tr.on{box-shadow:inset 0 0 0 1.5px var(--brand); background:var(--brand-tint)}
+.ed-tr.hid b{opacity:.45}
+.ed-tr.drag,.ed-tabrow.drag{opacity:.4}
+.ed-tr.over,.ed-tabrow.over{box-shadow:inset 0 3px 0 var(--brand)}
+.ed-tr-g{width:16px; color:#B3B0C6; display:grid; place-items:center; cursor:grab}
+.ed-tr-g .ic{width:16px; height:16px}
+.ed-tr-e{width:30px; height:30px; box-shadow:none; background:none}
+
+/* سربرگ تنظیم بخش */
+.ed-crumb{display:flex; flex-direction:column; gap:12px; padding:14px 18px 0}
+.ed-back{align-self:flex-start; display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 10px 0 4px; border:0; border-radius:9px; background:none; color:var(--ink-3); font:inherit; font-size:13px; font-weight:800; cursor:pointer}
+.ed-back:hover{background:var(--ground)}
+.ed-back .ic{width:15px; height:15px}
+.ed-bh{display:flex; align-items:center; gap:12px}
+.ed-bi{width:42px; height:42px; border-radius:13px; background:var(--brand-tint); color:var(--brand); display:grid; place-items:center; flex:none}
+.ed-bi .pg-ico,.ed-bi .ic{width:20px; height:20px}
+.ed-bt{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.45}
+.ed-bt b{font-size:17px; font-weight:800}
+.ed-bt .cap{font-size:12px}
+.ed-bmenu{display:flex; gap:6px}
+.ed-btabs{display:flex; margin:14px 18px 0; padding:4px; border-radius:12px; background:var(--ground)}
+.ed-btabs button{flex:1; height:34px; border:0; border-radius:9px; background:none; color:var(--ink-3); font:inherit; font-size:13.5px; font-weight:800; cursor:pointer}
+.ed-btabs button.on{background:var(--surface); color:var(--ink); box-shadow:0 1px 3px rgba(23,20,43,.14)}
+.ed-del{align-self:flex-start; margin:0 18px 22px; color:#C8372D}
+
+/* گروه‌های جمع‌شونده */
+.ed-grp{display:flex; flex-direction:column; border-bottom:1px solid var(--line); margin:0 -18px; padding:0 18px 14px}
+.ed-grp:last-child{border-bottom:0}
+.ed-grp-h{display:flex; align-items:center; justify-content:space-between; height:40px; padding:0; border:0; background:none; color:var(--ink); font:inherit; cursor:pointer}
+.ed-grp-h b{font-size:14px}
+.ed-grp-h .ic{width:16px; height:16px; color:var(--ink-3); transition:transform .2s}
+.ed-grp.shut .ed-grp-h .ic{transform:rotate(90deg)}
+.ed-grp.shut .ed-grp-b{display:none}
+.ed-grp-b{display:flex; flex-direction:column; gap:12px}
+
+/* کاشی‌های انتخاب با نمونه */
+.ed-tiles{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px}
+.ed-tiles--5{grid-template-columns:repeat(5, 1fr); gap:6px}
+.ed-tile{display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 4px 8px; border:0; border-radius:14px; background:var(--surface); color:var(--ink); font:inherit; cursor:pointer; box-shadow:inset 0 0 0 1px var(--line)}
+.ed-tile b{font-size:12px}
+.ed-tile.on{box-shadow:inset 0 0 0 2px var(--brand); background:#F7F5FF}
+.ed-tile.on b{color:var(--brand)}
+.ed-tile-p{height:38px; display:grid; place-items:center}
+.ed-bgsw{display:block; width:44px; height:34px; border-radius:9px; box-shadow:inset 0 0 0 1px rgba(23,20,43,.08)}
+.ed-rad{display:block; width:46px; height:32px; background:var(--brand-tint); box-shadow:inset 0 0 0 2px var(--brand)}
+.ed-vars{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.ed-vars--3{grid-template-columns:repeat(3, 1fr)}
+.ed-var{display:flex; flex-direction:column; align-items:center; gap:6px; padding:6px 6px 8px; border:0; border-radius:14px; background:var(--surface); font:inherit; color:var(--ink); cursor:pointer; box-shadow:inset 0 0 0 1px var(--line)}
+.ed-var b{font-size:12.5px}
+.ed-var .ed-mini{max-width:100%}
+.ed-var.on{box-shadow:inset 0 0 0 2px var(--brand); background:#F7F5FF}
+.ed-var.on b{color:var(--brand)}
+.ed-presets{display:grid; grid-template-columns:repeat(4, 1fr); gap:8px}
+.ed-preset{display:flex; flex-direction:column; gap:6px; padding:6px; border:0; border-radius:14px; background:var(--surface); font:inherit; color:var(--ink); cursor:pointer; box-shadow:inset 0 0 0 1px var(--line)}
+.ed-preset b{font-size:12px; text-align:center}
+.ed-preset.on{box-shadow:inset 0 0 0 2px var(--brand); background:#F7F5FF}
+.ed-preset.on b{color:var(--brand)}
+.ed-preset-pv{position:relative; height:54px; border-radius:10px; overflow:hidden}
+.ed-preset-pv i{position:absolute; display:block; border-radius:4px}
+.ed-preset-pv .s1{inset:auto 6px 6px 6px; height:20px; border-radius:7px}
+.ed-preset-pv .a{top:7px; right:7px; width:18px; height:18px; border-radius:6px}
+.ed-preset-pv .l1{top:9px; right:30px; width:26px; height:5px}
+.ed-preset-pv .l2{top:18px; right:30px; width:16px; height:4px}
+.st-swatch.auto{display:grid; place-items:center; background:var(--ground); color:var(--ink-3); box-shadow:inset 0 0 0 1px var(--line)}
+.st-swatch.auto .ic{width:13px; height:13px}
+.ed-tabrow{display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:12px; box-shadow:inset 0 0 0 1px var(--line); background:var(--surface)}
+.ed-tabrow.on{box-shadow:inset 0 0 0 1.5px var(--brand)}
+.ed-tabrow .st-in{height:36px; font-size:13px}
+.ed-tabrow .ed-icsel{width:96px; flex:none; padding:0 6px}
+.ed-tabic{width:30px; height:30px; border-radius:9px; background:var(--ground); display:grid; place-items:center; flex:none}
+.ed-tabic .pg-ico{width:16px; height:16px}
+.ed-tabrow .st-ib{width:32px; height:32px}
+.ed-testn{padding:16px; border-radius:16px; background:#DDF3EA; color:#0B3D2C}
+.ed-testn b{font-size:15px}
+.ed-testn p{margin:4px 0 0; font-size:13.5px; line-height:1.9}
+.ed-testlink{display:flex; gap:10px; align-items:flex-start; padding:12px; border-radius:14px; box-shadow:inset 0 0 0 1px var(--line)}
+.ed-testlink .ic{color:#2A8BD6; width:18px; height:18px; margin-top:3px}
+
+/* بوم وسط */
+.ed-canvas{position:relative; display:flex; flex-direction:column; align-items:center; overflow:hidden;
+  background-color:#ECEBF3; background-image:radial-gradient(rgba(23,20,43,.07) 1px, transparent 1px); background-size:18px 18px}
+.ed-ctop{display:flex; align-items:center; gap:12px; padding:14px 0 6px; flex:none; z-index:4}
+.ed-pages{display:flex; gap:2px; padding:4px; border-radius:13px; background:var(--surface); box-shadow:0 1px 0 var(--line)}
+.ed-pages button{height:32px; padding:0 12px; border:0; border-radius:9px; background:none; color:var(--ink-3); font:inherit; font-size:13px; font-weight:800; cursor:pointer}
+.ed-pages button.on{background:var(--ink); color:#FFFFFF}
+.ed-pages button.v{color:var(--ink-4)}
+.ed-pages button.v.on{background:var(--ink-2); color:#FFFFFF}
+.ed-vnote{font-size:12.5px; color:var(--ink-3)}
+.ed-stage{flex:1; width:100%; min-height:0; display:flex; justify-content:center; padding-top:6px}
+.ed-phone{--w:390px; width:calc(var(--w) + 24px); height:868px; flex:none; box-sizing:border-box; padding:12px; border-radius:58px; background:#16141F; transform-origin:top center;
+  box-shadow:0 40px 70px -36px rgba(23,20,43,.6), inset 0 0 0 1px rgba(255,255,255,.1); display:flex; flex-direction:column}
+.ed-tgbar{flex:none; background:#FFFFFF; border-radius:46px 46px 0 0; color:#17142B}
+.ed-sbar{height:44px; padding:0 30px; display:flex; align-items:center; justify-content:space-between; direction:ltr; font-size:15px}
+.ed-bat{width:25px; height:12px; border-radius:4px; border:1.5px solid currentColor; box-sizing:border-box}
+.ed-tghead{height:48px; display:flex; align-items:center; padding:0 16px; gap:10px; border-bottom:1px solid #ECEAF5}
+.ed-tghead b{flex:1; text-align:center; font-size:15.5px}
+.ed-tgx{width:56px; color:#2A8BD6; font-weight:700; font-size:14.5px}
+.ed-tgm{width:56px; text-align:left; color:#8A8A8A; font-weight:800}
+.ed-phone.dark .ed-tgbar{background:#1C1C1D; color:#FFFFFF}
+.ed-phone.dark .ed-tghead{border-color:#2B2B2D}
+.ed-screen{position:relative; flex:1; min-height:0; width:var(--w); overflow:hidden; border-radius:0 0 46px 46px}
+.ed-screen > #ed-page{height:100%; display:flex; flex-direction:column; overflow:hidden auto; scrollbar-width:none; overscroll-behavior:contain; --pg-bottom:10px}
+.ed-screen > #ed-page::-webkit-scrollbar{display:none}
+.ed-screen > #ed-page.sh-open{overflow:hidden}
+.ed-screen .pg-blocks{width:100%}
+.ed-screen .pg-header:not(.pg-header--flow){position:sticky; top:-18px}
+.ed-screen .pg-tabbar{position:sticky; bottom:0; margin-top:auto; z-index:5}
+.ed-screen .pg-page.pg-has-tabs{padding-bottom:10px}
+.ed-screen .pg-blocks + .pg-tabbar,.ed-screen .pg-brand + .pg-tabbar{margin-top:auto}
+.ed-screen .pg-editable{transition:outline-color .15s, opacity .15s}
+.ed-screen .pg-block.ed-hot{outline-color:color-mix(in srgb, var(--brand) 45%, transparent)}
+.ed-screen .pg-block.ed-lift{opacity:.25; outline:2px dashed color-mix(in srgb, var(--brand) 60%, transparent)}
+.ed-screen .pg-selected-tag{display:none}
+.ed-screen .ed-typing{outline:2px solid var(--brand); outline-offset:3px; border-radius:6px; cursor:text; background:color-mix(in srgb, var(--brand) 6%, transparent)}
+.ed-screen .pg-selected [data-edit]{cursor:text}
+.ed-screen .pg-selected [data-edit]:hover{box-shadow:0 2px 0 color-mix(in srgb, var(--brand) 55%, transparent)}
+
+/* دستگیره‌ها، ابزار کنار بخش، خط رها کردن */
+.ed-ov{position:absolute; inset:0; pointer-events:none; z-index:6}
+.ed-h{position:absolute; width:30px; min-height:20px; border:0; padding:0; border-radius:10px; background:var(--surface); color:#A9A5BE; display:grid; place-items:center;
+  cursor:grab; pointer-events:auto; box-shadow:0 0 0 1px var(--line); transition:background .12s, color .12s}
+.ed-h .ic{width:18px; height:18px}
+.ed-h:hover,.ed-h.hot{background:var(--brand-tint); color:var(--brand)}
+.ed-h.on{background:var(--brand); color:#FFFFFF; box-shadow:0 8px 16px -8px rgba(75,46,232,.8)}
+.ed-h:active{cursor:grabbing}
+.ed-side{position:absolute; display:flex; flex-direction:column; gap:6px; pointer-events:auto}
+.ed-side .st-ib{width:38px; height:38px; box-shadow:0 0 0 1px var(--line), 0 8px 18px -12px rgba(23,20,43,.45)}
+.ed-side .st-ib.danger{color:#C8372D}
+.ed-line{position:absolute; height:4px; border-radius:2px; background:var(--brand); box-shadow:0 0 0 4px rgba(75,46,232,.18)}
+.ed-line span{position:absolute; top:-15px; left:50%; transform:translateX(-50%); height:30px; padding:0 14px; border-radius:15px; background:var(--brand); color:#FFFFFF;
+  font-size:12.5px; font-weight:800; display:inline-flex; align-items:center; white-space:nowrap}
+.ed-ghost{position:fixed; top:0; left:0; z-index:100; width:300px; pointer-events:none; border-radius:20px; background:var(--surface); padding:8px;
+  box-shadow:0 0 0 2px var(--brand), 0 40px 60px -24px rgba(23,20,43,.55)}
+.ed-ghost > div{zoom:.72; border-radius:16px; overflow:hidden; max-height:280px; padding:12px !important; min-height:0 !important}
+.ed-ghost-l{display:flex; align-items:center; gap:7px; padding:6px 4px 0; font-size:13px; font-weight:800; color:var(--brand)}
+.ed-ghost-l .pg-ico{width:15px; height:15px}
+body.ed-dragging,body.ed-dragging *{cursor:grabbing !important; user-select:none}
+.ed-tip{position:absolute; bottom:16px; left:20px; z-index:5; display:flex; align-items:center; gap:8px; max-width:300px; padding:10px 14px; border-radius:14px;
+  background:var(--surface); font-size:12.5px; line-height:1.8; color:var(--ink-2); box-shadow:0 1px 0 var(--line)}
+.ed-tip:empty{display:none}
+.ed-tip .ic{width:16px; height:16px; color:var(--brand); flex:none}
+
+/* انتشار */
+.st-mbox--m{width:min(560px, 100%)}
+.ed-pub-l{display:flex; flex-direction:column}
+.ed-pub-r{display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--line)}
+.ed-pub-r .ed-bi{width:36px; height:36px; border-radius:11px; background:var(--ground); color:var(--ink-2)}
+.ed-pub-r .ed-bt b{font-size:14.5px}
+@media (max-width:1100px){.st-ed{grid-template-columns:330px minmax(0, 1fr)}}
+.st-top .st-tab,.st-top .btn,.ed-modes button,.ed-changes,.st-save,.st-ws-name b{white-space:nowrap}
+.st-ed ~ * {}
+.in-ed .st-ws-name .cap{display:none}
+.in-ed .st-top{gap:10px}
+.ed-ghost .pg-selected-tag{display:none}
+
+/* ===================== قالب‌ها ===================== */
+.tp-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:20px; padding-bottom:40px}
+.tp-card{display:flex; flex-direction:column; padding:12px; gap:12px}
+.tp-stage{position:relative; height:400px; border-radius:18px; overflow:hidden; display:flex; justify-content:center; padding-top:26px; box-sizing:border-box}
+.tp-meta{display:flex; flex-direction:column; gap:8px; padding:0 6px 6px}
+.tp-name{font-size:18px; font-weight:800}
+.tp-desc{margin:0; min-height:44px}
+.tp-chips{display:flex; flex-wrap:wrap; gap:6px}
+.tp-chips .tag{height:28px; font-size:12px; gap:5px}
+.tp-chips .pg-ico{width:14px; height:14px}
+.tp-soon{opacity:.62}
+.tp-soon .tp-stage{align-items:center; padding:0}
+.tp-soon-ic .pg-ico{width:56px; height:56px}
+.tp-phone{position:relative; flex:none; box-sizing:border-box; padding:8px; border-radius:36px; background:#16141F; box-shadow:0 30px 50px -28px rgba(23,20,43,.6)}
+.tp-scr{position:relative; width:100%; height:100%; border-radius:28px; overflow:hidden; background:#FFFFFF}
+.tp-in{position:absolute; top:0; right:0; width:390px; height:844px; transform-origin:top right}
+.tp-in > div{height:100%; overflow:hidden auto; scrollbar-width:none; display:flex; flex-direction:column}
+.tp-in > div::-webkit-scrollbar{display:none}
+.tp-in .pg-tabbar{position:sticky; bottom:0; margin-top:auto; z-index:5}
+.tp-in .pg-header:not(.pg-header--flow){position:sticky; top:-18px}
+.tp-phone.still{pointer-events:none}
+.tp-live{flex-direction:row; align-items:flex-start; gap:28px}
+.tp-live-p{flex:none}
+.tp-live-i{flex:1; gap:12px; padding-top:10px}
+.tp-live-i .st-row{margin-top:auto}
+.tp-opts{display:flex; flex-direction:column; gap:8px}
+.tp-opt{display:flex; align-items:center; gap:12px; padding:12px 14px; border:0; border-radius:16px; background:var(--surface); font:inherit; color:var(--ink); text-align:right; cursor:pointer; box-shadow:inset 0 0 0 1px var(--line)}
+.tp-opt.on{box-shadow:inset 0 0 0 2px var(--brand); background:#F7F5FF}
+.tp-opt:disabled{opacity:.5; cursor:default}
+.tp-opt b{font-size:15px}
+.tp-radio{width:22px; height:22px; border-radius:50%; box-shadow:inset 0 0 0 1.5px #C9C5DA; flex:none}
+.tp-opt.on .tp-radio{box-shadow:inset 0 0 0 7px var(--brand)}
+.tp-warn{font-size:12.5px; font-weight:700; color:#B26A00}
+.tp-warn.ok{color:var(--ink-3); font-weight:500}
+.tp-new{background:var(--ground); color:var(--ink-2)}
+.grow{flex:1}

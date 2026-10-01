@@ -88,7 +88,7 @@ curl -s https://dezhcode.pyho.ir/easysaz/health >/dev/null 2>&1
 - `https://dezhcode.pyho.ir/easysaz/login` ورود با تلگرام (QR)
 - `https://dezhcode.pyho.ir/easysaz/account` حساب
 
-- `https://dezhcode.pyho.ir/easysaz/studio` استودیو: ساختن مینی‌اپ و طراحی قالب «مجله»
+- `https://dezhcode.pyho.ir/easysaz/studio` استودیو: مینی‌اپ‌ها، قالب‌ها (`/studio/templates`) و طراحی با کشیدن و رها کردن
 
 جدول‌های ورود (`web_logins`، `web_sessions`) و مجله (`mag_posts`، `mag_cats`، `mag_authors`) خودشان در اولین اجرا ساخته می‌شوند. صوت و ویدیوی مطلب‌ها در همان `UPLOAD_DIR` ذخیره می‌شوند (صوت تا ۲۰ و ویدیو تا ۴۰ مگابایت)؛ اگر هاست سقف حجم درخواست دارد، دست‌کم ۴۰ مگابایت باشد. برای سلامت و cron همان `/health` را بزن، نه صفحهٔ اول.
 

@@ -83,6 +83,11 @@
     users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21c.8-3.5 3.6-6 7-6s6.2 2.5 7 6M16 3.5a4 4 0 0 1 0 7.5M18 15c2 .8 3.4 2.9 4 6',
     crown: 'M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z',
     help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 0 1 5 .5c0 1.7-2.5 2-2.5 3.5M12 17v.01',
+    scan: 'M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10',
+    laptop: 'M4 5h16v11H4zM2 19h20',
+    mobile: 'M7 3h10v18H7zM11 18h2',
+    logout: 'M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10',
+    shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8.5 12l2.5 2.5 4.5-4.5',
   });
   function ico(name, cls) {
     const s = document.createElementNS(SVG_NS, 'svg');
@@ -3849,6 +3854,172 @@
       sh.appendChild(box);
     });
   }
+
+  /* ===================== ورود به سایت با QR (app/site) =====================
+     اسکنر خود تلگرام ← کد ← صفحهٔ تأیید با اسم مرورگر، جا و زمان ← «بله» یا «نه».
+     هیچ ورودی بدون همین تأیید انجام نمی‌شود؛ کسی که QR را از صفحهٔ دیگری آورده
+     باشد، این‌جا اسم مرورگر غریبه دیده می‌شود. */
+  const WL_RE = /wl_([A-Za-z0-9_-]{20,40})/;
+  function agoFa(t) {
+    const sec = Math.max(0, Date.now() / 1000 - t);
+    if (sec < 120) return 'همین حالا';
+    if (sec < 3600) return faN(Math.floor(sec / 60)) + ' دقیقه پیش';
+    if (sec < 86400) return faN(Math.floor(sec / 3600)) + ' ساعت پیش';
+    if (sec < 172800) return 'دیروز';
+    return faN(Math.floor(sec / 86400)) + ' روز پیش';
+  }
+  function deviceName(d) {
+    const b = h('b', '');
+    b.appendChild(h('bdi', '', d.browser));
+    if (d.os) b.append(document.createTextNode(' روی '), h('bdi', '', d.os));
+    return b;
+  }
+  function scanLogin() {
+    if (DEMO) { loginConfirm('demo_' + Date.now() + 'abcdefghijklmn'); return; }
+    if (!tg || !tg.showScanQrPopup || !(tg.isVersionAtLeast && tg.isVersionAtLeast('6.4'))) {
+      toast('برای اسکن، تلگرامت را به‌روز کن', true);
+      return;
+    }
+    tg.showScanQrPopup({ text: 'QR صفحهٔ ورود سایت را داخل کادر بگیر' }, text => {
+      const m = WL_RE.exec(text || '');
+      if (!m) { notify('warning'); return false; }   // QR دیگری است؛ اسکنر باز می‌ماند
+      notify('success');
+      setTimeout(() => loginConfirm(m[1]), 200);
+      return true;
+    });
+  }
+  async function loginConfirm(code) {
+    let info;
+    try { info = await api('weblogin/inspect', { code }); } catch (err) { failed(err); return; }
+    openSheet(sh => {
+      const hero = h('div', 'wl-hero');
+      const ic = h('span', 'wl-ic');
+      ic.appendChild(ico(info.device.mobile ? 'mobile' : 'laptop'));
+      hero.append(ic, h('div', 'title-1', 'ورود به ایزی‌ساز؟'), h('p', 'caption', 'کسی می‌خواهد با حساب تو وارد سایت ایزی‌ساز شود.'));
+      const box = h('div', 'wl-info');
+      const row = (k, v) => { const r = h('div', 'wl-row'); r.append(h('span', 'caption', k), v); box.appendChild(r); };
+      row('مرورگر', deviceName(info.device));
+      const where = h('b', '', info.place || 'نامشخص');
+      if (info.ip) { const ip = h('bdi', 'wl-ip', info.ip); where.append(document.createTextNode(' '), ip); }
+      row('جا', where);
+      const when = h('b', '', agoFa(info.at));
+      when.appendChild(h('span', 'wl-ip', new Date(info.at * 1000).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })));
+      row('زمان', when);
+      const warn = h('div', 'warn-box wl-warn');
+      warn.append(ico('info'), h('span', '', 'اگر خودت QR را اسکن نکردی، «نه» را بزن. ایزی‌ساز هیچ‌وقت کد یا رمز تلگرامت را نمی‌خواهد.'));
+      const yes = h('button', 'btn btn-p btn-block');
+      yes.type = 'button';
+      yes.append(ico('check'), document.createTextNode('بله، وارد شو'));
+      const no = h('button', 'btn btn-s btn-block', 'نه، من نبودم');
+      no.type = 'button';
+      const act = async approve => {
+        yes.disabled = no.disabled = true;
+        try {
+          await api(approve ? 'weblogin/approve' : 'weblogin/deny', { code });
+        } catch (err) { failed(err); closeSheet(); return; }
+        if (!approve) { notify('warning'); toast('ورود رد شد'); closeSheet(); return; }
+        notify('success');
+        sh.textContent = '';
+        sh.appendChild(h('div', 'grip'));
+        const done = h('div', 'done');
+        done.append(catTile('brand', 'check'), h('div', 'title-1', 'وارد شدی'),
+          h('p', 'caption', 'حالا به سایت نگاه کن؛ خودش به حسابت می‌رود.'));
+        const ok = h('button', 'btn btn-p btn-block', 'باشه');
+        ok.type = 'button';
+        ok.addEventListener('click', closeSheet);
+        sh.append(done, ok);
+        if (S.screen === 'account') renderAccount();
+      };
+      yes.addEventListener('click', () => { haptic('medium'); act(true); });
+      no.addEventListener('click', () => { haptic(); act(false); });
+      sh.append(hero, box, warn, yes, no);
+    });
+  }
+  async function devicesSheet() {
+    let list;
+    try { list = (await api('weblogin/sessions')).sessions || []; } catch (err) { failed(err); return; }
+    openSheet(sh => {
+      sheetHead(sh, 'brand', 'laptop', 'دستگاه‌های واردشده', 'مرورگرهایی که با حساب تو در سایت هستند');
+      const box = h('div', 'wl-devs');
+      sh.appendChild(box);
+      const foot = h('div', 'wl-foot');
+      sh.appendChild(foot);
+      const draw = () => {
+        box.textContent = '';
+        foot.textContent = '';
+        if (!list.length) {
+          const e = h('div', 'wl-empty');
+          e.append(h('p', 'caption', 'هنوز با هیچ مرورگری وارد سایت نشده‌ای. در سایت «ورود با تلگرام» را بزن و QR را از همین‌جا اسکن کن.'));
+          const go = h('button', 'btn btn-p btn-block');
+          go.type = 'button';
+          go.append(ico('scan'), document.createTextNode('ورود به سایت'));
+          go.addEventListener('click', () => { closeSheet(); scanLogin(); });
+          e.appendChild(go);
+          box.appendChild(e);
+          return;
+        }
+        list.forEach(s => {
+          const r = h('div', 'wl-dev');
+          const ic = h('span', 'wl-dev-ic');
+          ic.appendChild(ico(s.device.mobile ? 'mobile' : 'laptop'));
+          const tx = h('span', 't-tx');
+          tx.append(deviceName(s.device), h('span', '', (s.place ? s.place + ' · ' : '') + agoFa(s.last_seen)));
+          const out = h('button', 'wl-out', 'خروج');
+          out.type = 'button';
+          out.addEventListener('click', async () => {
+            out.disabled = true;
+            try {
+              list = (await api('weblogin/revoke', { id: s.id })).sessions || [];
+              notify('success');
+              toast('آن مرورگر بیرون شد');
+              draw();
+              if (S.screen === 'account') renderAccount();
+            } catch (err) { out.disabled = false; failed(err); }
+          });
+          r.append(ic, tx, out);
+          box.appendChild(r);
+        });
+        const all = h('button', 'btn btn-block wl-all');
+        all.type = 'button';
+        all.append(ico('logout'), document.createTextNode('خروج از همهٔ دستگاه‌ها'));
+        all.addEventListener('click', () => confirmBox('از همهٔ مرورگرهایی که با حسابت وارد سایت شده‌اند خارج می‌شوی. ادامه می‌دهی؟', async () => {
+          try {
+            list = (await api('weblogin/revoke', { all: true })).sessions || [];
+            notify('success');
+            toast('از همهٔ دستگاه‌ها خارج شدی');
+            draw();
+            if (S.screen === 'account') renderAccount();
+          } catch (err) { failed(err); }
+        }, { yes: 'خروج از همه', danger: true }));
+        foot.append(all, h('p', 'caption wl-note', 'هر ورود ۳۰ روز می‌ماند. هر وقت خواستی از همین‌جا قطعش کن.'));
+      };
+      draw();
+    });
+  }
+  /* کاشی‌های حساب: ورود به سایت (اسکن) و دستگاه‌ها */
+  function webTiles(g) {
+    const t = tile('wide t-web', 'button');
+    const ic = h('span', 't-ic solid');
+    ic.appendChild(ico('scan'));
+    const tx = h('span', 't-tx grow');
+    tx.append(h('b', '', 'ورود به سایت'), h('span', '', 'QR صفحهٔ ورود سایت را اسکن کن'));
+    const chev = h('span', 't-chev');
+    chev.appendChild(ico('arrow'));
+    t.append(ic, tx, chev);
+    t.addEventListener('click', () => { haptic(); scanLogin(); });
+    g.appendChild(t);
+
+    const d = tile('wide t-devs', 'button');
+    const dic = h('span', 't-ic plain');
+    dic.appendChild(ico('laptop'));
+    const dtx = h('span', 't-tx grow');
+    const cnt = h('span', 't-cnt', '');
+    dtx.append(h('b', '', 'دستگاه‌های واردشده'), h('span', '', 'مرورگرهایی که با حسابت در سایت هستند'));
+    d.append(dic, dtx, cnt);
+    d.addEventListener('click', () => { haptic(); devicesSheet(); });
+    g.appendChild(d);
+    api('weblogin/sessions').then(r => { cnt.textContent = faN((r.sessions || []).length); }).catch(() => {});
+  }
   function renderAccount() {
     const u = S.me.user || {};
     const g = $('acc-body');
@@ -3865,6 +4036,7 @@
     ptx.append(h('b', '', u.first_name || 'کاربر'), h('span', '', `سازندهٔ ${faN(used)} مینی‌اپ`));
     pf.append(av, ptx);
     g.appendChild(pf);
+    webTiles(g);
 
     const pl = tile('t-plan', 'button');
     const pic = h('span', 't-ic');
@@ -4927,6 +5099,14 @@
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyChrome(); if (S.doc && S.screen === 'editor') renderAll(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden && S.app && S.saveState === 'busy') saveNow(); });
   }
+  /* کد ورود سایت از لینک ربات (#weblogin=…) یا startapp=wl_… ؛ یک بار مصرف می‌شود */
+  function pendingWebLogin() {
+    const m = /weblogin=([A-Za-z0-9_-]{20,40})/.exec(location.hash)
+      || WL_RE.exec((tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '');
+    if (!m) return '';
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    return m[1];
+  }
   /* ---------- شروع ---------- */
   async function boot() {
     applyChrome();
@@ -4943,6 +5123,8 @@
       S.schema = schema;
       S.templates = templates;
       S.me = me;
+      const wl = pendingWebLogin();
+      if (wl) setTimeout(() => loginConfirm(wl), 450);   // شیت تأیید روی هر صفحه‌ای که باز شد
       if (!me.apps.length) { onboard(); return; }
       let last = 0;
       try { last = Number(localStorage.getItem('es-last-app')) || 0; } catch (e) {}

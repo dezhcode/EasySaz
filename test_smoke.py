@@ -587,9 +587,112 @@ def test_shab(slug: str, app_id: int) -> None:
        "حذف قالب: مینی‌اپ خالی و متن قسمت‌ها از سرور پاک می‌شود")
 
 
+def test_site() -> None:
+    print("وب‌سایت و ورود با QR")
+    import sqlite3
+    r = call("GET", "/")
+    ok(r["status"] == 200 and b"/easysaz/site/static/site.css?v=" in r["body"] and "frame-ancestors 'none'" in r["headers"]["Content-Security-Policy"],
+       "لندینگ با css نسخه‌دار و CSP")
+    ok(call("GET", "/health")["body"].startswith(b"easysaz: ok"), "/health هنوز سلامت را می‌گوید")
+    ok(call("GET", "/site/static/site.css")["status"] == 200 and call("GET", "/site/static/../wsgi.py")["status"] == 404,
+       "فایل ثابت سایت و جلوگیری از خروج از پوشه")
+    r = call("GET", "/account")
+    ok(r["status"] == 302 and r["headers"]["Location"] == "/easysaz/login", "حساب بدون ورود ← صفحهٔ ورود")
+    ok(call("GET", "/login")["status"] == 200, "صفحهٔ ورود")
+
+    ua = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/129.0 Safari/537.36",
+          "CF-IPCountry": "IR", "X-ES": "1"}
+
+    def site(method: str, path: str, body=None, cookie: str = "", es: bool = True):  # noqa: ANN001, ANN202
+        h = dict(ua) if es else {k: v for k, v in ua.items() if k != "X-ES"}
+        if cookie:
+            h["Cookie"] = "es_site=" + cookie
+        r = call(method, path, body, h)
+        return r["status"], json.loads(r["body"] or b"{}"), r["headers"]
+
+    st, _, _ = site("POST", "/site/api/login/start", es=False)
+    ok(st == 403, "POST سایت بدون هدر X-ES رد می‌شود (CSRF)")
+    st, lg, _ = site("POST", "/site/api/login/start")
+    code, poll = lg["code"], lg["poll"]
+    ok(st == 200 and lg["qr"] == f"https://t.me/EasySazBot?start=wl_{code}" and lg["refresh"] == 30, "کد تازه و متن QR")
+    st, res, _ = site("POST", "/site/api/login/poll", {"code": code, "poll": poll})
+    ok(st == 200 and res["status"] == "pending", "در انتظار اسکن")
+    st, _, _ = site("POST", "/site/api/login/poll", {"code": code, "poll": "x" * 32})
+    ok(st == 404, "بدون کلید پرسش همان مرورگر نشستی داده نمی‌شود")
+
+    st, _ = jcall("POST", "/api/weblogin/approve", {"code": code})
+    ok(st == 400, "تأیید بدون اسکن پذیرفته نمی‌شود")
+    st, ins = jcall("POST", "/api/weblogin/inspect", {"text": lg["qr"]})
+    ok(st == 200 and ins["device"]["label"] == "Chrome روی Windows" and ins["place"] == "ایران",
+       "اسکن در مینی‌اپ: اسم مرورگر و جا برای تأیید")
+    st, _ = jcall("POST", "/api/weblogin/inspect", {"code": code}, uid=8)
+    ok(st == 409, "کد اسکن‌شده مال کس دیگری نمی‌شود")
+    st, _ = jcall("POST", "/api/weblogin/approve", {"code": code}, uid=8)
+    ok(st == 409, "کاربر دیگر نمی‌تواند تأیید کند")
+    st, res, _ = site("POST", "/site/api/login/poll", {"code": code, "poll": poll})
+    ok(res["status"] == "scanned", "سایت می‌فهمد اسکن شد")
+    st, res = jcall("POST", "/api/weblogin/approve", {"code": code})
+    ok(st == 200 and res["status"] == "approved", "تأیید روی گوشی")
+    st, res, hd = site("POST", "/site/api/login/poll", {"code": code, "poll": poll})
+    sc = hd.get("Set-Cookie", "")
+    token = sc.split(";")[0].split("=", 1)[1] if sc.startswith("es_site=") else ""
+    ok(res["status"] == "approved" and res["user"]["first_name"] == "Ali" and token
+       and all(a in sc for a in ("HttpOnly", "Secure", "SameSite=Lax", "Path=/easysaz")), "نشست با کوکی HttpOnly")
+    st, res, hd = site("POST", "/site/api/login/poll", {"code": code, "poll": poll})
+    ok(res["status"] == "used" and "Set-Cookie" not in hd, "هر کد فقط یک نشست می‌سازد")
+    db = sqlite3.connect(os.environ["DB_PATH"])
+    ok(db.execute("SELECT COUNT(*) FROM web_sessions WHERE token_hash = ?", (token,)).fetchone()[0] == 0,
+       "توکن نشست خام در دیتابیس نیست")
+
+    r = call("GET", "/login", headers={"Cookie": "es_site=" + token})
+    ok(r["status"] == 302 and r["headers"]["Location"] == "/easysaz/account", "وارد شده ← ورود به حساب می‌رود")
+    ok(call("GET", "/account", headers={"Cookie": "es_site=" + token})["status"] == 200, "صفحهٔ حساب با کوکی")
+    st, me, _ = site("GET", "/site/api/me", cookie=token)
+    ok(st == 200 and me["user"]["id"] == 7 and len(me["sessions"]) == 1 and me["sessions"][0]["current"]
+       and me["sessions"][0]["device"]["label"] == "Chrome روی Windows" and isinstance(me["apps"], list),
+       "حساب سایت: کاربر، مینی‌اپ‌ها و همین دستگاه")
+    st, ss = jcall("GET", "/api/weblogin/sessions")
+    ok(st == 200 and len(ss["sessions"]) == 1, "دستگاه‌های واردشده در مینی‌اپ")
+    st, _ = jcall("POST", "/api/weblogin/revoke", {"id": ss["sessions"][0]["id"]}, uid=8)
+    ok(st == 404, "دستگاه دیگران را نمی‌شود بیرون کرد")
+    st, _ = jcall("POST", "/api/weblogin/revoke", {"all": True})
+    st, _, hd = site("GET", "/site/api/me", cookie=token)
+    ok(st == 401 and "Max-Age=0" in hd.get("Set-Cookie", ""), "خروج از همهٔ دستگاه‌ها از مینی‌اپ ← سایت بیرون می‌شود")
+
+    # رد کردن، انقضا و خروج
+    st, lg, _ = site("POST", "/site/api/login/start")
+    jcall("POST", "/api/weblogin/inspect", {"code": lg["code"]})
+    st, res = jcall("POST", "/api/weblogin/deny", {"code": lg["code"]})
+    st, res, _ = site("POST", "/site/api/login/poll", {"code": lg["code"], "poll": lg["poll"]})
+    ok(res["status"] == "denied", "«نه، من نبودم» ← سایت رد شدن را می‌بیند")
+    st, lg, _ = site("POST", "/site/api/login/start")
+    db.execute("UPDATE web_logins SET expires_at = 1 WHERE code = ?", (lg["code"],))
+    db.commit()
+    st, res, _ = site("POST", "/site/api/login/poll", {"code": lg["code"], "poll": lg["poll"]})
+    st2, _ = jcall("POST", "/api/weblogin/inspect", {"code": lg["code"]})
+    ok(res["status"] == "expired" and st2 == 410, "کد منقضی‌شده پذیرفته نمی‌شود")
+    st, lg, _ = site("POST", "/site/api/login/start")
+    jcall("POST", "/api/weblogin/inspect", {"code": lg["code"]})
+    jcall("POST", "/api/weblogin/approve", {"code": lg["code"]})
+    _, _, hd = site("POST", "/site/api/login/poll", {"code": lg["code"], "poll": lg["poll"]})
+    tok2 = hd["Set-Cookie"].split(";")[0].split("=", 1)[1]
+    st, _, _ = site("POST", "/site/api/logout", cookie=tok2, es=False)
+    ok(st == 403, "خروج بدون X-ES رد می‌شود")
+    st, _, hd = site("POST", "/site/api/logout", cookie=tok2)
+    st2, _, _ = site("GET", "/site/api/me", cookie=tok2)
+    ok(st == 200 and st2 == 401, "خروج همین مرورگر")
+
+    # QR با دوربین معمولی: لینک ربات ← دکمهٔ تأیید در پنل
+    st, lg, _ = site("POST", "/site/api/login/start")
+    hook(update(f"/start wl_{lg['code']}"))
+    btn = calls("SendMessage")[-1]["reply_markup"]["inline_keyboard"][0][0]
+    ok(btn["web_app"]["url"].endswith("/panel#weblogin=" + lg["code"]), "لینک QR در ربات ← پنل با صفحهٔ تأیید")
+
+
 if __name__ == "__main__":
     test_blocks()
     test_auth()
     test_web()
     test_bot()
+    test_site()
     print(f"\nهمه {PASSED} تست گذشت ✅")

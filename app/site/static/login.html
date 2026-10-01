@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>__TITLE__</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#FFFFFF">
+<link rel="icon" href="__BASE__static/brand/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="__BASE__site/static/site.css">
+<link rel="stylesheet" href="__BASE__site/static/login.css">
+<script src="__BASE__site/static/qr.js" defer></script>
+<script src="__BASE__site/static/login.js" defer></script>
+</head>
+<body data-base="__BASE__">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-tg" viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4 2-15zM9 13l8-6"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M7 3h10v18H7zM11 18h2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M7 12h10"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8.5 12l2.5 2.5 4.5-4.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-mark" viewBox="0 32 256 192"><path d="M240,104 L240,122 Q240,140.225 227.113,153.113 Q214.225,166 196,166 Q182.545,166 172,158.977 Q161.455,166 148,166 Q140.702,166 134.261,163.934 Q129.869,171.126 123.497,177.497 Q102.995,198 74,198 Q45.005,198 24.503,177.497 Q4,156.995 4,128 L4,114 Q4,110.022 5.522,106.346 Q7.045,102.671 9.858,99.858 Q12.671,97.045 16.346,95.522 Q20.022,94 24,94 Q27.978,94 31.654,95.522 Q35.329,97.045 38.142,99.858 Q40.955,102.671 42.478,106.346 Q44,110.022 44,114 L44,128 Q44,140.426 52.787,149.213 Q61.574,158 74,158 Q86.426,158 95.213,149.213 Q104,140.426 104,128 L104,70 Q104,66.022 105.522,62.346 Q107.045,58.671 109.858,55.858 Q112.671,53.045 116.346,51.522 Q120.022,50 124,50 Q127.978,50 131.654,51.522 Q135.329,53.045 138.142,55.858 Q140.955,58.671 142.478,62.346 Q144,66.022 144,70 L144,122 Q144,126 148,126 Q152,126 152,122 L152,88 Q152,84.022 153.522,80.346 Q155.045,76.671 157.858,73.858 Q160.671,71.045 164.346,69.522 Q168.022,68 172,68 Q175.978,68 179.654,69.522 Q183.329,71.045 186.142,73.858 Q188.955,76.671 190.478,80.346 Q192,84.022 192,88 L192,122 Q192,126 196,126 Q200,126 200,122 L200,104 Q200,100.022 201.522,96.346 Q203.045,92.671 205.858,89.858 Q208.671,87.045 212.346,85.522 Q216.022,84 220,84 Q223.978,84 227.654,85.522 Q231.329,87.045 234.142,89.858 Q236.955,92.671 238.478,96.346 Q240,100.022 240,104 Z"/></symbol>
+</svg>
+
+<div class="lg" id="lg" data-state="loading">
+  <main class="lg-main">
+    <header class="lg-top">
+      <a class="logo" href="__BASE__" aria-label="ایزی‌ساز"><span class="mark"><svg><use href="#i-mark"/></svg></span>ایزی‌ساز</a>
+      <a class="btn btn-text btn-sm lg-home" href="__BASE__">صفحهٔ اول<svg class="ic" style="transform:scaleX(-1)"><use href="#i-back"/></svg></a>
+    </header>
+
+    <section class="lg-stage">
+      <!-- QR -->
+      <div class="lg-qrv">
+        <h1 class="h1">ورود با تلگرام</h1>
+        <p class="lead">این کد را با مینی‌اپ ایزی‌ساز اسکن کن.<br>رمز عبور لازم نیست.</p>
+
+        <div class="qr-ring">
+          <svg class="ring" viewBox="0 0 200 200" aria-hidden="true"><circle class="ring-bg" cx="100" cy="100" r="96"/><circle class="ring-fg" id="ring" cx="100" cy="100" r="96" pathLength="100"/></svg>
+          <div class="qr-card">
+            <div class="qr" id="qr" aria-label="QR ورود"></div>
+            <span class="qr-mark"><svg><use href="#i-mark"/></svg></span>
+            <div class="qr-veil" id="veil">
+              <span class="veil-scanned"><b class="pulse"><svg class="ic"><use href="#i-phone"/></svg></b>روی گوشی‌ات تأیید کن</span>
+              <span class="veil-denied"><b class="no"><svg class="ic"><use href="#i-x"/></svg></b>ورود رد شد<button class="btn btn-soft btn-sm" data-fresh>QR تازه</button></span>
+              <span class="veil-idle"><button class="btn btn-primary btn-sm" data-fresh><svg class="ic"><use href="#i-refresh"/></svg>QR تازه بساز</button></span>
+            </div>
+          </div>
+        </div>
+
+        <p class="lg-timer cap" id="timer"><svg class="ic"><use href="#i-clock"/></svg><span>کد تازه تا <b class="num" id="secs">۳۰</b> ثانیه دیگر</span></p>
+        <a class="btn btn-ghost lg-same" id="same" href="#" target="_blank" rel="noopener"><svg class="ic"><use href="#i-phone"/></svg>روی همین گوشی هستم</a>
+        <p class="lg-err cap" id="err" role="alert"></p>
+      </div>
+
+      <!-- وصل شدی -->
+      <div class="lg-done" aria-live="polite">
+        <span class="lg-av" id="av"><i id="av-l"></i><b><svg class="ic"><use href="#i-check"/></svg></b></span>
+        <h1 class="h1" id="hi">وصل شدی</h1>
+        <p class="lead" id="hi-sub">حساب تلگرامت به این مرورگر وصل شد.</p>
+        <span class="lg-bar"><i></i></span>
+        <span class="cap">در حال رفتن به حسابت…</span>
+      </div>
+    </section>
+  </main>
+
+  <aside class="lg-side">
+    <div class="lg-side-in">
+      <span class="lg-k">سه قدم، کمتر از یک دقیقه</span>
+      <ol class="steps" id="steps">
+        <li data-step="1"><b class="st-ic"><svg class="ic"><use href="#i-tg"/></svg><svg class="ic ok"><use href="#i-check"/></svg></b>
+          <span><b>ایزی‌ساز را در تلگرام باز کن</b><span class="cap" id="bot-hint">از منوی ربات <bdi class="ltr">@EasySazBot</bdi></span></span><em>حالا</em></li>
+        <li data-step="2"><b class="st-ic"><svg class="ic"><use href="#i-scan"/></svg><svg class="ic ok"><use href="#i-check"/></svg></b>
+          <span><b>«ورود به سایت» را بزن</b><span class="cap">در بخش «حساب»؛ دوربین باز می‌شود</span></span><em>حالا</em></li>
+        <li data-step="3"><b class="st-ic"><svg class="ic"><use href="#i-shield"/></svg><svg class="ic ok"><use href="#i-check"/></svg></b>
+          <span><b>QR را اسکن کن و تأیید کن</b><span class="cap">اسم این مرورگر را ببین و «بله» بزن</span></span><em>حالا</em></li>
+      </ol>
+
+      <div class="scene" aria-hidden="true">
+        <div class="sc-laptop"><div class="sc-screen"><span class="sc-qr" id="sc-qr"></span></div><i></i></div>
+        <svg class="sc-arc" viewBox="0 0 140 50" fill="none"><path d="M4 40C40 2 100 2 136 34" stroke="#8B78F2" stroke-width="2.4" stroke-dasharray="5 7" stroke-linecap="round"/></svg>
+        <div class="sc-phone">
+          <div class="sc-scr">
+            <span class="sc-s1"><span class="mark"><svg><use href="#i-mark"/></svg></span></span>
+            <span class="sc-s2"><span class="sc-tile"><svg class="ic"><use href="#i-scan"/></svg></span><i></i><i></i></span>
+            <span class="sc-s3"><span class="sc-find"></span><span class="sc-beam"></span></span>
+          </div>
+        </div>
+      </div>
+      <p class="lg-safe cap"><svg class="ic"><use href="#i-shield"/></svg>ایزی‌ساز هیچ‌وقت رمز یا کد تلگرامت را نمی‌خواهد. ورود فقط با تأیید خودت روی گوشی انجام می‌شود.</p>
+    </div>
+  </aside>
+</div>
+</body>
+</html>

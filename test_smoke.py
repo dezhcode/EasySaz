@@ -1071,6 +1071,9 @@ def test_botkit() -> None:  # noqa: C901
     up["message"]["entities"] = [{"type": "custom_emoji", "offset": 0, "length": 2, "custom_emoji_id": "5111111111111111111"}]
     hook(up)
     ok("ذخیره شد" in calls("SendMessage", 1000001)[-1]["text"], "ایموجی و بسته ذخیره می‌شوند")
+    hook(update("/start"))
+    ok("EasySaz" in calls("SendMessage", 1000001)[-1]["text"], "وسط افزودن ایموجی، /start کار خودش را می‌کند")
+    hook(update(f"/start emoji_{app_id}"))
     hook(update("", callback="bkemoji:done"))
     ok(calls("SendMessage", 1000001)[-1]["reply_markup"]["inline_keyboard"][0][0]["web_app"]["url"].endswith(f"#bot={app_id}&tab=emoji"),
        "برگشت به ربات‌ساز از چت ایزی‌ساز")

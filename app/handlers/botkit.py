@@ -75,7 +75,7 @@ async def start_emoji(message: Message, state: FSMContext, db: Database, app_id:
     )
 
 
-@router.message(Emoji.collect, F.text | F.sticker)
+@router.message(Emoji.collect, F.sticker | (F.text & ~F.text.startswith("/")))
 async def got_emoji(message: Message, state: FSMContext, db: Database, bot: Bot) -> None:
     data = await state.get_data()
     app_id = data.get("app_id")

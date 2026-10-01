@@ -95,6 +95,7 @@
     const d = db();
     const P = plan(d);
     const find = id => d.apps.find(a => String(a.id) === String(id));
+    if (path === 'bot' || path.indexOf('bot?') === 0 || path.indexOf('bot/') === 0) return botApi(path, body, d, find);
     if (path === 'me') {
       return Promise.resolve({ user: { id: 1, first_name: 'مهمان' }, plan: P, plan_until: d.plan === 'free' ? null : now() + 23 * 86400,
         apps: d.apps.map(a => Object.assign(appJson(a), { stats: stats(a) })), can_create: d.apps.length < P.max_apps, bot: 'EasySazBot', plans: PLAN_LIST });
@@ -196,6 +197,74 @@
       save(d);
       return Promise.resolve({ doc: doc, app: appJson(a), kit: kit });
     }
+    return fail(404, 'پیدا نشد');
+  }
+
+  /* ربات‌ساز (همان شکل app/botkit/api.py) — ربات نمایشی وصل و روی ایزی‌ساز است */
+  function botDoc(name) {
+    const m = (id, nm, text, extra) => Object.assign({ id: id, name: nm, text: text, media: null, kb: 'none', rows: [], keys: [],
+      kbopt: { resize: true, once: false, persist: false, placeholder: '' },
+      opts: { replace: true, typing: false, effect: '', preview: false, silent: false, protect: false, remove_kb: false },
+      cmd: '', kw: [], then: '', wait: null, group: '' }, extra || {});
+    const b = (id, text, style, act) => ({ id: id, text: text, style: style || '', icon: '', act: act });
+    return {
+      v: 1, start: 'm_welcome', fallback: '', vars: [
+        { name: 'امتیاز', type: 'number', scope: 'user', init: '0', formula: '' },
+        { name: 'قیمت', type: 'number', scope: 'bot', init: '480000', formula: '' },
+        { name: 'تعداد', type: 'number', scope: 'user', init: '2', formula: '' },
+        { name: 'جمع سبد', type: 'number', scope: 'user', init: '', formula: '{قیمت} × {تعداد} − ۱۰٪' },
+        { name: 'شماره', type: 'text', scope: 'user', init: '', formula: '' },
+      ], comps: [],
+      msgs: [
+        m('m_welcome', 'خوش‌آمد', 'سلام {نام} 👋\nبه ربات <b>' + escapeHtml(name) + '</b> خوش اومدی. چی دوست داری ببینی؟', { kb: 'inline', rows: [
+          [b('b_courses', '📚 دوره‌ها', 'primary', { type: 'goto', to: 'm_courses' }), b('b_price', '💰 قیمت‌ها', '', { type: 'goto', to: 'm_price' })],
+          [b('b_reg', '📝 ثبت‌نام در کلاس', 'success', { type: 'goto', to: 'm_reg' })],
+        ] }),
+        m('m_courses', 'دوره‌ها', '<b>دوره‌های این فصل</b>\nعکاسی پرتره · عکاسی با موبایل · نور و ترکیب‌بندی', { kb: 'inline', rows: [
+          [b('b_app', '🎓 دیدن دوره‌ها', 'primary', { type: 'app', url: '' })], [b('b_back1', '↩️ برگشت', '', { type: 'goto', to: 'm_welcome' })],
+        ] }),
+        m('m_price', 'قیمت‌ها', 'هر دوره {قیمت} تومان.\nبرای دو دوره: <b>{جمع سبد}</b> تومان 🎁', { kb: 'inline', rows: [
+          [b('b_code', '📋 کپی کد تخفیف', 'success', { type: 'copy', text: 'SARA-PAIZ-20' })], [b('b_back2', '↩️ برگشت', '', { type: 'goto', to: 'm_welcome' })],
+        ] }),
+        m('m_reg', 'ثبت‌نام', 'برای ثبت‌نام شماره‌ات رو با دکمهٔ پایین بفرست 👇', { kb: 'reply', keys: [
+          [{ id: 'k_phone', text: '📱 فرستادن شماره', style: 'success', icon: '', act: { type: 'contact', var: 'شماره', to: 'm_done' } }],
+          [{ id: 'k_back', text: '↩️ برگشت', style: '', icon: '', act: { type: 'text', to: 'm_welcome' } }],
+        ], kbopt: { resize: true, once: true, persist: false, placeholder: 'شماره‌ات را بفرست' } }),
+        m('m_done', 'ثبت شد', 'ممنون {نام} 🌱 شماره‌ات ({شماره}) ثبت شد؛ به‌زودی تماس می‌گیریم.', { opts: { replace: true, typing: true, effect: '🎉', preview: false, silent: false, protect: false, remove_kb: true } }),
+      ],
+    };
+  }
+  function botApi(path, body, d, find) {
+    const id = path.indexOf('bot?id=') === 0 ? decodeURIComponent(path.split('=')[1]) : body && body.id;
+    const a = find(id);
+    if (!a) return fail(404, 'مینی‌اپ پیدا نشد');
+    if (!a.bk) {
+      a.bk = { doc: botDoc(a.name), pub: null, emoji: [{ id: '5100000000000000001', alt: '🔥', pack: '' }, { id: '5100000000000000002', alt: '📷', pack: '' }, { id: '5100000000000000003', alt: '⭐', pack: '' }],
+        bot: { connected: true, username: 'sara_photo_bot', name: a.name, mode: 'full', live: false, published_at: null } };
+      save(d);
+    }
+    const bk = a.bk;
+    const copy = o => JSON.parse(JSON.stringify(o));
+    if (path.indexOf('bot?id=') === 0) {
+      return Promise.resolve({ app: { id: a.id, name: a.name, slug: 'demo', url: pageUrl() }, bot: bk.bot, doc: copy(bk.doc), published: bk.pub && copy(bk.pub),
+        fresh: false, stats: { users: bk.pub ? 1240 : 0, today: bk.pub ? 86 : 0 }, emoji: bk.emoji, premium: true, main_bot: 'EasySazBot', limits: { msgs: 120, vars: 60 } });
+    }
+    if (path === 'bot/save') { bk.doc = copy(body.doc); save(d); return Promise.resolve({ doc: body.doc }); }
+    if (path === 'bot/publish') {
+      bk.doc = copy(body.doc); bk.pub = copy(body.doc); bk.bot.live = true; bk.bot.published_at = now(); save(d);
+      return Promise.resolve({ doc: body.doc, published: body.doc, bot: bk.bot, stats: { users: 1240, today: 86 } });
+    }
+    if (path === 'bot/off') { bk.pub = null; bk.bot.live = false; save(d); return Promise.resolve({ bot: bk.bot, published: null }); }
+    if (path === 'bot/takeover') { bk.bot.mode = 'full'; save(d); return Promise.resolve({ bot: bk.bot }); }
+    if (path === 'bot/test') { if (body.doc) { bk.doc = copy(body.doc); save(d); } return Promise.resolve({ ok: true, link: 'https://t.me/' + bk.bot.username }); }
+    if (path === 'bot/emoji_pack') {
+      const add = [['🎓', '5200000000000000001'], ['💬', '5200000000000000002'], ['📍', '5200000000000000003'], ['🚀', '5200000000000000004']]
+        .filter(([, i]) => !bk.emoji.some(e => e.id === i));
+      add.forEach(([alt, i]) => bk.emoji.push({ id: i, alt: alt, pack: 'SaraIcons' }));
+      save(d);
+      return Promise.resolve({ added: add.length, emoji: bk.emoji });
+    }
+    if (path === 'bot/emoji_del') { bk.emoji = bk.emoji.filter(e => e.id !== body.emoji); save(d); return Promise.resolve({ emoji: bk.emoji }); }
     return fail(404, 'پیدا نشد');
   }
 

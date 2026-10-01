@@ -103,6 +103,8 @@ MIGRATIONS = [
     "ALTER TABLE apps ADD COLUMN channel_id INTEGER",
     "ALTER TABLE apps ADD COLUMN channel_username TEXT",
     "ALTER TABLE apps ADD COLUMN channel_title TEXT",
+    # ربات‌ساز: ایموجی پریمیوم فقط وقتی کار می‌کند که سازندهٔ ربات پریمیوم باشد
+    "ALTER TABLE users ADD COLUMN is_premium INTEGER NOT NULL DEFAULT 0",
 ]
 
 _SLUG_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789"  # بدون l/o/0/1 که با هم قاطی می شوند
@@ -152,6 +154,9 @@ class Database:
         from .site import logins
 
         await self.conn.executescript(logins.SCHEMA)
+        from .botkit import store as botkit_store
+
+        await self.conn.executescript(botkit_store.SCHEMA)
         for sql in MIGRATIONS:
             try:
                 await self.conn.execute(sql)

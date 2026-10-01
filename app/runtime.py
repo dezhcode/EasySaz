@@ -122,12 +122,12 @@ def build() -> Parts:
         observer.outer_middleware(throttle)
         observer.middleware(user_mw)
 
-    from .handlers import admin, billing, connect, myapp, start
+    from .handlers import admin, billing, botkit, connect, myapp, start
 
     # connect/myapp زودتر از start می آیند چون start یک fallback برای هر
     # پیام دارد و نباید پیام توکن را قبل از هندلر FSM بگیرد.
     dp.include_routers(
-        billing.router, admin.router, connect.router, myapp.router, start.router
+        billing.router, admin.router, connect.router, myapp.router, botkit.router, start.router
     )
     dp.errors.register(_on_error)
 
@@ -138,6 +138,7 @@ def build() -> Parts:
     client_dp["db"] = db
     client_dp.message.middleware(AppMiddleware())
     client_dp.callback_query.middleware(AppMiddleware())
+    client_dp.pre_checkout_query.middleware(AppMiddleware())
     client_dp.include_router(client_router)
     client_dp.errors.register(_on_error)
 

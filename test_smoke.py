@@ -1244,6 +1244,50 @@ def test_ai() -> None:  # noqa: C901
     st, g = jcall("GET", f"/api/bot?id={app_id}")
     ok(g["doc"] == res["doc"], "برگرداندن ذخیره شد")
 
+    # نسخهٔ دوم: اطلاعات ربات، عکس، پیام بی‌راه، توقف، پیشنهادها
+    lost = ("ساختم\n- صفحهٔ **قیمت‌ها**\n@@OPS\n" + json.dumps({"ops": [
+        {"op": "msg", "id": "m_prices", "name": "قیمت‌ها", "text": "قیمت‌ها: [قیمت]", "typing": True, "effect": "🎉"}]}, ensure_ascii=False))
+    fixed = ("ساختم ✅\n**چی ساختم**\n- صفحهٔ **قیمت‌ها** با دکمه از خوش‌آمد\n@@OPS\n" + json.dumps({"ops": [
+        {"op": "msg", "id": "m_prices", "name": "قیمت‌ها", "text": "قیمت‌ها: [قیمت]", "typing": True, "effect": "🎉"},
+        {"op": "buttons", "msg": "m_welcome", "rows": [[{"text": "💰 قیمت‌ها", "act": {"type": "goto", "to": "m_prices"}}],
+                                                       [{"text": "📱 مینی‌اپ", "act": {"type": "app", "url": "https://example.com/easysaz/a/x"}}]]}]}, ensure_ascii=False))
+    script[:] = [(0.0, lost), (0.0, fixed)]
+    img = "data:image/jpeg;base64," + "A" * 400
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "یه صفحهٔ قیمت بساز", "doc": res["doc"], "image": img})
+    done = wait_turn(res["turn"])
+    ok("=== BOT INFO ===" in prompts[-2] and "MINI_APP_URL: https://example.com/easysaz/a/" in prompts[-2] and "=== IMAGE ===" in prompts[-2],
+       "پرامپت: نام و آدرس مینی‌اپ ربات، و عکس پیوست")
+    ok("not reachable" in prompts[-1], "پیام تازه‌ای که به هیچ‌جا وصل نیست، تعمیر خودکار می‌خواهد")
+    pm = next(m for m in done["doc"]["msgs"] if m["id"] == "m_prices")
+    ok(pm["opts"]["typing"] and pm["opts"]["effect"] == "🎉" and done["turn"]["ask"].startswith("📷 "), "ویژگی‌های پیام (در حال نوشتن، افکت) و نشان عکس")
+    ok("**چی ساختم**" in done["turn"]["say"] and "\n- " in done["turn"]["say"], "جواب دستیار Markdown و چندخطی می‌ماند")
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "x", "image": "data:image/jpeg;base64," + "A" * 900_000})
+    ok(st in (400, 413), "عکس خیلی بزرگ رد می‌شود")
+
+    script[:] = [(0.4, "دارم یه ربات خیلی بزرگ می‌سازم " * 20)]
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "یه ربات بزرگ بساز", "doc": done["doc"]})
+    time.sleep(0.5)
+    st, stopped = jcall("POST", "/api/bot/ai_stop", {"id": app_id, "turn": res["turn"]})
+    time.sleep(0.9)
+    st, g = jcall("GET", f"/api/bot?id={app_id}")
+    last = stopped["turns"][-1]
+    ok(last["status"] == "error" and "متوقف" in last["error"] and g["doc"] == done["doc"], "توقف وسط کار: نوبت می‌ایستد و پیش‌نویس دست نمی‌خورد")
+    script[:] = [(0.0, "سلام!\n@@OPS\n{\"ops\": []}")]
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "سلام", "doc": done["doc"]})
+    ok(st == 200, "بعد از توقف، پیام تازه پذیرفته می‌شود")
+    wait_turn(res["turn"])
+    from app.webapp import api as web_api
+
+    web_api._RATE.clear()  # سقف دقیقه‌ای نوشتن برای همین آزمون‌های پشت سر هم
+
+    messy = {"v": 1, "start": "m_a", "msgs": [
+        {"id": "m_a", "name": "شروع", "text": "سلام", "kb": "inline", "rows": [[{"id": "b_x", "text": "بی‌مقصد", "act": {"type": "goto", "to": ""}}]]},
+        {"id": "m_b", "name": "گم‌شده", "text": "…"}, {"id": "m_c", "name": "سه", "text": "…"}], "vars": []}
+    st, _ = jcall("POST", "/api/bot/save", {"id": app_id, "doc": messy})
+    st, info = jcall("GET", f"/api/bot/ai?id={app_id}")
+    asks = " ".join(x["ask"] for x in info["insights"])
+    ok("مقصد" in asks and "وصل" in asks and "متوجه" in asks, "پیشنهادهای سریع: دکمهٔ بی‌مقصد، پیام بی‌راه، بدون جواب پیش‌فرض")
+
     # سهم روزانه و دسترسی
     lim = hist["quota"]["limit"]
     now_ = int(time.time())

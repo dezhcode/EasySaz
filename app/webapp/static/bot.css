@@ -384,68 +384,158 @@ textarea.bk-in{min-height:84px; line-height:1.8}
 .bk-ai-tile-b{margin-top:2px; height:38px; padding:0 16px; border-radius:19px; background:#fff; color:var(--brand); font-size:14px; font-weight:800; display:inline-flex; align-items:center; gap:6px}
 .bk-ai-tile-b .ico{width:15px; height:15px; stroke-width:2.4}
 
-.bk-ai{position:fixed; inset:0; z-index:40; display:flex; flex-direction:column; background:var(--ground)}
+/* صفحهٔ دستیار: سفید و آرام؛ متن دستیار تمام‌عرض و بی‌حباب، فقط پیام کاربر حباب دارد */
+.bk-ai{position:fixed; inset:0; z-index:40; display:flex; flex-direction:column; background:var(--surface)}
+.bk-ai::before{content:''; position:absolute; inset:0 0 auto; height:260px; pointer-events:none;
+  background:radial-gradient(120% 90% at 85% -10%, rgba(106,75,255,.10), transparent 60%), radial-gradient(90% 80% at 0% -20%, rgba(42,139,214,.08), transparent 60%)}
 .bk-ai.in{animation:bkin .24s var(--ease) both}
 .bk-ai.out{animation:bkout .22s var(--ease) both}
-.bk-ai-av{width:30px; height:30px; border-radius:11px; background:var(--ai-g); color:#fff; display:grid; place-items:center; flex:none; box-shadow:0 6px 14px -8px #4B2EE8}
-.bk-ai-av .ico{width:17px; height:17px}
-.bk-top .bk-ai-av{width:38px; height:38px; border-radius:13px}
-.bk-ai-chat{flex:1; overflow:auto; padding:16px 12px 20px; display:flex; flex-direction:column; gap:12px; -webkit-overflow-scrolling:touch}
-.bk-ai-say{align-self:flex-start; display:flex; align-items:flex-end; gap:8px; max-width:92%}
-.bk-ai-b{padding:9px 12px; border-radius:18px 18px 18px 6px; background:var(--surface); font-size:14px; line-height:1.9; box-shadow:0 1px 0 rgba(23,20,43,.06); white-space:pre-wrap; overflow-wrap:anywhere}
-.bk-ai-me{align-self:flex-end; max-width:82%; padding:9px 12px; border-radius:18px 18px 6px 18px; background:var(--brand); color:#fff; font-size:14px; line-height:1.85; white-space:pre-wrap; overflow-wrap:anywhere}
-.bk-caret{display:inline-block; width:2px; height:16px; margin:0 2px; vertical-align:-3px; background:var(--brand); animation:bkblink 1s steps(2) infinite}
-@keyframes bkblink{50%{opacity:0}}
-.bk-dots{display:flex; gap:5px; padding:14px 14px}
-.bk-dots i{width:7px; height:7px; border-radius:50%; background:var(--ink-3); opacity:.35; animation:bkdot 1.2s infinite}
-.bk-dots i:nth-child(2){animation-delay:.2s}.bk-dots i:nth-child(3){animation-delay:.4s}
-@keyframes bkdot{30%{opacity:1; transform:translateY(-3px)}}
-.bk-ai-chips{align-self:flex-start; display:flex; flex-wrap:wrap; gap:6px; padding-right:38px}
-.bk-ai-chip{height:34px; padding:0 13px; border-radius:17px; background:var(--surface); color:var(--brand); font-size:13px; font-weight:700; box-shadow:inset 0 0 0 1.5px rgba(75,46,232,.32)}
-.bk-ai-chip:active{background:var(--brand-tint)}
-.bk-ai-card{align-self:flex-start; width:min(calc(100% - 38px), 340px); margin-right:38px; display:flex; flex-direction:column; gap:10px; padding:14px; border-radius:20px; background:var(--surface);
-  box-shadow:0 10px 24px -18px rgba(23,20,43,.5), 0 0 0 1px rgba(23,20,43,.05)}
-.bk-ai-card.ok{box-shadow:0 10px 24px -18px rgba(23,20,43,.5), inset 0 0 0 1.5px rgba(18,160,113,.35)}
-.bk-ai-card.warn{box-shadow:inset 0 0 0 1.5px #F1E2B5}
-.bk-ai-card.brand{box-shadow:inset 0 0 0 1.5px rgba(75,46,232,.3)}
-.bk-ai-card.undone{opacity:.62}
-.bk-ai-card p{margin:0; font-size:13px; line-height:1.8; color:var(--ink-3)}
-.bk-ai-card-h{display:flex; align-items:center; gap:8px}
-.bk-ai-card-h b{font-size:14.5px; font-weight:800}
-.bk-ai-ci{width:24px; height:24px; border-radius:50%; display:grid; place-items:center; flex:none; background:var(--brand-tint); color:var(--brand)}
-.bk-ai-ci .ico{width:13px; height:13px; stroke-width:2.8}
-.bk-ai-card.ok .bk-ai-ci{background:#0B7A55; color:#fff}
-.bk-ai-card.warn .bk-ai-ci{background:#FFF1D6; color:#9A6A12}
-.bk-spin{width:20px; height:20px; border-radius:50%; border:2.5px solid var(--brand-tint); border-top-color:var(--brand); box-sizing:border-box; flex:none; animation:bkspin .8s linear infinite}
-.bk-ai-pv{padding:10px; border-radius:14px; background:var(--chat); display:flex; flex-direction:column; gap:4px}
-.bk-ai-pv .bk-bub{width:100%; font-size:13px; line-height:1.8; padding:7px 9px 3px}
-.bk-ai-pv .bk-keys{width:100%; margin-top:0; gap:4px}
-.bk-ai-pv .bk-key{height:32px; font-size:12px}
-.bk-ai-stats{display:flex; gap:6px}
-.bk-ai-stats span{flex:1; display:flex; flex-direction:column; align-items:center; padding:7px 0; border-radius:12px; background:var(--surface-sunk); line-height:1.3}
-.bk-ai-stats b{font-size:17px; font-weight:800}
-.bk-ai-stats i{font-style:normal; font-size:11.5px; color:var(--ink-3)}
-.bk-ai-diff{display:flex; flex-direction:column; gap:6px}
-.bk-ai-d{display:flex; align-items:flex-start; gap:8px; font-size:13px; line-height:1.6}
-.bk-ai-d.more{color:var(--ink-3); padding-right:28px}
-.bk-ai-dk{width:20px; height:20px; border-radius:6px; display:grid; place-items:center; flex:none; font-weight:800; font-size:13px}
-.bk-ai-d.add .bk-ai-dk{background:rgba(11,122,85,.12); color:#0B7A55}
-.bk-ai-d.mod .bk-ai-dk{background:var(--brand-tint); color:var(--brand)}
-.bk-ai-d.del .bk-ai-dk{background:rgba(192,57,43,.1); color:#C0392B}
-.bk-ai-w{font-size:12.5px; line-height:1.7; color:#7A5410; background:#FFF6DE; border-radius:10px; padding:6px 10px}
-.bk-ai-acts{display:flex; flex-wrap:wrap; gap:6px}
-.bk-ai-act{flex:1 1 40%; min-width:0; height:40px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:13px; font-weight:800; white-space:nowrap}
-.bk-ai-act .ico{width:15px; height:15px; stroke-width:2.3}
-.bk-ai-act.t{background:var(--tgb); color:#fff}
-.bk-ai-act.p{background:var(--brand); color:#fff}
-.bk-ai-act.s{background:var(--surface-sunk); color:var(--ink)}
-.bk-ai-act.o{color:var(--ink-2); box-shadow:inset 0 0 0 1.5px var(--line); flex-basis:100%}
-.bk-ai-act.t .ico{fill:currentColor; stroke-width:1.4}
-.bk-ai-in{flex:none; padding:8px 12px calc(12px + var(--safe-b)); background:var(--surface); border-top:1px solid var(--line); display:flex; flex-direction:column; gap:6px}
-.bk-ai-q{font-size:11.5px; color:var(--ink-3); text-align:center}
-.bk-ai-row{display:flex; align-items:flex-end; gap:8px}
-.bk-ai-row textarea{flex:1; min-height:42px; max-height:140px; resize:none; border:0; outline:0; border-radius:21px; background:var(--surface-sunk); padding:10px 16px; font:inherit; font-size:15px; line-height:1.5; color:var(--ink)}
-.bk-ai-send{width:42px; height:42px; border-radius:50%; background:var(--brand); color:#fff; display:grid; place-items:center; flex:none}
-.bk-ai-send .ico{width:18px; height:18px}
-.bk-ai-send.off{background:#D9D6E6}
-.bk-ai-send.off .ico{animation:none}
+.ai-orb{width:30px; height:30px; border-radius:11px; background:var(--ai-g); color:#fff; display:grid; place-items:center; flex:none; box-shadow:0 8px 18px -10px #4B2EE8}
+.ai-orb .ico{width:16px; height:16px}
+.ai-orb.sm{width:36px; height:36px; border-radius:13px}
+.ai-orb.sm .ico{width:19px; height:19px}
+.ai-orb.xs{width:20px; height:20px; border-radius:7px; box-shadow:none}
+.ai-orb.xs .ico{width:11px; height:11px}
+.ai-orb.lg{width:58px; height:58px; border-radius:20px}
+.ai-orb.lg .ico{width:30px; height:30px}
+.ai-top{position:relative; z-index:2; display:flex; align-items:center; gap:10px; padding:calc(var(--safe-t) + 10px) 12px 10px; background:rgba(255,255,255,.82);
+  -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); border-bottom:1px solid rgba(23,20,43,.06)}
+.ai-id{flex:1; min-width:0; display:flex; align-items:center; gap:10px}
+.ai-id-t{display:flex; flex-direction:column; min-width:0; line-height:1.35; align-items:flex-start}
+.ai-id-t b{font-size:15.5px; font-weight:800}
+.ai-target{display:inline-flex; align-items:center; gap:3px; max-width:100%; font-size:12px; color:var(--ink-3); padding:0}
+.ai-target-t{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.ai-target.sw{color:var(--brand); font-weight:700}
+.ai-target .ico{width:13px; height:13px; stroke-width:2.4}
+.ai-scroll{position:relative; flex:1; overflow:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain}
+.ai-col{max-width:720px; margin:0 auto; padding:18px 20px 28px; display:flex; flex-direction:column; gap:22px}
+
+/* خالی */
+.ai-empty{display:flex; flex-direction:column; align-items:flex-start; gap:10px; padding-top:18px}
+.ai-empty h2{margin:6px 0 0; font-size:27px; font-weight:800; letter-spacing:-.5px}
+.ai-empty > p{margin:0 0 6px; font-size:14.5px; line-height:1.95; color:var(--ink-3)}
+.ai-cap{font-size:12.5px; font-weight:800; color:var(--ink-3); margin-top:8px}
+.ai-ins{align-self:stretch; display:flex; flex-direction:column; gap:6px}
+.ai-ins-r{display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:16px; background:#FFF8E8; color:#6B4A0E; font-size:14px; font-weight:700; text-align:right}
+.ai-ins-r .ico{width:17px; height:17px; flex:none}
+.ai-ins-r .ico:last-child{width:15px; height:15px; opacity:.6}
+.ai-ideas{align-self:stretch; display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.ai-idea{display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:14px; border-radius:18px; background:var(--surface); text-align:right;
+  box-shadow:inset 0 0 0 1px var(--line); transition:transform .15s, box-shadow .15s}
+.ai-idea:active{transform:scale(.98); box-shadow:inset 0 0 0 1.5px rgba(75,46,232,.4)}
+.ai-idea-e{font-size:22px; line-height:1.2; margin-bottom:4px}
+.ai-idea b{font-size:14.5px; font-weight:800}
+.ai-idea-d{font-size:12px; color:var(--ink-3); line-height:1.6}
+
+/* نوبت‌ها */
+.ai-turn{display:flex; flex-direction:column; gap:14px}
+.ai-u{align-self:flex-end; max-width:84%; display:flex; flex-direction:column; gap:8px; padding:10px 14px; border-radius:22px 22px 8px 22px; background:#F1EEFF; color:var(--ink);
+  font-size:15px; line-height:1.85; white-space:pre-wrap; overflow-wrap:anywhere}
+.ai-u-img{width:180px; max-width:100%; border-radius:14px; display:block}
+.ai-u-tag{font-size:12px; color:var(--brand); font-weight:700}
+.ai-a{display:flex; flex-direction:column; gap:10px; min-width:0}
+.ai-a-h{display:flex; align-items:center; gap:8px; font-size:13px}
+.ai-a-h b{font-weight:800; color:var(--ink-2)}
+.ai-think{font-size:13px; font-weight:700; background:linear-gradient(90deg, var(--ink-3) 0%, #B9B4D6 40%, var(--ink-3) 80%); background-size:200% 100%;
+  -webkit-background-clip:text; background-clip:text; color:transparent; animation:aishine 1.6s linear infinite}
+@keyframes aishine{from{background-position:200% 0} to{background-position:0 0}}
+.ai-pulse{width:9px; height:9px; border-radius:50%; background:var(--brand); opacity:.75; animation:aipulse 1.1s ease-in-out infinite}
+@keyframes aipulse{50%{transform:scale(.55); opacity:.35}}
+
+/* متن دستیار (Markdown) */
+.ai-md{display:flex; flex-direction:column; gap:6px; font-size:15.5px; line-height:2; color:var(--ink)}
+.ai-l{margin:0}
+.ai-l.gap{margin-top:8px}
+.ai-md b{font-weight:800}
+.ai-md a{color:var(--brand); text-decoration:underline; text-underline-offset:3px}
+.ai-md code{font-family:ui-monospace,Menlo,monospace; font-size:.86em; padding:1px 6px; border-radius:6px; background:var(--surface-sunk); direction:ltr; unicode-bidi:isolate}
+.ai-h{font-size:16.5px; font-weight:800; margin-top:6px}
+.ai-li,.ai-ol{position:relative; padding-right:20px}
+.ai-li::before{content:''; position:absolute; right:5px; top:.95em; width:6px; height:6px; border-radius:50%; background:var(--brand); opacity:.7}
+.ai-ol::before{content:attr(data-n) '.'; position:absolute; right:0; top:0; font-weight:800; color:var(--brand)}
+.ai-q{padding:2px 14px 2px 0; border-right:3px solid rgba(75,46,232,.3); color:var(--ink-2)}
+.ai-hr{border:0; height:1px; background:var(--line); margin:8px 0}
+.ai-code{direction:ltr; text-align:left; padding:12px 14px; border-radius:14px; background:#17142B; color:#E9E6FF; font-size:13px; line-height:1.7; overflow:auto}
+.ai-code code{background:none; padding:0; color:inherit}
+.ai-var{display:inline-block; padding:0 7px; border-radius:8px; background:var(--brand-tint); color:var(--brand); font-weight:700; font-size:.92em; line-height:1.7}
+/* ظاهر شدن خط‌به‌خط: موج محو از راست به چپ */
+.ai-l.ln{animation:ailn .95s cubic-bezier(.3,.7,.25,1) both;
+  -webkit-mask-image:linear-gradient(to left, #000 33%, transparent 66%); mask-image:linear-gradient(to left, #000 33%, transparent 66%);
+  -webkit-mask-size:300% 100%; mask-size:300% 100%; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat}
+@keyframes ailn{
+  from{opacity:0; transform:translateX(-6px); -webkit-mask-position:0 0; mask-position:0 0; filter:blur(2px)}
+  60%{opacity:1; filter:blur(0)}
+  to{opacity:1; transform:none; -webkit-mask-position:100% 0; mask-position:100% 0}
+}
+
+/* کارت نتیجه */
+.ai-art{display:flex; flex-direction:column; gap:12px; padding:14px; border-radius:22px; background:var(--surface); box-shadow:0 1px 0 rgba(23,20,43,.04), 0 18px 40px -28px rgba(23,20,43,.45), inset 0 0 0 1px var(--line)}
+.ai-art.undone{opacity:.6}
+.ai-art-h{display:flex; align-items:center; gap:10px}
+.ai-art-i{width:38px; height:38px; border-radius:13px; display:grid; place-items:center; flex:none; background:rgba(11,122,85,.1); color:#0B7A55}
+.ai-art.undone .ai-art-i{background:var(--surface-sunk); color:var(--ink-3)}
+.ai-art-i .ico{width:19px; height:19px}
+.ai-art-t{display:flex; flex-direction:column; line-height:1.45}
+.ai-art-t b{font-size:15px; font-weight:800}
+.ai-art-t span{font-size:12.5px; color:var(--ink-3)}
+.ai-pv{padding:12px; border-radius:16px; background:var(--chat); display:flex; flex-direction:column; gap:4px}
+.ai-pv .bk-bub{width:100%; font-size:13.5px; line-height:1.85; padding:8px 10px 3px}
+.ai-pv .bk-keys{width:100%; margin-top:0; gap:4px}
+.ai-pv .bk-key{height:34px; font-size:12.5px}
+.ai-art-sum{display:flex; align-items:center; gap:6px; padding:9px 12px; border-radius:12px; background:var(--surface-sunk); font-size:13px; font-weight:800; color:var(--ink-2); text-align:right}
+.ai-art-sum .ico{width:15px; height:15px}
+.ai-diff{display:flex; flex-direction:column; gap:7px; padding:0 4px}
+.ai-d{display:flex; align-items:flex-start; gap:9px; font-size:13.5px; line-height:1.6}
+.ai-d.more{color:var(--ink-3); padding-right:29px}
+.ai-dk{width:20px; height:20px; border-radius:6px; display:grid; place-items:center; flex:none; font-weight:800; font-size:13px}
+.ai-d.add .ai-dk{background:rgba(11,122,85,.12); color:#0B7A55}
+.ai-d.mod .ai-dk{background:var(--brand-tint); color:var(--brand)}
+.ai-d.del .ai-dk{background:rgba(192,57,43,.1); color:#C0392B}
+.ai-w{font-size:12.5px; line-height:1.7; color:#6B4A0E; background:#FFF8E8; border-radius:10px; padding:7px 11px}
+.ai-acts{display:flex; flex-wrap:wrap; gap:6px}
+.ai-act{flex:1 1 40%; min-width:0; height:42px; border-radius:13px; display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:13.5px; font-weight:800; white-space:nowrap}
+.ai-act .ico{width:15px; height:15px; stroke-width:2.3}
+.ai-act.t{background:var(--tgb); color:#fff}
+.ai-act.t .ico{fill:currentColor; stroke-width:1.4}
+.ai-act.p{background:var(--brand); color:#fff}
+.ai-act.s{background:var(--surface-sunk); color:var(--ink)}
+.ai-act.o{color:var(--ink-2); box-shadow:inset 0 0 0 1.5px var(--line); flex-basis:100%}
+.ai-note{display:flex; flex-direction:column; gap:8px; padding:14px; border-radius:18px; background:var(--surface-sunk)}
+.ai-note.warn{background:#FFF8E8}
+.ai-note.brand{background:var(--brand-tint)}
+.ai-note p{margin:0; font-size:13.5px; line-height:1.85; color:var(--ink-2)}
+.ai-note-h{display:flex; align-items:center; gap:8px}
+.ai-note-h b{font-size:14.5px; font-weight:800}
+.ai-note-i{width:24px; height:24px; border-radius:50%; display:grid; place-items:center; flex:none; background:#fff; color:var(--brand)}
+.ai-note.warn .ai-note-i{color:#9A6A12}
+.ai-note-i .ico{width:13px; height:13px; stroke-width:2.6}
+.ai-chips{display:flex; gap:7px; overflow-x:auto; margin:0 -20px; padding:2px 20px 4px; scrollbar-width:none}
+.ai-chips::-webkit-scrollbar{display:none}
+.ai-chip{flex:none; height:36px; padding:0 14px; border-radius:18px; background:var(--surface); color:var(--ink); font-size:13.5px; font-weight:700; box-shadow:inset 0 0 0 1px var(--line); white-space:nowrap}
+.ai-chip:active{background:var(--brand-tint); color:var(--brand)}
+.ai-tools{display:flex; gap:2px; margin-top:-4px}
+.ai-tool{width:34px; height:34px; border-radius:10px; display:grid; place-items:center; color:var(--ink-3)}
+.ai-tool .ico{width:16px; height:16px}
+.ai-tool:active{background:var(--surface-sunk)}
+
+/* کادر نوشتن */
+.ai-comp-w{position:relative; z-index:2; flex:none; padding:8px 12px calc(10px + var(--safe-b)); background:linear-gradient(to top, var(--surface) 70%, rgba(255,255,255,0))}
+.ai-comp{max-width:720px; margin:0 auto; display:flex; flex-direction:column; gap:4px; padding:8px 8px 8px 8px; border-radius:26px; background:var(--surface);
+  box-shadow:0 10px 30px -18px rgba(23,20,43,.45), inset 0 0 0 1px var(--line)}
+.ai-comp:focus-within{box-shadow:0 10px 30px -18px rgba(23,20,43,.45), inset 0 0 0 1.5px rgba(75,46,232,.45)}
+.ai-comp textarea{width:100%; min-height:44px; max-height:150px; resize:none; border:0; outline:0; background:none; padding:10px 10px 4px; font:inherit; font-size:15.5px; line-height:1.6; color:var(--ink)}
+.ai-comp textarea::placeholder{color:var(--ink-3)}
+.ai-comp-r{display:flex; align-items:center; gap:8px}
+.ai-hint{font-size:11.5px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.ai-att-b{width:38px; height:38px; border-radius:50%; display:grid; place-items:center; color:var(--ink-2); background:var(--surface-sunk); flex:none}
+.ai-att-b .ico{width:18px; height:18px}
+.ai-send{width:40px; height:40px; border-radius:50%; background:var(--ink); color:#fff; display:grid; place-items:center; flex:none; transition:transform .15s}
+.ai-send:active{transform:scale(.92)}
+.ai-send .ico{width:19px; height:19px; stroke-width:2.6}
+.ai-send.off{background:#D9D6E6}
+.ai-send.stop{background:var(--ink)}
+.ai-send.stop .ico{width:13px; height:13px; fill:currentColor; stroke-width:0}
+.ai-att{position:relative; align-self:flex-start; margin:2px 4px 0}
+.ai-att img{width:64px; height:64px; object-fit:cover; border-radius:14px; display:block}
+.ai-att-x{position:absolute; top:-6px; left:-6px; width:22px; height:22px; border-radius:50%; background:var(--ink); color:#fff; display:grid; place-items:center}
+.ai-att-x .ico{width:11px; height:11px; stroke-width:3}

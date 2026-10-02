@@ -275,26 +275,31 @@
     bk.ai = bk.ai || { turns: [], used: 0 };
     const A = bk.ai;
     const view = t => ({ id: t.id, ask: t.ask, say: t.status === 'done' ? t.say : t.say.slice(0, Math.max(0, Math.floor((Date.now() - t.t0 - 700) / 28))),
-      status: t.status, error: '', result: t.result, created_at: Math.floor(t.t0 / 1000),
+      status: t.status, error: t.error || '', result: t.result, created_at: Math.floor(t.t0 / 1000),
       can_undo: t.status === 'done' && !!(t.result.changes || []).length && !t.result.undone });
-    if (path.indexOf('bot/ai?') === 0) return Promise.resolve({ enabled: true, turns: A.turns.map(view), quota: { used: A.used, limit: 20 }, max_ask: 800 });
+    if (path.indexOf('bot/ai?') === 0) return Promise.resolve({ enabled: true, turns: A.turns.map(view), quota: { used: A.used, limit: 20 }, max_ask: 800, insights: [] });
     if (path === 'bot/ai_send') {
-      if (A.turns.some(t => t.status !== 'done')) return fail(409, 'دستیار هنوز روی پیام قبلی کار می‌کند');
+      if (A.turns.some(t => t.status === 'running')) return fail(409, 'دستیار هنوز روی پیام قبلی کار می‌کند');
       const before = copy(body.doc || bk.doc);
       const plan = demoPlan(body.text, before);
-      const t = { id: A.turns.length + 1, ask: body.text, say: plan.say, status: 'running', t0: Date.now(), result: {}, before, after: plan.doc, res: plan.res };
+      const t = { id: A.turns.length + 1, ask: (body.image ? '📷 ' : '') + body.text, say: plan.say, status: 'running', t0: Date.now(), result: {}, before, after: plan.doc, res: plan.res };
       A.turns.push(t); A.used++; save(d);
       return Promise.resolve({ turn: t.id, pos: 0, quota: { used: A.used, limit: 20 } });
     }
     if (path.indexOf('bot/ai_poll?') === 0) {
       const t = A.turns.find(x => x.id === Number(qs.get('turn')));
       if (!t) return fail(404, 'پیدا نشد');
-      if (t.status !== 'done' && Date.now() - t.t0 > 700 + t.say.length * 28 + 900) {
+      if (t.status === 'running' && Date.now() - t.t0 > 700 + t.say.length * 28 + 900) {
         t.status = 'done'; t.result = t.res;
         if (t.after) bk.doc = copy(t.after);
         save(d);
       }
       return Promise.resolve(Object.assign({ turn: view(t) }, t.status === 'done' ? { doc: copy(bk.doc) } : {}));
+    }
+    if (path === 'bot/ai_stop') {
+      A.turns.forEach(t => { if (t.status !== 'done' && t.status !== 'error') { t.status = 'error'; t.error = 'متوقفش کردی؛ پیش‌نویس دست نخورد'; t.say = ''; } });
+      save(d);
+      return Promise.resolve({ turns: A.turns.map(view) });
     }
     if (path === 'bot/ai_undo') {
       const t = A.turns.find(x => x.id === body.turn);
@@ -318,7 +323,7 @@
       const x = copy(doc);
       let name = '';
       x.msgs.forEach(m => m.rows.forEach(r => r.forEach(b => { if (/ثبت/.test(b.text)) { b.style = 'success'; name = b.text; } })));
-      return { say: 'سبزش کردم ✅ حالا دکمهٔ ثبت‌نام بیشتر به چشم می‌آد.', doc: x,
+      return { say: 'سبزش کردم ✅\nحالا دکمهٔ **' + name + '** بیشتر به چشم می‌آد و کاربر راحت‌تر ثبت‌نام می‌کنه.\n\n**پیشنهاد بعدی:** برای دورهٔ پیشرفته یه تخفیف ۱۰٪ بذار.', doc: x,
         res: { changes: [{ k: 'mod', t: `دکمهٔ «${name}» ← سبز` }], more: 0, chips: ['۱۰٪ تخفیف بذار', 'یه دکمهٔ اینستاگرام هم بذار'], stats: stats(x), preview: pv(x), warnings: [] } };
     }
     if (/ربات|بساز|کلاس|فروشگاه|ثبت|دوره|نوبت|پشتیبانی/.test(text)) {
@@ -329,7 +334,7 @@
         msg('m_thanks', 'ممنون', 'ثبت شد ✅ به‌زودی باهات تماس می‌گیریم.', { opts: { replace: true, typing: false, effect: '', preview: false, silent: false, protect: false, remove_kb: true } }),
         msg('m_faq', 'سؤالات', 'سؤالت رو بنویس؛ همین‌جا جواب می‌دیم 🙂', { kb: 'inline', rows: [[btn('b_6', '↩️ برگشت', '', 'm_welcome')]] }),
       ] };
-      return { say: 'ساختمش ✅ یه پیام خوش‌آمد با دکمهٔ دوره‌ها، صفحهٔ دوره‌ها با قیمت، و ثبت‌نام با دکمهٔ «ارسال شماره».', doc: x,
+      return { say: 'ساختمش ✅ ربات ثبت‌نام کلاس عکاسی آماده است.\n\n**چی ساختم**\n- پیام **خوش‌آمد** با اسم کاربر و سه دکمه\n- صفحهٔ **دوره‌ها** با قیمت هر دوره\n- **ثبت‌نام** با دکمهٔ «📱 ارسال شماره» و ذخیره در {شماره}\n- پیام **ممنون** بعد از ثبت شماره\n- صفحهٔ **سؤالات** با دکمهٔ برگشت\n\nجاهای «[قیمت]» رو با قیمت واقعی پر کن.\n\n**پیشنهاد بعدی:** دکمهٔ ثبت‌نام رو سبز کن تا بیشتر دیده بشه.', doc: x,
         res: { changes: [{ k: 'mod', t: 'متن «خوش‌آمد»' }, { k: 'add', t: 'پیام «دوره‌ها» با ۲ دکمه' }, { k: 'add', t: 'پیام «ثبت‌نام» با ۱ دکمه' }, { k: 'add', t: 'پیام «ممنون»' }, { k: 'add', t: 'پیام «سؤالات» با ۱ دکمه' }, { k: 'add', t: 'متغیر {شماره}' }],
           more: 0, chips: ['دکمهٔ «ثبت‌نام» رو سبز کن', 'قیمت‌ها رو بنویس', 'یه دکمهٔ اینستاگرام هم بذار'], stats: stats(x), preview: pv(x), warnings: ['جاهای «[…]» را با اطلاعات خودت پر کن'] } };
     }

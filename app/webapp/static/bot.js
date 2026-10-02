@@ -22,7 +22,7 @@
   /* ---------------------------------------------------------------- آیکن‌ها */
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const IC = {
-    back: 'M9 6l6 6-6 6', chl: 'M15 6l-6 6 6 6', x: 'M6 6l12 12M18 6L6 18', plus: 'M12 5v14M5 12h14', play: 'M8 5v14l11-7z',
+    stop: 'M7 7h10v10H7z', back: 'M9 6l6 6-6 6', chl: 'M15 6l-6 6 6 6', x: 'M6 6l12 12M18 6L6 18', plus: 'M12 5v14M5 12h14', play: 'M8 5v14l11-7z',
     chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.3A8 8 0 1 1 21 12z', keyb: 'M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M7 14h10',
     layers: 'M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5', var: 'M8 4c-2 0-2 2-2 4s-2 4-2 4 2 2 2 4 0 4 2 4M16 4c2 0 2 2 2 4s2 4 2 4-2 2-2 4 0 4-2 4',
     smile: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8.5 14a4 4 0 0 0 7 0M9 9.5h.01M15 9.5h.01', bot: 'M5 9h14v10H5zM12 5v4M9 13v.01M15 13v.01M9 16h6',
@@ -201,7 +201,7 @@
   /* ================================================================ پوسته */
   function root() { return $('bot'); }
 
-  async function open(appId, tab) {
+  async function open(appId, tab, opts) {
     const panel = P();
     R.appId = Number(appId);
     const wantAI = tab === 'ai';
@@ -222,10 +222,10 @@
       R.emoji = d.emoji || [];
       if (d.fresh) save();
       draw();
-      if (wantAI) openAI();
+      if (wantAI) openAI(opts);
     } catch (err) {
       panel.failed(err);
-      panel.openDash(R.appId);
+      if (opts && opts.fromHome) { R.on = false; panel.home(); } else panel.openDash(R.appId);
     }
   }
   async function reload() {
@@ -238,13 +238,13 @@
       if (!R.edit && !R.sheets.length) draw();
     } catch (e) {}
   }
-  async function leave() {
+  async function leave(toHome) {
     await save();
     if (R.ai) { clearTimeout(R.ai.pollT); R.ai.on = false; }
     R.on = false;
     R.edit = null;
     closeAllSheets();
-    P().openDash(R.appId);
+    if (toHome === true) P().home(); else P().openDash(R.appId);
   }
   /* برگشت تلگرام: برگه، ویرایشگر، بعد داشبورد مینی‌اپ */
   function back() {
@@ -1990,19 +1990,19 @@
 
   /* ================================================================ دستیار ساخت ربات با گفتگو
      کاربر می‌گوید چه می‌خواهد؛ سرور (app/botkit/agent.py) با سرویس هوش مصنوعی پیش‌نویس را
-     می‌سازد یا عوض می‌کند. این‌جا فقط گفتگو، کارت نتیجه و برگرداندن است؛ انتشار با خود کاربر. */
-  const AI_IDEAS = ['🛍 فروشگاه و سفارش', '📝 ثبت‌نام کلاس', '🎧 پشتیبانی مشتری', '📅 نوبت‌دهی', '📚 معرفی دوره‌ها', '🎁 کد تخفیف'];
-  const AI_IDEA_TEXT = {
-    '🛍 فروشگاه و سفارش': 'یه ربات فروشگاه می‌خوام که محصولاتم رو نشون بده و مشتری بتونه سفارش بده',
-    '📝 ثبت‌نام کلاس': 'یه ربات برای ثبت‌نام کلاس می‌خوام که دوره‌ها رو نشون بده و شماره تماس بگیره',
-    '🎧 پشتیبانی مشتری': 'یه ربات پشتیبانی می‌خوام با سؤالات پرتکرار و ارسال پیام به من',
-    '📅 نوبت‌دهی': 'یه ربات نوبت‌دهی می‌خوام که روز و ساعت رو از کاربر بپرسه',
-    '📚 معرفی دوره‌ها': 'یه ربات می‌خوام که دوره‌هام رو با قیمت معرفی کنه',
-    '🎁 کد تخفیف': 'یه ربات می‌خوام که بعد از عضویت به کاربر کد تخفیف بده',
-  };
+     می‌سازد یا عوض می‌کند. متن دستیار تمام‌عرض و بدون حباب است (فقط پیام کاربر حباب دارد)،
+     Markdown دارد و خط‌به‌خط با محو شدن از راست به چپ ظاهر می‌شود. انتشار با خود کاربر است. */
+  const AI_IDEAS = [
+    ['🛍', 'فروشگاه و سفارش', 'محصولات، سبد و ثبت سفارش', 'یه ربات فروشگاه می‌خوام که محصولاتم رو نشون بده و مشتری بتونه سفارش بده'],
+    ['📝', 'ثبت‌نام کلاس', 'معرفی دوره و گرفتن شماره', 'یه ربات برای ثبت‌نام کلاس می‌خوام که دوره‌ها رو با قیمت نشون بده و شماره تماس بگیره'],
+    ['🎧', 'پشتیبانی مشتری', 'سؤالات پرتکرار و پیام به تو', 'یه ربات پشتیبانی می‌خوام با سؤالات پرتکرار و دکمه‌ای که پیام کاربر رو برای من بفرسته'],
+    ['📅', 'نوبت‌دهی', 'روز و ساعت از کاربر', 'یه ربات نوبت‌دهی می‌خوام که روز و ساعت و شماره رو از کاربر بپرسه'],
+    ['📣', 'معرفی کانال', 'خوش‌آمد و مینی‌اپ', 'یه ربات برای کانالم می‌خوام که خوش‌آمد بگه و مینی‌اپم رو باز کنه'],
+    ['🎁', 'کد تخفیف', 'هدیه بعد از عضویت', 'یه ربات می‌خوام که بعد از گرفتن شماره، به کاربر کد تخفیف بده'],
+  ];
   function aiTile() {
     const has = R.ai && R.ai.turns && R.ai.turns.length;
-    const t = bt('bk-ai-tile', [], openAI);
+    const t = bt('bk-ai-tile', [], () => openAI());
     t.append(h('span', 'bk-ai-tile-i'), h('b', '', 'ربات رو با گفتگو بساز'),
       h('span', 'bk-ai-tile-s', 'بگو چه رباتی می‌خوای؛ پیام‌ها، دکمه‌ها و متغیرها را می‌سازم. بعد خودت تست کن.'),
       h('span', 'bk-ai-tile-b', has ? 'ادامهٔ گفتگو' : 'شروع گفتگو'));
@@ -2010,19 +2010,123 @@
     t.querySelector('.bk-ai-tile-b').appendChild(ic('chl'));
     return t;
   }
-  function aiAv() { const a = h('span', 'bk-ai-av'); a.appendChild(ic('sparkle')); return a; }
+  function aiOrb(cls) { const a = h('span', 'ai-orb' + (cls ? ' ' + cls : '')); a.appendChild(ic('sparkle')); return a; }
 
-  async function openAI() {
-    if (!R.ai) R.ai = { turns: [], quota: { used: 0, limit: 0 }, enabled: true, max: 800, busy: 0, pos: 0, draft: '' };
+  /* ---------- Markdown امن (فقط آنچه دستیار لازم دارد) ---------- */
+  function mdInline(s) {
+    let t = esc(s);
+    const codes = [];
+    t = t.replace(/`([^`\n]+)`/g, (m, c) => { codes.push(c); return '\u0000' + (codes.length - 1) + '\u0000'; });
+    t = t.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/__([^_\n]+)__/g, '<b>$1</b>');
+    t = t.replace(/(^|[\s(«])\*([^*\n]+)\*(?=[\s).,،؛:!?»]|$)/g, '$1<i>$2</i>').replace(/(^|[\s(«])_([^_\n]+)_(?=[\s).,،؛:!?»]|$)/g, '$1<i>$2</i>');
+    t = t.replace(/\[([^\]\n]{1,80})\]\((https?:\/\/[^\s)]+)\)/g, (m, x, u) => `<a href="${u}" target="_blank" rel="noopener">${x}</a>`);
+    t = t.replace(/\{([^{}<>\n]{1,24})\}/g, '<span class="ai-var">{$1}</span>');
+    t = t.replace(/\u0000(\d+)\u0000/g, (m, i) => `<code>${codes[+i]}</code>`);
+    return t;
+  }
+  /* متن را به بلوک‌های کامل می‌شکند؛ در حین تایپ خط آخر (و بلوک کد باز) نگه داشته می‌شود */
+  function mdBlocks(text, final) {
+    const lines = String(text || '').replace(/\r/g, '').split('\n');
+    if (!final) lines.pop();
+    const out = [];
+    let gap = false;
+    for (let i = 0; i < lines.length; i++) {
+      const ln = lines[i];
+      if (/^\s*```/.test(ln)) {
+        const body = [];
+        let j = i + 1;
+        while (j < lines.length && !/^\s*```/.test(lines[j])) body.push(lines[j++]);
+        if (j >= lines.length && !final) break;
+        out.push({ k: 'code', src: body.join('\n'), gap });
+        gap = false; i = j; continue;
+      }
+      if (!ln.trim()) { gap = out.length > 0; continue; }
+      let m;
+      if ((m = /^\s*#{1,6}\s+(.*)$/.exec(ln))) out.push({ k: 'h', src: m[1], gap: true });
+      else if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(ln)) out.push({ k: 'hr', src: '', gap });
+      else if ((m = /^\s*[-*•]\s+(.*)$/.exec(ln))) out.push({ k: 'li', src: m[1], gap });
+      else if ((m = /^\s*([0-9۰-۹]{1,2})[.)]\s+(.*)$/.exec(ln))) out.push({ k: 'ol', n: m[1], src: m[2], gap });
+      else if ((m = /^\s*>\s?(.*)$/.exec(ln))) out.push({ k: 'q', src: m[1], gap });
+      else out.push({ k: 'p', src: ln.trim(), gap });
+      gap = false;
+    }
+    return out;
+  }
+  function mdEl(b) {
+    let e;
+    if (b.k === 'code') { e = h('pre', 'ai-l ai-code'); e.appendChild(h('code', '', b.src)); }
+    else if (b.k === 'hr') e = h('hr', 'ai-l ai-hr');
+    else {
+      e = h(b.k === 'h' ? 'h4' : 'div', 'ai-l ai-' + b.k);
+      if (b.k === 'ol') e.dataset.n = b.n;
+      e.innerHTML = mdInline(b.src);
+    }
+    if (b.gap) e.classList.add('gap');
+    return e;
+  }
+  const keyOf = b => b.k + '|' + (b.n || '') + '|' + b.src;
+
+  /* ---------- نمایش خط‌به‌خط ---------- */
+  function streamState(id) {
+    const A = R.ai;
+    if (!A.sv[id]) A.sv[id] = { el: h('div', 'ai-md'), keys: [], q: [], timer: 0 };
+    return A.sv[id];
+  }
+  function feed(id, text, final, animate) {
+    const st = streamState(id);
+    const blocks = mdBlocks(text, final);
+    const keys = blocks.map(keyOf);
+    // اگر متن نهایی با آنچه نشان داده شده فرق کرد (مثلاً بعد از تعمیر)، از همان‌جا دوباره
+    let same = 0;
+    while (same < st.keys.length && same < keys.length && st.keys[same] === keys[same]) same++;
+    if (same < st.keys.length) {
+      st.q = [];
+      Array.from(st.el.children).slice(same).forEach(n => n.remove());
+      st.keys = st.keys.slice(0, same);
+    }
+    const queued = st.keys.length + st.q.length;
+    for (let i = Math.max(same, queued); i < blocks.length; i++) st.q.push(blocks[i]);
+    if (!animate) { while (st.q.length) { const b = st.q.shift(); st.el.appendChild(mdEl(b)); st.keys.push(keyOf(b)); } return st; }
+    if (!st.timer && st.q.length) pump(st);
+    return st;
+  }
+  function pump(st) {
+    const step = () => {
+      const b = st.q.shift();
+      if (!b) { st.timer = 0; return; }
+      const e = mdEl(b);
+      e.classList.add('ln');
+      st.el.appendChild(e);
+      st.keys.push(keyOf(b));
+      aiStick();
+      st.timer = setTimeout(step, b.k === 'code' ? 220 : 130);
+    };
+    step();
+  }
+  function aiStick() {
+    const sc = document.querySelector('#bot .ai-scroll');
+    if (sc && R.ai && R.ai.stick) sc.scrollTop = sc.scrollHeight;
+  }
+
+  /* ---------- باز و بسته ---------- */
+  async function openAI(opts) {
+    opts = opts || {};
+    if (!R.ai) R.ai = { turns: [], quota: { used: 0, limit: 0 }, enabled: true, max: 800, busy: 0, pos: 0, draft: '', sv: {}, insights: [], img: null, stick: true, open: {} };
     R.ai.on = true;
+    R.ai.fromHome = !!opts.fromHome;
+    if (opts.text) R.ai.draft = opts.text;
     closeAllSheets();
     drawAI(true);
     try {
       const d = await P().api('bot/ai?id=' + encodeURIComponent(R.appId));
-      Object.assign(R.ai, { turns: d.turns, quota: d.quota, enabled: d.enabled, max: d.max_ask || 800 });
+      const known = new Set(R.ai.turns.map(t => t.id));
+      Object.assign(R.ai, { turns: d.turns, quota: d.quota, enabled: d.enabled, max: d.max_ask || 800, insights: d.insights || [] });
+      d.turns.forEach(t => { if (!known.has(t.id) && t.say) feed(t.id, t.say, t.status !== 'running', false); });
       const run = d.turns.find(t => t.status === 'queued' || t.status === 'running');
       if (run) { R.ai.busy = run.id; aiPoll(); }
       if (R.ai.on) drawAI();
+      if (opts.send && !run) aiSend(opts.send);
+      else if (opts.focus) setTimeout(() => { const ta = document.querySelector('#bot .ai-comp textarea'); if (ta) ta.focus(); }, 300);
     } catch (err) { P().failed(err); }
   }
   function closeAI() {
@@ -2030,116 +2134,147 @@
     R.ai.on = false;
     const el = document.querySelector('#bot .bk-ai');
     if (el) { el.classList.add('out'); setTimeout(() => el.remove(), 220); }
+    if (R.ai.fromHome) { leave(true); return; }
     draw();
   }
+  function switchApp() {
+    const apps = (P().me() && P().me().apps) || [];
+    if (apps.length < 2) return;
+    sheet('روی کدام ربات کار کنیم؟', 'دستیار پیش‌نویس همان را می‌سازد', body => {
+      apps.forEach(a => optRow(body, 'bot', a.name, Number(a.id) === R.appId ? 'همین الان' : 'باز کردن', null, async () => {
+        closeAllSheets();
+        if (Number(a.id) === R.appId) return;
+        await save();
+        const fh = R.ai && R.ai.fromHome;
+        open(a.id, 'ai', { fromHome: fh });
+      }, Number(a.id) === R.appId ? 'on' : ''));
+    });
+  }
 
+  /* ---------- صفحه ---------- */
   function drawAI(fresh) {
     if (!R.ai || !R.ai.on) return;
+    const A = R.ai;
     let el = document.querySelector('#bot .bk-ai');
-    const keepInput = el && el.querySelector('.bk-ai-in textarea');
-    const typed = keepInput ? keepInput.value : (R.ai.draft || '');
+    const oldTa = el && el.querySelector('.ai-comp textarea');
+    if (oldTa) A.draft = oldTa.value;
+    const oldSc = el && el.querySelector('.ai-scroll');
+    if (oldSc) A.stick = oldSc.scrollHeight - oldSc.scrollTop - oldSc.clientHeight < 120;
     if (!el) { el = h('section', 'bk-ai'); root().appendChild(el); if (fresh) el.classList.add('in'); }
     el.textContent = '';
+
     // نوار بالا
-    const top = h('header', 'bk-top');
+    const top = h('header', 'ai-top');
     top.appendChild(bt('bk-round', ic('back'), closeAI, 'برگشت'));
-    const id = h('div', 'bk-id');
-    const t = h('span', 'bk-id-t');
-    t.append(h('b', '', 'دستیار ساخت ربات'), h('span', 'bk-id-s', (R.d.bot.name || R.d.app.name) + ' · پیش‌نویس'));
-    id.append(aiAv(), t);
+    const id = h('div', 'ai-id');
+    const many = ((P().me() && P().me().apps) || []).length > 1;
+    const tgt = bt('ai-target' + (many ? ' sw' : ''), [h('span', 'ai-target-t', `روی «${R.d.bot.name || R.d.app.name}»`)], many ? switchApp : null);
+    if (many) tgt.appendChild(ic('down'));
+    id.append(aiOrb('sm'), h('span', 'ai-id-t'));
+    id.querySelector('.ai-id-t').append(h('b', '', 'دستیار ایزی‌ساز'), tgt);
     top.append(id, testBtn(''));
     el.appendChild(top);
 
-    const chat = h('div', 'bk-ai-chat');
-    el.appendChild(chat);
-    const A = R.ai;
-    if (!A.enabled) {
-      chat.appendChild(aiCard('warn', 'دستیار هنوز روشن نشده', 'مدیر سرور باید کلید دستیار هوش مصنوعی را در تنظیمات بگذارد. تا آن موقع ربات را دستی بساز.', null, 'warn'));
-    }
-    chat.appendChild(aiSay('سلام! من دستیار ساخت ربات ایزی‌ساز هستم 👋<br>بگو رباتت قراره <b>چه کاری</b> بکنه؛ هرچی ساده‌تر بگی بهتر. هر تغییر اول در پیش‌نویس است و تا «انتشار» نزنی کاربرها چیزی نمی‌بینند.'));
-    if (!A.turns.length) chat.appendChild(aiChips(AI_IDEAS, c => aiSend(AI_IDEA_TEXT[c] || c)));
+    const sc = h('div', 'ai-scroll');
+    const col = h('div', 'ai-col');
+    sc.appendChild(col);
+    el.appendChild(sc);
+    sc.addEventListener('scroll', () => { A.stick = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 120; }, { passive: true });
+
+    if (!A.enabled) col.appendChild(aiNote('warn', 'دستیار هنوز روشن نشده', 'مدیر سرور باید کلید دستیار هوش مصنوعی را در تنظیمات بگذارد. تا آن موقع ربات را دستی بساز.'));
+    if (!A.turns.length) col.appendChild(aiEmpty());
     const lastDone = [...A.turns].reverse().find(x => x.status === 'done');
-    A.turns.forEach(turn => {
-      chat.appendChild(h('div', 'bk-ai-me', turn.ask));
-      if (turn.status === 'queued' || turn.status === 'running') {
-        if (turn.say) chat.appendChild(aiSay(esc(turn.say), true));
-        else if (turn.status === 'queued' && A.pos > 0) {
-          chat.appendChild(aiCard('', 'در صف دستیار…', `الان چند نفر هم‌زمان دارند می‌سازند؛ نفر ${faN(A.pos + 1)} هستی. می‌توانی صفحه را ببندی؛ جواب همین‌جا می‌ماند.`, null, 'run'));
-        } else chat.appendChild(aiTyping());
-        return;
-      }
-      if (turn.status === 'error') {
-        chat.appendChild(aiCard('warn', turn.error || 'دستیار جواب نداد', 'چیزی در پیش‌نویست عوض نشد.',
-          [['دوباره بفرست', 'refresh', 'p', () => aiSend(turn.ask)]], 'warn'));
-        return;
-      }
-      if (turn.say) chat.appendChild(aiSay(esc(turn.say)));
-      const res = turn.result || {};
-      if (res.changes && res.changes.length) chat.appendChild(aiResult(turn, turn === lastDone));
-      if (turn === lastDone && res.chips && res.chips.length && !A.busy) chat.appendChild(aiChips(res.chips, c => aiSend(c)));
-    });
+    A.turns.forEach(turn => col.appendChild(aiTurn(turn, turn === lastDone)));
     if (A.quota.limit && A.quota.used >= A.quota.limit && !A.busy) {
-      chat.appendChild(aiCard('', 'سهم امروزت تمام شد', `امروز ${faN(A.quota.limit)} پیام به دستیار دادی. فردا دوباره می‌توانی؛ ویرایش دستی همیشه باز است.`,
-        [['پلن‌ها', 'star', 'p', () => P().openBot('plans')], ['ادامهٔ دستی', 'pen', 's', closeAI]], 'brand'));
+      col.appendChild(aiNote('brand', 'سهم امروزت تمام شد', `امروز ${faN(A.quota.limit)} پیام به دستیار دادی. فردا دوباره می‌توانی؛ ویرایش دستی همیشه باز است.`,
+        [['پلن‌ها', 'star', 'p', () => P().openBot('plans')], ['ادامهٔ دستی', 'pen', 's', () => { A.fromHome = false; closeAI(); }]]));
     }
-    // ورودی
-    const bar = h('div', 'bk-ai-in');
-    if (A.quota.limit && A.quota.used >= A.quota.limit - 5) bar.appendChild(h('span', 'bk-ai-q', `${faN(Math.max(0, A.quota.limit - A.quota.used))} پیام دیگر برای امروز`));
-    const row = h('div', 'bk-ai-row');
-    const ta = h('textarea');
-    ta.rows = 1;
-    ta.maxLength = A.max;
-    ta.placeholder = A.busy ? 'دستیار دارد می‌سازد…' : 'بگو چه رباتی می‌خوای…';
-    ta.value = typed;
-    ta.dir = 'auto';
-    const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 140) + 'px'; A.draft = ta.value; };
-    ta.addEventListener('input', grow);
-    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); go(); } });
-    const off = !A.enabled || !!A.busy || (A.quota.limit && A.quota.used >= A.quota.limit);
-    const send = bt('bk-ai-send' + (off ? ' off' : ''), ic(A.busy ? 'refresh' : 'send'), () => go(), 'بفرست');
-    const go = () => { const v = ta.value.trim(); if (!v || off) return; ta.value = ''; A.draft = ''; aiSend(v); };
-    row.append(ta, send);
-    bar.appendChild(row);
-    el.appendChild(bar);
-    setTimeout(() => { grow(); chat.scrollTop = chat.scrollHeight; }, 0);
+    el.appendChild(aiComposer());
+    requestAnimationFrame(() => { if (A.stick || fresh) sc.scrollTop = sc.scrollHeight; });
   }
 
-  function aiSay(html, typing) {
-    const w = h('div', 'bk-ai-say');
-    const b = h('div', 'bk-ai-b');
-    b.innerHTML = html + (typing ? '<i class="bk-caret"></i>' : '');
-    w.append(aiAv(), b);
+  function aiEmpty() {
+    const w = h('div', 'ai-empty');
+    w.append(aiOrb('lg'), h('h2', '', 'امروز چی بسازیم؟'),
+      h('p', '', 'بگو رباتت چه کاری بکنه، یا عکس یه ربات نمونه بفرست. همه‌چیز اول در پیش‌نویس است و تا «انتشار» نزنی کاربرها چیزی نمی‌بینند.'));
+    const ins = R.ai.insights || [];
+    if (ins.length) {
+      const box = h('div', 'ai-ins');
+      box.appendChild(h('span', 'ai-cap', `پیشنهاد برای «${R.d.bot.name || R.d.app.name}»`));
+      ins.forEach(x => { const r = bt('ai-ins-r', [ic('warn'), h('span', 'grow', x.t), ic('chl')], () => aiSend(x.ask)); box.appendChild(r); });
+      w.appendChild(box);
+    }
+    w.appendChild(h('span', 'ai-cap', 'یا از یکی از این‌ها شروع کن'));
+    const g = h('div', 'ai-ideas');
+    AI_IDEAS.forEach(([e, t, d, ask]) => {
+      const c = bt('ai-idea', [h('span', 'ai-idea-e', e), h('b', '', t), h('span', 'ai-idea-d', d)], () => aiSend(ask));
+      g.appendChild(c);
+    });
+    w.appendChild(g);
     return w;
   }
-  function aiTyping() {
-    const w = h('div', 'bk-ai-say');
-    const b = h('div', 'bk-ai-b bk-dots');
-    b.append(h('i'), h('i'), h('i'));
-    w.append(aiAv(), b);
+
+  function aiTurn(turn, last) {
+    const A = R.ai;
+    const w = h('div', 'ai-turn');
+    const u = h('div', 'ai-u');
+    if (turn.img) { const im = h('img', 'ai-u-img'); im.src = turn.img; im.alt = ''; u.appendChild(im); }
+    u.appendChild(h('span', '', turn.ask.replace(/^📷 /, '')));
+    if (!turn.img && /^📷 /.test(turn.ask)) u.prepend(h('span', 'ai-u-tag', '📷 عکس'));
+    w.appendChild(u);
+    const a = h('div', 'ai-a');
+    const head = h('div', 'ai-a-h');
+    head.append(aiOrb('xs'), h('b', '', 'دستیار'));
+    const running = turn.status === 'queued' || turn.status === 'running';
+    const st = A.sv[turn.id];
+    const shown = st && (st.keys.length || st.q.length);
+    if (running && !shown) head.appendChild(h('span', 'ai-think', turn.status === 'queued' && A.pos > 0 ? `در صف · نفر ${faN(A.pos + 1)}` : 'دارم فکر می‌کنم…'));
+    else if (running) head.appendChild(h('span', 'ai-think', 'دارم می‌سازم…'));
+    a.appendChild(head);
+    if (turn.status === 'error') {
+      if (st && st.keys.length) a.appendChild(st.el);
+      a.appendChild(aiNote('warn', turn.error || 'دستیار جواب نداد', 'چیزی در پیش‌نویست عوض نشد.', last || turn === A.turns[A.turns.length - 1] ? [['دوباره بفرست', 'refresh', 'p', () => aiSend(turn.ask.replace(/^📷 /, ''))]] : null));
+      w.appendChild(a);
+      return w;
+    }
+    if (turn.say || st) {
+      const s2 = streamState(turn.id);
+      if (!st) feed(turn.id, turn.say, !running, false);
+      a.appendChild(s2.el);
+    }
+    if (running) { a.appendChild(h('i', 'ai-pulse')); w.appendChild(a); return w; }
+    const res = turn.result || {};
+    if (res.changes && res.changes.length) a.appendChild(aiArtifact(turn, last));
+    if (last && res.chips && res.chips.length && !A.busy) {
+      const c = h('div', 'ai-chips');
+      res.chips.forEach(x => c.appendChild(bt('ai-chip', [x], () => aiSend(x))));
+      a.appendChild(c);
+    }
+    if (last && !A.busy) {
+      const tools = h('div', 'ai-tools');
+      tools.appendChild(bt('ai-tool', ic('copy'), () => { try { navigator.clipboard.writeText(turn.say || ''); toast('کپی شد'); } catch (e) {} }, 'کپی'));
+      tools.appendChild(bt('ai-tool', ic('refresh'), () => aiRedo(turn), 'دوباره بساز'));
+      a.appendChild(tools);
+    }
+    w.appendChild(a);
     return w;
   }
-  function aiChips(list, fn) {
-    const c = h('div', 'bk-ai-chips');
-    list.forEach(x => c.appendChild(bt('bk-ai-chip', [x], () => fn(x))));
-    return c;
-  }
-  function aiCard(icon, title, text, actions, tone) {
-    const c = h('div', 'bk-ai-card' + (tone ? ' ' + tone : ''));
-    const hd = h('div', 'bk-ai-card-h');
-    if (tone === 'run') hd.appendChild(h('i', 'bk-spin'));
-    else if (icon) { const i = h('span', 'bk-ai-ci'); i.appendChild(ic(icon)); hd.appendChild(i); }
-    hd.appendChild(h('b', 'grow', title));
+
+  function aiNote(tone, title, text, actions) {
+    const c = h('div', 'ai-note ' + (tone || ''));
+    const hd = h('div', 'ai-note-h');
+    const i = h('span', 'ai-note-i'); i.appendChild(ic(tone === 'warn' ? 'warn' : 'info')); hd.append(i, h('b', 'grow', title));
     c.appendChild(hd);
     if (text) c.appendChild(h('p', '', text));
     if (actions) {
-      const a = h('div', 'bk-ai-acts');
-      actions.forEach(([t, i, k, fn]) => a.appendChild(bt('bk-ai-act ' + k, [ic(i), t], fn)));
+      const a = h('div', 'ai-acts');
+      actions.forEach(([t, ico, k, fn]) => a.appendChild(bt('ai-act ' + k, [ic(ico), t], fn)));
       c.appendChild(a);
     }
     return c;
   }
   function aiPreview(pv) {
-    const box = h('div', 'bk-ai-pv');
+    const box = h('div', 'ai-pv');
     const b = h('div', 'bk-bub');
     const t = h('div', 'bk-text');
     fillEditable(t, pv.text);
@@ -2152,53 +2287,117 @@
     }
     return box;
   }
-  function aiResult(turn, last) {
+  function aiArtifact(turn, last) {
+    const A = R.ai;
     const res = turn.result;
-    const first = R.ai.turns.filter(x => x.status === 'done' && x.result && x.result.changes && x.result.changes.length)[0] === turn;
-    const c = h('div', 'bk-ai-card ok' + (res.undone ? ' undone' : ''));
-    const hd = h('div', 'bk-ai-card-h');
-    const i = h('span', 'bk-ai-ci'); i.appendChild(ic(res.undone ? 'undo' : 'check')); hd.appendChild(i);
-    hd.appendChild(h('b', 'grow', res.undone ? 'برگردانده شد' : (first ? 'پیش‌نویس آماده شد' : 'پیش‌نویس به‌روز شد')));
+    const first = A.turns.filter(x => x.status === 'done' && x.result && x.result.changes && x.result.changes.length)[0] === turn;
+    const c = h('div', 'ai-art' + (res.undone ? ' undone' : ''));
+    const hd = h('div', 'ai-art-h');
+    const i = h('span', 'ai-art-i'); i.appendChild(ic(res.undone ? 'undo' : 'bot'));
+    const tt = h('span', 'grow ai-art-t');
+    tt.append(h('b', '', res.undone ? 'برگردانده شد' : (first ? 'پیش‌نویس ربات آماده شد' : 'پیش‌نویس به‌روز شد')),
+      h('span', '', res.stats ? `${faN(res.stats.msgs)} پیام · ${faN(res.stats.buttons)} دکمه · ${faN(res.stats.vars)} متغیر` : ''));
+    hd.append(i, tt);
     c.appendChild(hd);
     if (res.preview && last && !res.undone) c.appendChild(aiPreview(res.preview));
-    if (res.stats && last && !res.undone) {
-      const st = h('div', 'bk-ai-stats');
-      [[res.stats.msgs, 'پیام'], [res.stats.buttons, 'دکمه'], [res.stats.vars, 'متغیر']].forEach(([n, t2]) => { const s2 = h('span'); s2.append(h('b', '', faN(n)), h('i', '', t2)); st.appendChild(s2); });
-      c.appendChild(st);
+    const n = res.changes.length + (res.more || 0);
+    const openK = A.open[turn.id] != null ? A.open[turn.id] : (last && n <= 4);
+    const tg2 = bt('ai-art-sum', [h('span', 'grow', `${faN(n)} تغییر در پیش‌نویس`), ic(openK ? 'up' : 'down')], () => { A.open[turn.id] = !openK; drawAI(); });
+    c.appendChild(tg2);
+    if (openK) {
+      const list = h('div', 'ai-diff');
+      res.changes.forEach(d => {
+        const r = h('div', 'ai-d ' + d.k);
+        r.append(h('span', 'ai-dk', { add: '+', mod: '~', del: '−' }[d.k] || '·'), h('span', 'grow', d.t));
+        list.appendChild(r);
+      });
+      if (res.more) list.appendChild(h('div', 'ai-d more', `و ${faN(res.more)} تغییر دیگر`));
+      c.appendChild(list);
     }
-    const list = h('div', 'bk-ai-diff');
-    res.changes.forEach(d => {
-      const r = h('div', 'bk-ai-d ' + d.k);
-      r.append(h('span', 'bk-ai-dk', { add: '+', mod: '~', del: '−' }[d.k] || '·'), h('span', 'grow', d.t));
-      list.appendChild(r);
-    });
-    if (res.more) list.appendChild(h('div', 'bk-ai-d more', `و ${faN(res.more)} تغییر دیگر`));
-    c.appendChild(list);
-    (res.warnings || []).forEach(w => c.appendChild(h('div', 'bk-ai-w', '⚠️ ' + w)));
+    (res.warnings || []).forEach(x => c.appendChild(h('div', 'ai-w', x)));
     if (!res.undone) {
-      const a = h('div', 'bk-ai-acts');
+      const a = h('div', 'ai-acts');
       if (last) {
-        a.appendChild(bt('bk-ai-act t', [ic('play'), 'تست در تلگرام'], () => testSheet('')));
-        a.appendChild(bt('bk-ai-act s', [ic('pen'), 'ببین و ویرایش کن'], () => { const sid = (res.preview && res.preview.id) || R.doc.start; R.ai.on = false; const el = document.querySelector('#bot .bk-ai'); if (el) el.remove(); R.tab = 'msgs'; draw(); if (sid) openEditor(sid); }));
+        a.appendChild(bt('ai-act t', [ic('play'), 'تست در تلگرام'], () => testSheet('')));
+        a.appendChild(bt('ai-act s', [ic('pen'), 'باز کردن در ربات‌ساز'], () => {
+          const sid = (res.preview && res.preview.id) || R.doc.start;
+          A.on = false; A.fromHome = false;
+          const e2 = document.querySelector('#bot .bk-ai'); if (e2) e2.remove();
+          R.tab = 'msgs'; draw(); if (sid) openEditor(sid);
+        }));
       }
-      if (turn.can_undo) a.appendChild(bt('bk-ai-act o', [ic('undo'), last ? 'برگردان' : 'برگرد به پیش از این'], () => aiUndo(turn)));
+      if (turn.can_undo) a.appendChild(bt('ai-act o', [ic('undo'), last ? 'برگردان' : 'برگرد به پیش از این'], () => aiUndo(turn)));
       if (a.childNodes.length) c.appendChild(a);
     }
     return c;
   }
 
+  function aiComposer() {
+    const A = R.ai;
+    const box = h('div', 'ai-comp-w');
+    const comp = h('div', 'ai-comp');
+    if (A.img) {
+      const th = h('div', 'ai-att');
+      const im = h('img'); im.src = A.img; im.alt = '';
+      th.append(im, bt('ai-att-x', ic('x'), () => { A.img = null; drawAI(); }, 'حذف عکس'));
+      comp.appendChild(th);
+    }
+    const ta = h('textarea');
+    ta.rows = 1;
+    ta.maxLength = A.max;
+    ta.placeholder = A.busy ? 'دستیار دارد می‌سازد…' : (A.turns.length ? 'بگو چی عوض بشه…' : 'بگو چه رباتی می‌خوای…');
+    ta.value = A.draft || '';
+    ta.dir = 'auto';
+    const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 150) + 'px'; A.draft = ta.value; };
+    ta.addEventListener('input', grow);
+    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); go(); } });
+    comp.appendChild(ta);
+    const row = h('div', 'ai-comp-r');
+    const full = A.quota.limit && A.quota.used >= A.quota.limit;
+    row.appendChild(bt('ai-att-b', ic('image'), () => pickFile(async f => {
+      try { A.img = await resize(f, 1280); drawAI(); } catch (err) { toast(err.message); }
+    }), 'پیوست عکس'));
+    const left = A.quota.limit ? Math.max(0, A.quota.limit - A.quota.used) : 0;
+    row.appendChild(h('span', 'ai-hint grow', A.quota.limit && left <= 5 ? `${faN(left)} پیام دیگر برای امروز` : 'دستیار فقط پیش‌نویس را عوض می‌کند'));
+    let send;
+    if (A.busy) send = bt('ai-send stop', ic('stop'), aiStop, 'توقف');
+    else send = bt('ai-send' + (!A.enabled || full ? ' off' : ''), ic('up'), () => go(), 'بفرست');
+    row.appendChild(send);
+    comp.appendChild(row);
+    box.appendChild(comp);
+    const go = () => {
+      const v = ta.value.trim();
+      if ((!v && !A.img) || A.busy || !A.enabled || full) return;
+      ta.value = ''; A.draft = '';
+      aiSend(v || 'از روی این عکس بساز');
+    };
+    setTimeout(grow, 0);
+    return box;
+  }
+  function pickFile(done) {
+    const inp = h('input');
+    inp.type = 'file';
+    inp.accept = 'image/png,image/jpeg,image/webp';
+    inp.addEventListener('change', () => { if (inp.files && inp.files[0]) done(inp.files[0]); });
+    inp.click();
+  }
+
+  /* ---------- رفت و برگشت با سرور ---------- */
   async function aiSend(text) {
     const A = R.ai;
     if (!A || A.busy || !text) return;
     clearTimeout(R.saveT);
     haptic();
-    const tmp = { id: -1, ask: text, say: '', status: 'queued', result: {} };
+    const img = A.img;
+    const tmp = { id: -Date.now(), ask: (img ? '📷 ' : '') + text, img, say: '', status: 'queued', result: {} };
     A.turns.push(tmp);
     A.busy = -1;
     A.pos = 0;
+    A.img = null;
+    A.stick = true;
     drawAI();
     try {
-      const res = await P().api('bot/ai_send', { id: R.appId, text, doc: R.doc });
+      const res = await P().api('bot/ai_send', Object.assign({ id: R.appId, text, doc: R.doc }, img ? { image: img } : {}));
       tmp.id = res.turn;
       A.busy = res.turn;
       A.pos = res.pos || 0;
@@ -2208,6 +2407,7 @@
     } catch (err) {
       A.turns.pop();
       A.busy = 0;
+      A.img = img;
       if (err.status === 429 && /سهم/.test(err.message)) A.quota.used = A.quota.limit;
       A.draft = text;
       drawAI();
@@ -2221,37 +2421,69 @@
     A.pollT = setTimeout(async () => {
       try {
         const res = await P().api(`bot/ai_poll?id=${encodeURIComponent(R.appId)}&turn=${A.busy}`);
-        const i = A.turns.findIndex(x => x.id === res.turn.id);
-        if (i >= 0) A.turns[i] = res.turn; else A.turns.push(res.turn);
+        const t = res.turn;
+        const i = A.turns.findIndex(x => x.id === t.id);
+        if (i >= 0) { t.img = A.turns[i].img; A.turns[i] = t; } else A.turns.push(t);
         A.pos = res.pos || 0;
-        if (res.turn.status === 'done' || res.turn.status === 'error') {
+        const done = t.status === 'done' || t.status === 'error';
+        const before = A.sv[t.id] ? A.sv[t.id].keys.length + A.sv[t.id].q.length : 0;
+        if (t.say) feed(t.id, t.say, done, true);
+        const first = !before && A.sv[t.id] && A.sv[t.id].q.length;
+        if (done) {
           A.busy = 0;
+          if (t.status === 'error') A.quota.used = Math.max(0, A.quota.used - 1);  // نوبت خطادار از سهم کم نمی‌شود
           if (res.doc) {
             R.doc = res.doc;
             drawPill();
-            if (res.turn.result && res.turn.result.changes && res.turn.result.changes.length) haptic('medium');
+            if (t.result && t.result.changes && t.result.changes.length) haptic('medium');
             if (!A.on) draw();
           }
-          if (res.turn.status === 'error') A.quota.used = Math.max(0, A.quota.used - 1);  // نوبت خطادار از سهم کم نمی‌شود
+          // کارت نتیجه بعد از آخرین خط متن می‌آید
+          const st = A.sv[t.id];
+          const wait = st ? st.q.length * 130 + 250 : 0;
+          setTimeout(drawAI, wait);
+        } else if (first || !A.sv[t.id] || A.sv[t.id].keys.length === 0) drawAI();
+        else {
+          const th = document.querySelector('#bot .ai-turn:last-child .ai-think');
+          if (th && th.textContent !== 'دارم می‌سازم…') th.textContent = 'دارم می‌سازم…';
         }
-        drawAI();
       } catch (e) {}
       if (A.busy) aiPoll();
-    }, A.turns.some(x => x.status === 'running') ? 450 : 800);
+    }, A.turns.some(x => x.status === 'running') ? 380 : 800);
+  }
+  async function aiStop() {
+    const A = R.ai;
+    if (!A.busy || A.busy < 0) return;
+    try {
+      const res = await P().api('bot/ai_stop', { id: R.appId, turn: A.busy });
+      clearTimeout(A.pollT);
+      A.busy = 0;
+      const keep = new Map(A.turns.map(t => [t.id, t.img]));
+      A.turns = res.turns.map(t => Object.assign(t, { img: keep.get(t.id) }));
+      A.quota.used = Math.max(0, A.quota.used - 1);
+      drawAI();
+    } catch (err) { P().failed(err); }
   }
   function aiUndo(turn) {
     P().confirm('پیش‌نویس به حالت پیش از این پیام برگردد؟ نسخهٔ منتشرشده دست نمی‌خورد.', () => aiUndoNow(turn));
   }
-  async function aiUndoNow(turn) {
+  async function aiUndoNow(turn, quiet) {
     try {
       const res = await P().api('bot/ai_undo', { id: R.appId, turn: turn.id });
       R.doc = res.doc;
-      R.ai.turns = res.turns;
+      const keep = new Map(R.ai.turns.map(t => [t.id, t.img]));
+      R.ai.turns = res.turns.map(t => Object.assign(t, { img: keep.get(t.id) }));
       drawPill();
-      toast('پیش‌نویس برگشت');
+      if (!quiet) toast('پیش‌نویس برگشت');
       drawAI();
-    } catch (err) { P().failed(err); }
+      return true;
+    } catch (err) { P().failed(err); return false; }
   }
+  async function aiRedo(turn) {
+    if (turn.can_undo && !(await aiUndoNow(turn, true))) return;
+    aiSend(turn.ask.replace(/^📷 /, ''));
+  }
+
 
   /* وقتی از چت تلگرام برمی‌گردد (مثلاً بعد از افزودن ایموجی یا ساخت ربات) */
   document.addEventListener('visibilitychange', () => { if (!document.hidden && R.on) reload(); });

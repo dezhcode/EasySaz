@@ -205,7 +205,7 @@
     const m = (id, nm, text, extra) => Object.assign({ id: id, name: nm, text: text, media: null, kb: 'none', rows: [], keys: [],
       kbopt: { resize: true, once: false, persist: false, placeholder: '' },
       opts: { replace: true, typing: false, effect: '', preview: false, silent: false, protect: false, remove_kb: false },
-      cmd: '', kw: [], then: '', wait: null, group: '' }, extra || {});
+      cmd: '', kw: [], then: '', wait: null, steps: [], group: '' }, extra || {});
     const b = (id, text, style, act) => ({ id: id, text: text, style: style || '', icon: '', act: act });
     return {
       v: 1, start: 'm_welcome', fallback: '', vars: [
@@ -214,6 +214,7 @@
         { name: 'تعداد', type: 'number', scope: 'user', init: '2', formula: '' },
         { name: 'جمع سبد', type: 'number', scope: 'user', init: '', formula: '{قیمت} × {تعداد} − ۱۰٪' },
         { name: 'شماره', type: 'text', scope: 'user', init: '', formula: '' },
+        { name: 'سن', type: 'number', scope: 'user', init: '', formula: '' },
       ], comps: [],
       msgs: [
         m('m_welcome', 'خوش‌آمد', 'سلام {نام} 👋\nبه ربات <b>' + escapeHtml(name) + '</b> خوش اومدی. چی دوست داری ببینی؟', { kb: 'inline', rows: [
@@ -227,12 +228,24 @@
           [b('b_code', '📋 کپی کد تخفیف', 'success', { type: 'copy', text: 'SARA-PAIZ-20' })], [b('b_back2', '↩️ برگشت', '', { type: 'goto', to: 'm_welcome' })],
         ] }),
         m('m_reg', 'ثبت‌نام', 'برای ثبت‌نام شماره‌ات رو با دکمهٔ پایین بفرست 👇', { kb: 'reply', keys: [
-          [{ id: 'k_phone', text: '📱 فرستادن شماره', style: 'success', icon: '', act: { type: 'contact', var: 'شماره', to: 'm_done' } }],
+          [{ id: 'k_phone', text: '📱 فرستادن شماره', style: 'success', icon: '', act: { type: 'contact', var: 'شماره', to: 'm_age' } }],
           [{ id: 'k_back', text: '↩️ برگشت', style: '', icon: '', act: { type: 'text', to: 'm_welcome' } }],
         ], kbopt: { resize: true, once: true, persist: false, placeholder: 'شماره‌ات را بفرست' } }),
-        m('m_done', 'ثبت شد', 'ممنون {نام} 🌱 شماره‌ات ({شماره}) ثبت شد؛ به‌زودی تماس می‌گیریم.', { opts: { replace: true, typing: true, effect: '🎉', preview: false, silent: false, protect: false, remove_kb: true } }),
+        m('m_age', 'پرسش سن', 'چند سالته؟ 🎂', { opts: { replace: true, typing: false, effect: '', preview: false, silent: false, protect: false, remove_kb: true },
+          wait: { kind: 'var', var: 'سن', to: 'm_done', check: 'number', min: 7, max: 90, error: 'لطفاً سنت رو با عدد بفرست 🙂' } }),
+        m('m_done', 'ثبت شد', 'ممنون {نام} 🌱 شماره‌ات ({شماره}) ثبت شد؛ به‌زودی تماس می‌گیریم.', { steps: [
+          { type: 'calc', var: 'امتیاز', op: '+', value: '10' },
+          { type: 'save', form: 'ثبت‌نام کلاس', vars: ['نام', 'سن', 'شماره'], notify: true },
+          { type: 'if', rules: [{ k: 'var', a: 'امتیاز', op: '>=', b: '50' }], mode: 'and', yes: 'm_vip', no: '' },
+        ], opts: { replace: true, typing: true, effect: '🎉', preview: false, silent: false, protect: false, remove_kb: true } }),
+        m('m_vip', 'جایزهٔ ویژه', '🏆 تو جزو شاگردهای ویژه‌ای! کد تخفیف: <b>VIP-50</b>'),
       ],
     };
+  }
+  function demoRows() {
+    const ppl = [['سارا', '22', '09123456789'], ['علی', '31', '09352221100'], ['مریم', '19', '09017774545'], ['رضا', '27', '09198081234'], ['نگار', '24', '09121112233'], ['امید', '35', '09367778899']];
+    const t = now();
+    return ppl.map((p, i) => ({ id: 100 - i, tg_id: 5000 + i, name: p[0], username: '', data: { 'نام': p[0], 'سن': p[1], 'شماره': p[2] }, test: false, at: t - i * 5400 - (i > 3 ? 86400 : 0) }));
   }
   function botApi(path, body, d, find) {
     const qs = path.indexOf('?') > 0 ? new URLSearchParams(path.slice(path.indexOf('?') + 1)) : null;
@@ -266,6 +279,13 @@
       return Promise.resolve({ added: add.length, emoji: bk.emoji });
     }
     if (path === 'bot/emoji_del') { bk.emoji = bk.emoji.filter(e => e.id !== body.emoji); save(d); return Promise.resolve({ emoji: bk.emoji }); }
+    if (path.indexOf('bot/data?') === 0) {
+      const rows = demoRows();
+      const out = { forms: [{ form: 'ثبت‌نام کلاس', count: rows.length, last: rows[0].at, today: rows.filter(r => r.at > now() - 86400).length }] };
+      if (qs.get('form')) { out.form = qs.get('form'); out.rows = qs.get('form') === 'ثبت‌نام کلاس' ? rows : []; }
+      return Promise.resolve(out);
+    }
+    if (path === 'bot/data_export') return Promise.resolve({ ok: true, count: demoRows().length });
     if (path.indexOf('bot/ai') === 0) return aiDemo(path, body, qs, bk, d, copy);
     return fail(404, 'پیدا نشد');
   }

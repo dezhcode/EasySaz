@@ -552,3 +552,83 @@ textarea.bk-in{min-height:84px; line-height:1.8}
 .ai-att img{width:64px; height:64px; object-fit:cover; border-radius:14px; display:block}
 .ai-att-x{position:absolute; top:-6px; left:-6px; width:22px; height:22px; border-radius:50%; background:var(--ink); color:#fff; display:grid; place-items:center}
 .ai-att-x .ico{width:11px; height:11px; stroke-width:3}
+
+/* ---------------------------------------------------------------- کارها (منطق پیش از پیام) */
+.bk-tile.sm{width:28px; height:28px; border-radius:9px}
+.bk-tile.sm .ico{width:15px; height:15px}
+.bk-tile.lg{width:56px; height:56px; border-radius:18px}
+.bk-tile.lg .ico{width:26px; height:26px}
+.bk-steps{align-self:stretch; display:flex; flex-direction:column; gap:14px; position:relative}
+.bk-steps::after{content:''; position:absolute; right:50%; bottom:-11px; height:8px; border-right:2px solid rgba(75,46,232,.35)}
+.bk-step,.bk-ask{width:100%; padding:10px 12px 11px; border-radius:16px; background:rgba(255,255,255,.96); display:flex; flex-direction:column; gap:6px; text-align:right;
+  box-shadow:0 1px 1px rgba(0,0,0,.05); position:relative}
+.bk-step + .bk-step::before{content:''; position:absolute; right:50%; top:-13px; height:10px; border-right:2px solid rgba(75,46,232,.35)}
+.bk-step.cond{box-shadow:0 0 0 2px var(--brand)}
+.bk-step-h{display:flex; align-items:center; gap:8px; font-size:13.5px}
+.bk-step-h b{font-weight:800}
+.bk-step-n{font-size:11px; font-weight:800; color:var(--ink-3); max-width:50%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.bk-step-s{font-size:12.5px; line-height:1.8; color:var(--ink-2); word-break:break-word}
+.bk-step-s b{font-weight:800; color:var(--ink)}
+.bk-step-e{font-size:11.5px; color:var(--ink-3); line-height:1.7}
+.bk-branches{display:flex; gap:6px; flex-wrap:wrap}
+.bk-br{height:26px; padding:0 10px; border-radius:9px; font-size:11.5px; font-weight:800; display:inline-flex; align-items:center; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.bk-br.yes{background:rgba(18,160,113,.12); color:var(--success)}
+.bk-br.no{background:rgba(192,57,43,.09); color:var(--danger)}
+.bk-ask{align-self:stretch; box-shadow:0 0 0 2px var(--success)}
+.bk-ask-c{display:flex; gap:5px; flex-wrap:wrap; margin-top:2px}
+.bk-ask-chip{height:26px; padding:0 10px; border-radius:13px; background:var(--surface-sunk); color:var(--ink-2); font-size:11.5px; font-weight:800; display:inline-flex; align-items:center}
+.bk-ask-chip.on{background:var(--success); color:#fff}
+.bk-chip.lg.on{background:var(--brand); color:#fff; box-shadow:none}
+
+/* برگهٔ «کار تازه» */
+.bk-sgrid{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; padding-top:4px}
+.bk-stile{position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:12px 10px; min-height:118px; border-radius:16px; background:var(--surface-sunk); text-align:right}
+.bk-stile b{font-size:13.5px; font-weight:800; margin-top:6px}
+.bk-stile span:not(.bk-tile){font-size:11px; line-height:1.6; color:var(--ink-3)}
+.bk-stile:active{background:var(--brand-tint)}
+.bk-stile.soon{opacity:.55}
+.bk-soon{position:absolute; top:10px; left:8px; font-style:normal; font-size:10px; font-weight:800; color:var(--ink-3); background:var(--surface); border-radius:8px; padding:1px 6px}
+.bk-rule{display:flex; align-items:center; gap:8px; width:100%; min-height:48px; padding:6px 8px 6px 14px; border-radius:14px; background:var(--surface-sunk); font-size:14px; font-weight:700; text-align:right}
+.bk-rule .ico{width:16px; height:16px; color:var(--ink-3)}
+.bk-andor{align-self:center; height:24px; min-width:32px; padding:0 10px; border-radius:12px; background:var(--brand); color:#fff; font-size:12px; font-weight:800; display:inline-flex; align-items:center; justify-content:center}
+.bk-row2{display:flex; gap:8px; align-items:flex-end}
+.bk-row2 > *{flex:1; min-width:0}
+.bk-ops{display:grid; grid-template-columns:repeat(5, 1fr); gap:6px}
+.bk-op{height:40px; border-radius:12px; background:var(--surface-sunk); font-size:14px; font-weight:800; color:var(--ink-2)}
+.bk-op.on{background:var(--brand-tint); color:var(--brand); box-shadow:inset 0 0 0 1.5px var(--brand)}
+.bk-err{font-size:12.5px; color:var(--danger); font-weight:700; min-height:0; text-align:center}
+.bk-err:empty{display:none}
+
+/* تب داده‌ها */
+.bk-dtabs{display:flex; gap:6px; padding:4px 14px 10px}
+.bk-dtab{height:34px; padding:0 14px; border-radius:17px; background:var(--surface); font-size:13px; font-weight:800; color:var(--ink-2); display:inline-flex; align-items:center}
+.bk-dtab.on{background:var(--brand); color:#fff}
+.bk-dtab.soon{opacity:.5}
+.bk-dbox{display:flex; flex-direction:column; gap:12px; padding-bottom:20px}
+.bk-load.sm{min-height:70px}
+.bk-load.sm::after{width:20px; height:20px; border-width:2.5px}
+.bk-dcard{margin:0 14px; border-radius:20px; background:var(--surface); padding:12px 14px 6px}
+.bk-dcard.ghost{background:none; box-shadow:inset 0 0 0 1.5px var(--line); padding-bottom:12px}
+.bk-dhead{display:flex; align-items:center; gap:10px; padding-bottom:6px}
+.bk-dhead b{display:block; font-size:15px; font-weight:800}
+.bk-dhead span{font-size:12px; color:var(--ink-3)}
+.bk-dhead .bk-mini{flex:none; padding:0 12px; background:var(--brand-tint); color:var(--brand)}
+.bk-dhead .bk-mini .ico{width:15px; height:15px}
+.bk-drow{display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--line)}
+.bk-drow .grow{min-width:0}
+.bk-drow b{display:block; font-size:13.5px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.bk-drow .grow > span{display:block; font-size:12px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.bk-dsep{font-style:normal; color:var(--line); margin:0 6px}
+.bk-dav{width:34px; height:34px; border-radius:50%; flex:none; display:grid; place-items:center; background:var(--surface-sunk); color:var(--ink-2); font-weight:800; font-size:14px}
+.bk-dtime{font-size:11px; color:var(--ink-3); flex:none}
+.bk-dmore{width:100%; height:40px; border-top:1px solid var(--line); font-size:13px; font-weight:800; color:var(--brand); display:flex; align-items:center; justify-content:center; gap:4px}
+.bk-dmore .ico{width:14px; height:14px}
+.bk-dcard .bk-tg{border-top:1px solid var(--line); padding:10px 0 6px}
+.bk-dempty{margin:10px 14px; padding:28px 20px 18px; border-radius:22px; background:var(--surface); display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center}
+.bk-dempty b{font-size:16px; font-weight:800; margin-top:6px}
+.bk-dempty > span:not(.bk-tile){font-size:13px; line-height:1.9; color:var(--ink-3)}
+.bk-dfull{padding:4px 12px 10px; border-radius:16px; background:var(--surface-sunk)}
+.bk-dfull .bk-drow{border-top:0}
+.bk-dfull dl{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; margin:0; font-size:13px}
+.bk-dfull dt{color:var(--ink-3); font-weight:700}
+.bk-dfull dd{margin:0; font-weight:700; word-break:break-word}

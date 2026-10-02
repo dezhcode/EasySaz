@@ -1389,6 +1389,18 @@ def test_ai() -> None:  # noqa: C901
     ok(st == 404, "نسخهٔ ناموجود")
     st, _ = jcall("GET", f"/api/bot/ai_compare?id={app_id}&turn={ta}", uid=8)
     ok(st in (403, 404), "نسخه‌های ربات دیگران دیده نمی‌شود")
+    st, before = jcall("GET", f"/api/bot/ai?id={app_id}")
+    st, _ = jcall("POST", "/api/bot/ai_clear", {"id": app_id}, uid=8)
+    ok(st in (403, 404), "تاریخچهٔ ربات دیگران پاک نمی‌شود")
+    st, cl = jcall("POST", "/api/bot/ai_clear", {"id": app_id})
+    st, after = jcall("GET", f"/api/bot/ai?id={app_id}")
+    st, g2 = jcall("GET", f"/api/bot?id={app_id}")
+    ok(cl["turns"] == [] and after["turns"] == [] and g2["doc"] == doc_b and after["quota"]["used"] == before["quota"]["used"],
+       "پاک کردن تاریخچه: گفتگو و نسخه‌ها پاک، پیش‌نویس سر جایش، سهم امروز همان")
+    script[:] = [(0.0, "سلام\n@@OPS\n{\"ops\": []}")]
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "سلام دوباره"})
+    wait_turn(res["turn"])
+    ok("(new conversation)" in prompts[-1] and "سبزش کن" not in prompts[-1], "بعد از پاک کردن، دستیار گفتگوی قبلی را در پرامپت ندارد")
     web_api._RATE.clear()  # این بخش چند نوشتن پشت سر هم داشت؛ بخش‌های بعد سقف دقیقه‌ای خودشان را دارند
 
 

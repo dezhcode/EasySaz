@@ -831,3 +831,16 @@ textarea.bk-in{min-height:84px; line-height:1.8}
 .ai-live-f.big .ai-pv .bk-bub{font-size:14px; line-height:1.9; padding:8px 10px 3px}
 .ai-live-f.big .ai-pv .bk-key{height:38px; font-size:13.5px}
 .ai-st-plan .ai-st-m .ico{width:10px; height:10px}
+/* دکمهٔ «آخرین پیام» و منوی گفتگو */
+.ai-more{width:34px; height:34px; border-radius:50%; background:var(--surface-sunk); color:var(--ink-2); display:grid; place-items:center; flex:none}
+.ai-more .ico{width:20px; height:20px; stroke-width:3.2}
+.ai-down{position:absolute; left:50%; bottom:calc(100% + 4px); z-index:5; width:42px; height:42px; border-radius:50%; background:#fff; color:var(--ink);
+  display:grid; place-items:center; box-shadow:0 10px 24px -10px rgba(23,20,43,.5), 0 0 0 1px var(--line);
+  opacity:0; pointer-events:none; transform:translate(-50%, 12px) scale(.9); transition:opacity .18s, transform .18s var(--ease)}
+.ai-down.on{opacity:1; pointer-events:auto; transform:translate(-50%, 0) scale(1)}
+.ai-down .ico{width:20px; height:20px; stroke-width:2.4}
+.ai-down.new::after{content:''; position:absolute; top:2px; right:2px; width:11px; height:11px; border-radius:50%; background:var(--brand); box-shadow:0 0 0 2px #fff}
+.ai-id-t{max-width:100%}
+.ai-id-t b{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%}
+.ai-top{gap:8px}
+.ai-top .bk-test{flex:none}

@@ -415,6 +415,12 @@
       save(d);
       return Promise.resolve({ doc: copy(bk.doc), turns: A.turns.map(view) });
     }
+    if (path === 'bot/ai_clear') {
+      A.turns.forEach(finish);
+      if (A.turns.some(t => t.status === 'running')) return fail(409, 'دستیار هنوز روی پیام قبلی کار می‌کند؛ اول متوقفش کن');
+      A.turns = []; A.flow = ''; save(d);
+      return Promise.resolve({ turns: [] });
+    }
     if (path.indexOf('bot/ai_compare?') === 0) {
       const t = A.turns.find(x => x.id === Number(qs.get('turn')));
       if (!t || !t.after) return fail(404, 'این نسخه پیدا نشد');

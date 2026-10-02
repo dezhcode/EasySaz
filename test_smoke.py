@@ -1304,7 +1304,10 @@ def test_ai() -> None:  # noqa: C901
     asks = " ".join(x["ask"] for x in info["insights"])
     ok("مقصد" in asks and "وصل" in asks and "متوجه" in asks, "پیشنهادهای سریع: دکمهٔ بی‌مقصد، پیام بی‌راه، بدون جواب پیش‌فرض")
 
-    # سهم روزانه و دسترسی
+    # سهم روزانه: پیش‌فرض نامحدود؛ با EASYSAZ_AI_LIMIT=plan سهم پلن
+    ok(hist["quota"]["limit"] == 0, "سهم روزانهٔ دستیار فعلاً نامحدود است")
+    object.__setattr__(config, "ai_limit", True)
+    st, hist = jcall("GET", f"/api/bot/ai?id={app_id}")
     lim = hist["quota"]["limit"]
     now_ = int(time.time())
     con.executemany("INSERT INTO bk_ai_turns(app_id, user_id, ask, status, created_at, updated_at) VALUES (?, 7, 'x', 'done', ?, ?)",
@@ -1312,6 +1315,11 @@ def test_ai() -> None:  # noqa: C901
     con.commit()
     st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "باز هم"})
     ok(st == 429 and "سهم" in res["error"], "سهم روزانهٔ پلن تمام شود، پیام نمی‌رود")
+    object.__setattr__(config, "ai_limit", False)
+    script[:] = [(0.0, "باشه\n@@OPS\n{\"ops\": []}")]
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "باز هم"})
+    ok(st == 200 and res["quota"]["limit"] == 0, "سهم خاموش: با همان تعداد پیام، درخواست پذیرفته می‌شود")
+    wait_turn(res["turn"])
     con.execute("DELETE FROM bk_ai_turns WHERE ask = 'x'")
     con.commit()
     st, res = jcall("GET", f"/api/bot/ai?id={app_id}", uid=8)

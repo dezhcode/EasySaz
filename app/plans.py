@@ -24,6 +24,8 @@ class Plan:
     full_mode: bool
     price_stars: int  # قیمت ماهانه به Telegram Stars؛ صفر یعنی رایگان
     features: tuple[str, ...]
+    # پیام‌های روزانه به دستیار ساخت ربات (هوش مصنوعی)
+    ai_daily: int = 20
 
 
 PLANS: dict[str, Plan] = {
@@ -54,6 +56,7 @@ PLANS: dict[str, Plan] = {
         premium_blocks=True,
         full_mode=True,
         price_stars=250,
+        ai_daily=200,
         features=(
             "۳ مینی اپ",
             "تا ۴۰ کامپوننت در ۶ صفحه",
@@ -71,6 +74,7 @@ PLANS: dict[str, Plan] = {
         premium_blocks=True,
         full_mode=True,
         price_stars=750,
+        ai_daily=500,
         features=(
             "۱۰ مینی اپ",
             "تا ۱۰۰ کامپوننت در ۱۲ صفحه",

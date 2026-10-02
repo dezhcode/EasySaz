@@ -1123,12 +1123,153 @@ def test_botkit() -> None:  # noqa: C901
     ok(row == (3000003, "new_bot", "full") and calls("GetManagedBotToken", 1000001), "ربات تازه ساخته، توکنش گرفته و در حالت کامل وصل شد")
 
 
+def test_ai() -> None:  # noqa: C901
+    print("دستیار ساخت ربات با گفتگو")
+    import sqlite3
+
+    from app.botkit import agent, ai_client
+    from app.config import config
+
+    con = sqlite3.connect(os.environ["DB_PATH"])
+    app_id = con.execute("SELECT id FROM apps WHERE owner_id = 7 ORDER BY id").fetchone()[0]
+    object.__setattr__(config, "ai_key", "")
+    st, res = jcall("GET", f"/api/bot/ai?id={app_id}")
+    ok(st == 200 and res["enabled"] is False, "بدون کلید، دستیار خاموش است")
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "سلام"})
+    ok(st == 503, "بدون کلید، پیام به دستیار نمی‌رود")
+    object.__setattr__(config, "ai_key", "test-key")
+
+    script: list = []
+    prompts: list = []
+
+    async def fake_stream(prompt, image_b64=None):  # noqa: ANN001, ANN202
+        import asyncio as _a
+
+        prompts.append(prompt)
+        step = script.pop(0)
+        if isinstance(step, Exception):
+            raise step
+        delay, text = step
+        for i in range(0, len(text), 25):
+            await _a.sleep(delay)
+            yield text[i:i + 25]
+
+    ai_client.stream = fake_stream
+
+    def wait_turn(turn: int) -> dict:
+        for _ in range(200):
+            st, res = jcall("GET", f"/api/bot/ai_poll?id={app_id}&turn={turn}")
+            if res["turn"]["status"] in ("done", "error"):
+                return res
+            time.sleep(0.03)
+        return res
+
+    base = {"v": 1, "start": "m_welcome", "msgs": [
+        {"id": "m_welcome", "name": "خوش‌آمد", "text": "سلام", "kb": "inline",
+         "rows": [[{"id": "b_about", "text": "درباره", "act": {"type": "goto", "to": "m_about"}}]]},
+        {"id": "m_about", "name": "درباره ما", "text": "ما…"}], "vars": []}
+    bad = ("ساختمش ✅\n@@OPS\n" + json.dumps({"ops": [
+        {"op": "msg", "id": "m_welcome", "text": "سلام {نام} 👋 به کلاس عکاسی خوش اومدی"},
+        {"op": "buttons", "msg": "m_welcome", "rows": [[{"text": "📚 دوره‌ها", "style": "primary", "act": {"type": "goto", "to": "m_courses"}}]]}]},
+        ensure_ascii=False))
+    good = ("ساختمش ✅ یه پیام خوش‌آمد و صفحهٔ دوره‌ها.\n@@OPS\n```json\n" + json.dumps({"ops": [
+        {"op": "var", "name": "شماره", "type": "text"},
+        {"op": "msg", "id": "m_welcome", "text": "سلام {نام} 👋 به کلاس عکاسی خوش اومدی"},
+        {"op": "buttons", "msg": "m_welcome", "rows": [[{"text": "📚 دوره‌ها", "style": "primary", "act": {"type": "goto", "to": "دوره‌ها"}}],
+                                                       [{"text": "📝 ثبت‌نام", "style": "success", "act": {"type": "goto", "to": "m_reg"}}]]},
+        {"op": "msg", "id": "دوره‌ها", "name": "دوره‌ها", "text": "مقدماتی: [قیمت]\nپیشرفته: [قیمت]"},
+        {"op": "buttons", "msg": "دوره‌ها", "rows": [[{"text": "↩️ برگشت", "act": {"type": "goto", "to": "M_Welcome"}}]]},
+        {"op": "msg", "id": "m_reg", "name": "ثبت‌نام", "text": "شماره‌ات را بفرست 👇"},
+        {"op": "keys", "msg": "m_reg", "rows": [[{"text": "📱 ارسال شماره", "act": {"type": "contact", "var": "شماره", "to": "m_thanks"}}]]},
+        {"op": "msg", "id": "m_thanks", "name": "ممنون", "text": "ثبت شد ✅"},
+        {"op": "del", "msg": "m_about"}], "chips": ["دکمهٔ ثبت‌نام رو سبز کن", "تخفیف بذار"]}, ensure_ascii=False) + "\n```")
+    script[:] = [(0.01, bad), (0.0, good)]
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "یه ربات برای کلاس عکاسیم بساز", "doc": base})
+    ok(st == 200 and res["turn"] > 0 and res["quota"]["used"] == 1, "پیام به دستیار: نوبت ساخته می‌شود و سهم شمرده می‌شود")
+    turn1 = res["turn"]
+    st, busy = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "یکی دیگه"})
+    ok(st == 409, "تا جواب قبلی نیامده، پیام دوم پذیرفته نمی‌شود")
+    done = wait_turn(turn1)
+    t = done["turn"]
+    ok(t["status"] == "done" and t["say"].startswith("ساختمش") and "@@" not in t["say"], "جواب فقط متن فارسی را نشان می‌دهد")
+    ok(len(prompts) == 2 and all(len(p) <= 8000 for p in prompts) and "=== CURRENT BOT ===" in prompts[0] and "[m_about]" in prompts[0],
+       "پرامپت زیر ۸۰۰۰ نویسه با خلاصهٔ ربات")
+    ok("FIX YOUR PREVIOUS ANSWER" in prompts[1] and "m_courses" in prompts[1], "دکمهٔ بی‌مقصد: یک بار تعمیر خودکار با مشکل دقیق")
+    doc = done["doc"]
+    ids = [m["id"] for m in doc["msgs"]]
+    w = doc["msgs"][0]
+    ok(ids[0] == "m_welcome" and "m_reg" in ids and "m_thanks" in ids and "m_about" not in ids and len(ids) == 4,
+       "عملیات روی پیش‌نویس: پیام تازه، حذف، شناسهٔ فارسی معتبر می‌شود")
+    courses = next(m for m in doc["msgs"] if m["name"] == "دوره‌ها")
+    ok(w["rows"][0][0]["act"]["to"] == courses["id"] and courses["rows"][0][0]["act"]["to"] == "m_welcome",
+       "ارجاع‌ها به شناسهٔ درست وصل‌اند (M_Welcome ← m_welcome)")
+    reg = next(m for m in doc["msgs"] if m["id"] == "m_reg")
+    ok(reg["kb"] == "reply" and reg["keys"][0][0]["act"] == {"type": "contact", "to": "m_thanks", "var": "شماره"},
+       "کیبورد ارسال شماره با متغیر")
+    res1 = t["result"]
+    kinds = {c["k"] for c in res1["changes"]}
+    ok(kinds == {"add", "mod", "del"} and res1["stats"] == {"msgs": 4, "buttons": 4, "vars": 1} and res1["chips"][0].startswith("دکمه"),
+       "کارت تغییرها، آمار و پیشنهادهای بعدی")
+    ok(res1["preview"]["id"] == "m_welcome" and res1["preview"]["rows"][0][0]["style"] == "primary" and any("[…]" in x for x in res1["warnings"]),
+       "پیش‌نمایش پیام شروع و هشدار جای خالی «[…]»")
+    st, g = jcall("GET", f"/api/bot?id={app_id}")
+    ok(g["doc"] == doc and g["published"] != doc, "فقط پیش‌نویس عوض شد، نسخهٔ منتشرشده دست نخورد")
+
+    # فقط گفتگو، بدون تغییر
+    script[:] = [(0.0, "سلام! بگو چه رباتی می‌خوای 🙂\n@@OPS\n{\"ops\": [], \"chips\": [\"فروشگاه\"]}")]
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "سلام", "doc": doc})
+    done = wait_turn(res["turn"])
+    ok(done["turn"]["result"]["changes"] == [] and done["doc"] == doc and not done["turn"]["can_undo"], "گفتگوی ساده پیش‌نویس را عوض نمی‌کند")
+    ok("User: یه ربات برای کلاس عکاسیم بساز" in prompts[-1] and "Assistant: ساختمش" in prompts[-1], "تاریخچهٔ گفتگو در پرامپت بعدی")
+
+    # خطای سرویس
+    script[:] = [ai_client.AIError("دستیار الان جواب نداد", 502)]
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "دکمه رو سبز کن", "doc": doc})
+    done = wait_turn(res["turn"])
+    st, g = jcall("GET", f"/api/bot?id={app_id}")
+    ok(done["turn"]["status"] == "error" and "جواب نداد" in done["turn"]["error"] and g["doc"] == doc, "خطای سرویس: پیش‌نویس دست نمی‌خورد")
+    st, hist = jcall("GET", f"/api/bot/ai?id={app_id}")
+    ok(len(hist["turns"]) == 3 and hist["quota"]["used"] == 2 and hist["turns"][0]["can_undo"], "تاریخچه؛ خطا از سهم کم نمی‌شود")
+
+    # جواب بی‌قالب حتی بعد از تعمیر
+    script[:] = [(0.0, "باشه"), (0.0, "باشه دیگه")]
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "یه چیزی بساز", "doc": doc})
+    done = wait_turn(res["turn"])
+    ok(done["turn"]["status"] == "done" and done["turn"]["say"] == "باشه دیگه" and done["doc"] == doc, "جواب بی‌قالب: متن نشان داده می‌شود، چیزی عوض نمی‌شود")
+
+    # برگرداندن
+    st, res = jcall("POST", "/api/bot/ai_undo", {"id": app_id, "turn": turn1})
+    ok(st == 200 and [m["id"] for m in res["doc"]["msgs"]] == ["m_welcome", "m_about"] and res["turns"][0]["result"].get("undone"),
+       "برگرداندن: پیش‌نویس به پیش از آن نوبت برمی‌گردد")
+    st, g = jcall("GET", f"/api/bot?id={app_id}")
+    ok(g["doc"] == res["doc"], "برگرداندن ذخیره شد")
+
+    # سهم روزانه و دسترسی
+    lim = hist["quota"]["limit"]
+    now_ = int(time.time())
+    con.executemany("INSERT INTO bk_ai_turns(app_id, user_id, ask, status, created_at, updated_at) VALUES (?, 7, 'x', 'done', ?, ?)",
+                    [(app_id, now_, now_)] * lim)
+    con.commit()
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "باز هم"})
+    ok(st == 429 and "سهم" in res["error"], "سهم روزانهٔ پلن تمام شود، پیام نمی‌رود")
+    con.execute("DELETE FROM bk_ai_turns WHERE ask = 'x'")
+    con.commit()
+    st, res = jcall("GET", f"/api/bot/ai?id={app_id}", uid=8)
+    ok(st in (403, 404), "گفتگوی دستیار مینی‌اپ دیگران دیده نمی‌شود")
+    st, res = jcall("GET", f"/api/bot/ai_poll?id={app_id}&turn={turn1}", uid=8)
+    ok(st in (403, 404), "نوبت دستیار دیگران هم")
+    from app.webapp import api as web_api
+
+    web_api._RATE.clear()  # این بخش چند نوشتن پشت سر هم داشت؛ بخش‌های بعد سقف دقیقه‌ای خودشان را دارند
+
+
 if __name__ == "__main__":
     test_blocks()
     test_auth()
     test_web()
     test_bot()
     test_botkit()
+    test_ai()
     test_site()
     test_mag()
     print(f"\nهمه {PASSED} تست گذشت ✅")

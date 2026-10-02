@@ -48,6 +48,23 @@ CREATE TABLE IF NOT EXISTS bk_support (
   created_at INTEGER NOT NULL,
   PRIMARY KEY (app_id, admin_msg)
 );
+-- دستیار هوش مصنوعی: هر نوبت گفتگو هم «کار» پس‌زمینه است هم نقطهٔ برگشت
+CREATE TABLE IF NOT EXISTS bk_ai_turns (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  app_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  ask TEXT NOT NULL,
+  say TEXT NOT NULL DEFAULT '',
+  partial TEXT NOT NULL DEFAULT '',     -- متن جواب در حین تایپ
+  result TEXT NOT NULL DEFAULT '{}',    -- تغییرها، آمار، پیشنهادها، هشدارها
+  doc_before TEXT,                      -- پیش‌نویس پیش از این نوبت (برگرداندن)
+  status TEXT NOT NULL DEFAULT 'queued',  -- queued | running | done | error
+  error TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_bk_ai_app ON bk_ai_turns(app_id, id);
+CREATE INDEX IF NOT EXISTS idx_bk_ai_user ON bk_ai_turns(user_id, created_at);
 CREATE TABLE IF NOT EXISTS bk_payments (
   app_id INTEGER NOT NULL,
   tg_id INTEGER NOT NULL,
@@ -200,5 +217,5 @@ async def emoji_remove(db, app_id: int, emoji_id: str) -> None:  # noqa: ANN001
 
 
 async def remove_all(db, app_id: int) -> None:  # noqa: ANN001
-    for t in ("bk_flows", "bk_users", "bk_globals", "bk_emoji", "bk_support"):
+    for t in ("bk_flows", "bk_users", "bk_globals", "bk_emoji", "bk_support", "bk_ai_turns"):
         await db.execute(f"DELETE FROM {t} WHERE app_id = ?", (app_id,))

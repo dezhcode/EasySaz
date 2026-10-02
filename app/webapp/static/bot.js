@@ -2946,9 +2946,30 @@
     return w;
   }
 
+  function aiThinkText(turn) {
+    const A = R.ai;
+    const st = A.sv[turn.id];
+    const shown = st && (st.keys.length || st.q.length);
+    if (turn.status === 'queued' && A.pos > 0 && !shown) return `در صف · نفر ${faN(A.pos + 1)}`;
+    return shown ? 'دارم می‌سازم…' : 'دارم فکر می‌کنم…';
+  }
+  /* در حال کار: فقط همان نوبت آخر به‌روز می‌شود، نه کل صفحه (جلوی پرش و چشمک را می‌گیرد) */
+  function aiPatchRunning(turn) {
+    const w = document.querySelector(`#bot .bk-ai .ai-turn[data-id="${turn.id}"]`);
+    if (!w) { drawAI(); return; }
+    const a = w.querySelector('.ai-a');
+    const th = a.querySelector('.ai-think');
+    const txt = aiThinkText(turn);
+    if (th && th.textContent !== txt) th.textContent = txt;
+    const st = R.ai.sv[turn.id];
+    if (st && !st.el.isConnected) a.insertBefore(st.el, a.querySelector('.ai-pulse'));
+    aiStick();
+  }
+
   function aiTurn(turn, last) {
     const A = R.ai;
     const w = h('div', 'ai-turn');
+    w.dataset.id = turn.id;
     const u = h('div', 'ai-u');
     if (turn.img) { const im = h('img', 'ai-u-img'); im.src = turn.img; im.alt = ''; u.appendChild(im); }
     u.appendChild(h('span', '', turn.ask.replace(/^📷 /, '')));
@@ -2959,9 +2980,7 @@
     head.append(aiOrb('xs'), h('b', '', 'دستیار'));
     const running = turn.status === 'queued' || turn.status === 'running';
     const st = A.sv[turn.id];
-    const shown = st && (st.keys.length || st.q.length);
-    if (running && !shown) head.appendChild(h('span', 'ai-think', turn.status === 'queued' && A.pos > 0 ? `در صف · نفر ${faN(A.pos + 1)}` : 'دارم فکر می‌کنم…'));
-    else if (running) head.appendChild(h('span', 'ai-think', 'دارم می‌سازم…'));
+    if (running) head.appendChild(h('span', 'ai-think', aiThinkText(turn)));
     a.appendChild(head);
     if (turn.status === 'error') {
       if (st && st.keys.length) a.appendChild(st.el);
@@ -3148,11 +3167,12 @@
     drawAI();
     try {
       const res = await P().api('bot/ai_send', Object.assign({ id: R.appId, text, doc: R.doc }, img ? { image: img } : {}));
+      const node = document.querySelector(`#bot .bk-ai .ai-turn[data-id="${tmp.id}"]`);
       tmp.id = res.turn;
       A.busy = res.turn;
       A.pos = res.pos || 0;
       A.quota = res.quota || A.quota;
-      drawAI();
+      if (node) { node.dataset.id = tmp.id; aiPatchRunning(tmp); } else drawAI();
       aiPoll();
     } catch (err) {
       A.turns.pop();
@@ -3176,9 +3196,7 @@
         if (i >= 0) { t.img = A.turns[i].img; A.turns[i] = t; } else A.turns.push(t);
         A.pos = res.pos || 0;
         const done = t.status === 'done' || t.status === 'error';
-        const before = A.sv[t.id] ? A.sv[t.id].keys.length + A.sv[t.id].q.length : 0;
         if (t.say) feed(t.id, t.say, done, true);
-        const first = !before && A.sv[t.id] && A.sv[t.id].q.length;
         if (done) {
           A.busy = 0;
           if (t.status === 'error') A.quota.used = Math.max(0, A.quota.used - 1);  // نوبت خطادار از سهم کم نمی‌شود
@@ -3192,11 +3210,7 @@
           const st = A.sv[t.id];
           const wait = st ? st.q.length * 130 + 250 : 0;
           setTimeout(drawAI, wait);
-        } else if (first || !A.sv[t.id] || A.sv[t.id].keys.length === 0) drawAI();
-        else {
-          const th = document.querySelector('#bot .ai-turn:last-child .ai-think');
-          if (th && th.textContent !== 'دارم می‌سازم…') th.textContent = 'دارم می‌سازم…';
-        }
+        } else if (A.on) aiPatchRunning(t);
       } catch (e) {}
       if (A.busy) aiPoll();
     }, A.turns.some(x => x.status === 'running') ? 380 : 800);

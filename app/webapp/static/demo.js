@@ -318,13 +318,29 @@
       opts: { replace: true, typing: false, effect: '', preview: false, silent: false, protect: false, remove_kb: false }, cmd: '', kw: [], then: '', wait: null, group: '' }, extra || {});
     const btn = (id, t, style, to) => ({ id, text: t, style, icon: '', act: { type: 'goto', to } });
     const stats = x => ({ msgs: x.msgs.length, buttons: x.msgs.reduce((n, m) => n + m.rows.concat(m.keys).reduce((a, r) => a + r.length, 0), 0), vars: x.vars.length });
+    const sig = m => JSON.stringify((m.kb === 'reply' ? m.keys : m.kb === 'inline' ? m.rows : []).map(r => r.map(k => [k.text, k.style, k.act])));
+    const pvs = (o, x) => {
+      const om = {};
+      o.msgs.forEach(m => { om[m.id] = m; });
+      const list = x.msgs.filter(m => !om[m.id] || om[m.id].text !== m.text || om[m.id].name !== m.name || sig(om[m.id]) !== sig(m)).map(m => {
+        const a = om[m.id];
+        const ob = a ? a.rows.concat(a.keys).reduce((l, r) => l.concat(r), []) : [];
+        const hl = k => !!a && !ob.some(q => (q.id === k.id || q.text === k.text) && q.text === k.text && q.style === k.style && JSON.stringify(q.act) === JSON.stringify(k.act));
+        const rows = (m.kb === 'reply' ? m.keys : m.kb === 'inline' ? m.rows : []).map(r => r.map(k => ({ text: k.text, style: k.style, hl: hl(k) })));
+        const flags = rows.reduce((l, r) => l.concat(r.map(k => k.hl)), []);
+        let kind = a ? 'mod' : 'add', tc = !!a && a.text !== m.text;
+        if (a && (tc || !flags.length) && flags.every(Boolean)) { kind = 'new'; tc = false; rows.forEach(r => r.forEach(k => { k.hl = false; })); }
+        return { id: m.id, name: m.name, kind, text: m.text, kb: m.kb, text_changed: tc, rows };
+      });
+      return { previews: list.slice(0, 3), previews_more: Math.max(0, list.length - 3) };
+    };
     const pv = x => { const m = x.msgs.find(y => y.id === x.start); return m && { id: m.id, name: m.name, text: m.text, kb: m.kb, rows: (m.kb === 'reply' ? m.keys : m.rows).map(r => r.map(b => ({ text: b.text, style: b.style }))) }; };
     if (/سبز/.test(text) && doc.msgs.some(m => m.rows.some(r => r.some(b => /ثبت/.test(b.text))))) {
       const x = copy(doc);
       let name = '';
       x.msgs.forEach(m => m.rows.forEach(r => r.forEach(b => { if (/ثبت/.test(b.text)) { b.style = 'success'; name = b.text; } })));
       return { say: 'سبزش کردم ✅\nحالا دکمهٔ **' + name + '** بیشتر به چشم می‌آد و کاربر راحت‌تر ثبت‌نام می‌کنه.\n\n**پیشنهاد بعدی:** برای دورهٔ پیشرفته یه تخفیف ۱۰٪ بذار.', doc: x,
-        res: { changes: [{ k: 'mod', t: `دکمهٔ «${name}» ← سبز` }], more: 0, chips: ['۱۰٪ تخفیف بذار', 'یه دکمهٔ اینستاگرام هم بذار'], stats: stats(x), preview: pv(x), warnings: [] } };
+        res: { changes: [{ k: 'mod', t: `دکمهٔ «${name}» ← سبز` }], more: 0, chips: ['۱۰٪ تخفیف بذار', 'یه دکمهٔ اینستاگرام هم بذار'], stats: stats(x), preview: pv(x), ...pvs(doc, x), warnings: [] } };
     }
     if (/ربات|بساز|کلاس|فروشگاه|ثبت|دوره|نوبت|پشتیبانی/.test(text)) {
       const x = { v: 1, start: 'm_welcome', fallback: '', comps: [], vars: [{ name: 'شماره', type: 'text', scope: 'user', init: '', formula: '' }], msgs: [
@@ -336,7 +352,7 @@
       ] };
       return { say: 'ساختمش ✅ ربات ثبت‌نام کلاس عکاسی آماده است.\n\n**چی ساختم**\n- پیام **خوش‌آمد** با اسم کاربر و سه دکمه\n- صفحهٔ **دوره‌ها** با قیمت هر دوره\n- **ثبت‌نام** با دکمهٔ «📱 ارسال شماره» و ذخیره در {شماره}\n- پیام **ممنون** بعد از ثبت شماره\n- صفحهٔ **سؤالات** با دکمهٔ برگشت\n\nجاهای «[قیمت]» رو با قیمت واقعی پر کن.\n\n**پیشنهاد بعدی:** دکمهٔ ثبت‌نام رو سبز کن تا بیشتر دیده بشه.', doc: x,
         res: { changes: [{ k: 'mod', t: 'متن «خوش‌آمد»' }, { k: 'add', t: 'پیام «دوره‌ها» با ۲ دکمه' }, { k: 'add', t: 'پیام «ثبت‌نام» با ۱ دکمه' }, { k: 'add', t: 'پیام «ممنون»' }, { k: 'add', t: 'پیام «سؤالات» با ۱ دکمه' }, { k: 'add', t: 'متغیر {شماره}' }],
-          more: 0, chips: ['دکمهٔ «ثبت‌نام» رو سبز کن', 'قیمت‌ها رو بنویس', 'یه دکمهٔ اینستاگرام هم بذار'], stats: stats(x), preview: pv(x), warnings: ['جاهای «[…]» را با اطلاعات خودت پر کن'] } };
+          more: 0, chips: ['دکمهٔ «ثبت‌نام» رو سبز کن', 'قیمت‌ها رو بنویس', 'یه دکمهٔ اینستاگرام هم بذار'], stats: stats(x), preview: pv(x), ...pvs(doc, x), warnings: ['جاهای «[…]» را با اطلاعات خودت پر کن'] } };
     }
     return { say: 'این نسخهٔ نمایشی است 🙂 بگو «یه ربات برای کلاس عکاسیم بساز» تا ببینی دستیار چطور می‌سازد.', doc: null,
       res: { changes: [], more: 0, chips: ['یه ربات برای کلاس عکاسیم بساز'], stats: stats(doc), preview: null, warnings: [] } };

@@ -515,6 +515,41 @@ def stats(doc: dict) -> dict:
     return {"msgs": len(doc["msgs"]), "buttons": sum(len(r) for m in doc["msgs"] for r in (m["rows"] + m["keys"])), "vars": len(doc["vars"])}
 
 
+def previews(old: dict, new: dict, limit: int = 3) -> tuple[list[dict], int]:
+    """پیام‌هایی که در این نوبت ساخته یا عوض شده‌اند، برای پیش‌نمایش کارت نتیجه؛
+    دکمه‌های تازه یا عوض‌شده علامت hl می‌خورند."""
+    o = {m["id"]: m for m in old.get("msgs", [])}
+    out: list[dict] = []
+    for m in new.get("msgs", []):
+        a = o.get(m["id"])
+        if a is not None and a["text"] == m["text"] and a["name"] == m["name"] and _btn_sig(a) == _btn_sig(m) and a.get("media") == m.get("media"):
+            continue
+        rows = m["rows"] if m["kb"] == "inline" else m["keys"] if m["kb"] == "reply" else []
+        old_b = [b for r in ((a["rows"] + a["keys"]) if a else []) for b in r]
+        by_id = {b["id"]: b for b in old_b}
+        by_text = {b["text"]: b for b in old_b}
+
+        def hl(b: dict) -> bool:
+            if a is None:
+                return False
+            ob = by_id.get(b["id"]) or by_text.get(b["text"])
+            return ob is None or ob["text"] != b["text"] or ob["style"] != b["style"] or ob["act"] != b["act"]
+
+        prow = [[{"text": b["text"], "style": b["style"], "hl": hl(b)} for b in r] for r in rows]
+        flags = [x["hl"] for r in prow for x in r]
+        text_changed = a is not None and a["text"] != m["text"]
+        kind = "add" if a is None else "mod"
+        # همه چیز عوض شده: «بازنویسی»، بی‌حلقه (حلقه فقط وقتی بخشی از پیام عوض شده معنا دارد)
+        if a is not None and (text_changed or not flags) and all(flags):
+            kind, text_changed = "new", False
+            for r in prow:
+                for x in r:
+                    x["hl"] = False
+        out.append({"id": m["id"], "name": m["name"], "kind": kind, "text": m["text"], "kb": m["kb"],
+                    "text_changed": text_changed, "rows": prow})
+    return out[:limit], max(0, len(out) - limit)
+
+
 def preview(doc: dict) -> dict | None:
     """پیام شروع برای پیش‌نمایش کارت نتیجه."""
     m = schema.find(doc, doc.get("start") or "")
@@ -655,6 +690,8 @@ async def _run(db, turn_id: int, app_id: int, base: dict, ask: str, focus: str |
                 await store.save_draft(db, app_id, new_doc)
             result = {"changes": changes[:14], "more": max(0, len(changes) - 14), "chips": rep.chips, "stats": stats(new_doc),
                       "preview": preview(new_doc) if changes else None,
+                      "previews": previews(base, new_doc)[0] if changes else [],
+                      "previews_more": previews(base, new_doc)[1] if changes else 0,
                       "warnings": warnings(new_doc) if changes else []}
             await _set(db, turn_id, status="done", say=rep.say[:3000], partial="", result=store._dumps(result))
     except Cancelled:

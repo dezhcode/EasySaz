@@ -101,6 +101,13 @@ class FakeSession(BaseSession):
             return StickerSet(name=params["name"], title="Pack", sticker_type="custom_emoji", stickers=stk)
         if name == "GetManagedBotToken":
             return "3000003:" + "C" * 35
+        if name == "SendVideo":  # ویدیوی معرفی: file_id ساختگی تا کش شدنش آزموده شود
+            return Message.model_validate(
+                {"message_id": len(FakeSession.calls), "date": int(time.time()),
+                 "chat": {"id": params.get("chat_id", 1), "type": "private"},
+                 "video": {"file_id": "VID_INTRO", "file_unique_id": "u_intro", "width": 1920, "height": 1080, "duration": 35}},
+                context={"bot": bot},
+            )
         if name in ("SendMessage", "EditMessageText"):
             return Message.model_validate(
                 {"message_id": len(FakeSession.calls), "date": int(time.time()),
@@ -439,6 +446,21 @@ def test_bot() -> None:
     ok(call("POST", "/tg/secretpath", update("/start"), {"X-Telegram-Bot-Api-Secret-Token": "bad"})["status"] == 403, "رمز غلط وبهوک: ۴۰۳")
     sent = calls("SendMessage", 1000001)
     ok(sent and "EasySaz" in sent[-1]["text"], "/start منوی اصلی را می فرستد")
+    vids = calls("SendVideo", 1000001)
+    ok(len(vids) == 1 and not isinstance(vids[0]["video"], str) and "۳۵ ثانیه" in vids[0]["caption"]
+       and vids[0]["supports_streaming"], "اولین /start: ویدیوی معرفی آپلود و فرستاده می شود")
+    names = [m for b, m, p in FakeSession.calls if b == "1000001" and m in ("SendVideo", "SendMessage")]
+    ok(names[-2:] == ["SendVideo", "SendMessage"], "ویدیو قبل از منو، منو در پیام جدا")
+    hook(update("/start"))
+    ok(len(calls("SendVideo", 1000001)) == 1, "/start بعدی ویدیو را دوباره نمی فرستد")
+    hook(update("", callback="intro"))
+    ok(calls("SendVideo", 1000001)[-1]["video"] == "VID_INTRO", "دکمهٔ معرفی: با file_id کش‌شده، بدون آپلود دوباره")
+    hook(update("/intro"))
+    ok(calls("SendVideo", 1000001)[-1]["video"] == "VID_INTRO", "/intro ویدیو را دوباره نشان می دهد")
+    hook(update("/start connect", uid=77))
+    ok(not [1 for b, m, p in FakeSession.calls if m == "SendVideo" and p.get("chat_id") == 77], "لینک عمیق (connect) ویدیو نمی فرستد")
+    kb_rows = sent[-1]["reply_markup"]["inline_keyboard"]
+    ok(any(btn.get("callback_data") == "intro" for row in kb_rows for btn in row), "منوی اصلی دکمهٔ «ایزی‌ساز در ۳۵ ثانیه» دارد")
 
     hook(update("", callback="connect"))
     ok("توکن" in calls("EditMessageText", 1000001)[-1]["text"], "درخواست توکن")

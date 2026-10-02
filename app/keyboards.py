@@ -20,6 +20,7 @@ def home() -> InlineKeyboardMarkup:
         [panel_button()],
         [B(text="🤖 اتصال ربات", callback_data="connect"), B(text="📱 مینی اپ من", callback_data="myapps")],
         [B(text="💎 پلن‌ها", callback_data="plans"), B(text="❓ راهنما", callback_data="help")],
+        [B(text="🎬 ایزی‌ساز در ۳۵ ثانیه", callback_data="intro")],
     )
 
 

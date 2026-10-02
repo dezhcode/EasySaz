@@ -48,6 +48,28 @@ CREATE TABLE IF NOT EXISTS bk_support (
   created_at INTEGER NOT NULL,
   PRIMARY KEY (app_id, admin_msg)
 );
+-- «مکث» بلند: ادامهٔ یک پیام در زمان مقرر (اجراکنندهٔ پس‌زمینه در engine.run_due)
+CREATE TABLE IF NOT EXISTS bk_jobs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  app_id INTEGER NOT NULL,
+  tg_id INTEGER NOT NULL,
+  msg_id TEXT NOT NULL,
+  step INTEGER NOT NULL DEFAULT 0,      -- از این کار به بعد
+  test INTEGER NOT NULL DEFAULT 0,
+  due_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_bk_jobs_due ON bk_jobs(due_at);
+-- «ثبت در داده‌ها»: هر ردیف جواب‌های یک کاربر در یک فرم
+CREATE TABLE IF NOT EXISTS bk_rows (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  app_id INTEGER NOT NULL,
+  form TEXT NOT NULL,
+  tg_id INTEGER NOT NULL,
+  data TEXT NOT NULL,
+  test INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_bk_rows_form ON bk_rows(app_id, form, id);
 -- دستیار هوش مصنوعی: هر نوبت گفتگو هم «کار» پس‌زمینه است هم نقطهٔ برگشت
 CREATE TABLE IF NOT EXISTS bk_ai_turns (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -217,5 +239,37 @@ async def emoji_remove(db, app_id: int, emoji_id: str) -> None:  # noqa: ANN001
 
 
 async def remove_all(db, app_id: int) -> None:  # noqa: ANN001
-    for t in ("bk_flows", "bk_users", "bk_globals", "bk_emoji", "bk_support", "bk_ai_turns"):
+    for t in ("bk_flows", "bk_users", "bk_globals", "bk_emoji", "bk_support", "bk_ai_turns", "bk_jobs", "bk_rows"):
         await db.execute(f"DELETE FROM {t} WHERE app_id = ?", (app_id,))
+
+
+# ---------------------------------------------------------------- مکث بلند و داده‌ها
+async def add_job(db, app_id: int, tg_id: int, msg_id: str, step: int, test: bool, due_at: int) -> None:  # noqa: ANN001
+    # هر کاربر در هر پیام یک ادامهٔ منتظر دارد (دوباره رسیدن به همان پیام، زمان را تازه می‌کند)
+    await db.execute("DELETE FROM bk_jobs WHERE app_id = ? AND tg_id = ? AND msg_id = ? AND step = ?", (app_id, tg_id, msg_id, step))
+    await db.execute("INSERT INTO bk_jobs(app_id, tg_id, msg_id, step, test, due_at) VALUES (?,?,?,?,?,?)",
+                     (app_id, tg_id, msg_id, step, int(test), due_at))
+
+
+async def take_due(db, limit: int = 40) -> list:  # noqa: ANN001
+    rows = await db.fetchall("SELECT * FROM bk_jobs WHERE due_at <= ? ORDER BY due_at LIMIT ?", (now(), limit))
+    # چند پروسهٔ Passenger هم‌زمان می‌چرخند: فقط کاری مال ماست که پاکش را خودمان زدیم
+    return [r for r in rows if await db.execute("DELETE FROM bk_jobs WHERE id = ?", (r["id"],))]
+
+
+async def add_row(db, app_id: int, form: str, tg_id: int, data: dict, test: bool) -> int:  # noqa: ANN001
+    return await db.insert("INSERT INTO bk_rows(app_id, form, tg_id, data, test, created_at) VALUES (?,?,?,?,?,?)",
+                           (app_id, form, tg_id, _dumps(data), int(test), now()))
+
+
+async def forms(db, app_id: int) -> list[dict]:  # noqa: ANN001
+    rows = await db.fetchall("SELECT form, COUNT(*) AS n, MAX(created_at) AS last, SUM(created_at >= ?) AS today FROM bk_rows "
+                             "WHERE app_id = ? GROUP BY form ORDER BY last DESC", (now() - 86400, app_id))
+    return [{"form": r["form"], "count": r["n"], "last": r["last"], "today": r["today"] or 0} for r in rows]
+
+
+async def rows_of(db, app_id: int, form: str, limit: int = 200) -> list[dict]:  # noqa: ANN001
+    rows = await db.fetchall("SELECT r.*, u.first_name, u.username FROM bk_rows r LEFT JOIN bk_users u ON u.app_id = r.app_id AND u.tg_id = r.tg_id "
+                             "WHERE r.app_id = ? AND r.form = ? ORDER BY r.id DESC LIMIT ?", (app_id, form, limit))
+    return [{"id": r["id"], "tg_id": r["tg_id"], "name": r["first_name"] or "", "username": r["username"] or "",
+             "data": _loads(r["data"], {}), "test": bool(r["test"]), "at": r["created_at"]} for r in rows]

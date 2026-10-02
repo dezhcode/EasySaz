@@ -164,6 +164,18 @@ async def setup_main_bot(bot: Bot) -> None:
         )
 
 
+async def due_loop(parts: Parts, every: float = 20.0) -> None:
+    """هر چند ثانیه «مکث»های رسیدهٔ ربات‌های ساخته‌شده را ادامه می‌دهد."""
+    from .botkit import engine
+
+    while True:
+        await asyncio.sleep(every)
+        try:
+            await engine.run_due(parts.db, parts.clients)
+        except Exception:  # noqa: BLE001
+            log.exception("due jobs failed")
+
+
 class Runtime:
     """نگهدارنده event loop دائمی برای اجرا زیر WSGI."""
 
@@ -171,6 +183,7 @@ class Runtime:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._lock = threading.Lock()
         self.parts: Parts | None = None
+        self._ticker: asyncio.Task | None = None
 
     # میانبرها
     @property
@@ -218,6 +231,7 @@ class Runtime:
                 await self.parts.db.set_setting("bot_username", me.username)
         except Exception:  # noqa: BLE001
             log.debug("get_me failed on boot", exc_info=True)
+        self._ticker = asyncio.get_running_loop().create_task(due_loop(self.parts))
 
     def run(self, coro: Coroutine, timeout: float = 50.0) -> Any:
         self.ensure_started()

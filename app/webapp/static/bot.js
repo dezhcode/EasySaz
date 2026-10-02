@@ -42,7 +42,10 @@
     gift: 'M4 10h16v10H4zM3 7h18v3H3zM12 7v13M12 7c-1.5-3-5-3-5-1s3 1 5 1c2 0 5 1 5-1s-3.5-2-5 1', list: 'M8 6h12M8 12h12M8 18h12M4 6v.01M4 12v.01M4 18v.01',
     send: 'M21 3L3 11l7 3 3 7 8-18zM10 14l4-4', power: 'M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0', eyeoff: 'M3 3l18 18M6.6 6.6C3.9 8.3 2 12 2 12s3.6 6 10 6c1.9 0 3.5-.5 4.9-1.3M10.6 6.1A9.6 9.6 0 0 1 12 6c6.4 0 10 6 10 6a17 17 0 0 1-3.2 3.8M9.9 9.9a3 3 0 0 0 4.2 4.2',
     slash: 'M15 4L9 20', rocket: 'M5 15c-1 1-1.5 3.5-1.5 5.5 2 0 4.5-.5 5.5-1.5M9 15l-3-3c1.5-4 5-8 12-8 0 7-4 10.5-8 12l-3-3zM15 9v.01', tap: 'M9 11V5a2 2 0 0 1 4 0v5M13 10a2 2 0 0 1 4 0v1M17 11a2 2 0 0 1 4 0v3a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.4L5 14a2 2 0 0 1 3.3-2.2L9 13',
-    split: 'M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6M18 3v4M6 17v4', refresh: 'M4 12a8 8 0 0 1 14-5.3L20 8M20 4v4h-4M20 12a8 8 0 0 1-14 5.3L4 16M4 20v-4h4',
+    split: 'M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6M18 3v4M6 17v4',
+    clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2', dice: 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01',
+    form: 'M6 3h12v18H6zM9 8h6M9 12h6M9 16h3', tag: 'M3 12V4h8l10 10-8 8L3 12zM7.5 7.5h.01', globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.7 3.5 5.7 3.5 9s-1 6.3-3.5 9c-2.5-2.7-3.5-5.7-3.5-9s1-6.3 3.5-9z',
+    cart: 'M3 4h2l2.5 11h11L21 7H6.2M9 20h.01M17 20h.01', grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', refresh: 'M4 12a8 8 0 0 1 14-5.3L20 8M20 4v4h-4M20 12a8 8 0 0 1-14 5.3L4 16M4 20v-4h4',
   };
   function ic(name, cls) {
     const s = document.createElementNS(SVG_NS, 'svg');
@@ -107,7 +110,7 @@
       id: uid('m'), name: name || 'پیام تازه', text: '', media: null, kb: 'none', rows: [], keys: [],
       kbopt: { resize: true, once: false, persist: false, placeholder: '' },
       opts: { replace: true, typing: false, effect: '', preview: false, silent: false, protect: false, remove_kb: false },
-      cmd: '', kw: [], then: '', wait: null, group: '',
+      cmd: '', kw: [], then: '', wait: null, steps: [], group: '',
     }, extra || {});
   }
   function newBtn(text, act) { return { id: uid('b'), text: text || 'دکمه', style: '', icon: '', act: act || { type: 'goto', to: '' } }; }
@@ -165,6 +168,7 @@
     (m.kb === 'reply' ? m.keys : []).forEach(r => r.forEach(b => { if (b.act.to) add(b.act.to); }));
     add(m.then);
     if (m.wait) add(m.wait.to);
+    stepTargets(m).forEach(add);
     return t;
   }
   /* اولین جایی که به این پیام می‌رسیم (برای «وقتی: …» بالای چت) */
@@ -177,6 +181,7 @@
       for (const r of (m.kb === 'reply' ? m.keys : [])) for (const b of r) if (b.act.to === id) return { icon: 'keyb', text: `کیبورد «${b.text}» در «${m.name}»` };
       if (m.then === id) return { icon: 'chat', text: `بعد از «${m.name}»` };
       if (m.wait && m.wait.to === id) return { icon: 'chat', text: `بعد از جواب در «${m.name}»` };
+      if (stepTargets(m).includes(id)) return { icon: 'split', text: `از کار «${m.name}»` };
     }
     if (R.doc.fallback === id) return { icon: 'help', text: 'وقتی: هر پیام نامفهوم' };
     if (m0 && m0.kw && m0.kw.length) return { icon: 'chat', text: 'وقتی: ' + m0.kw.join('، ') };
@@ -189,6 +194,7 @@
     if (nb) parts.push(`${faN(nb)} ${m.kb === 'reply' ? 'دکمهٔ کیبورد' : 'دکمه'}`);
     if (m.wait) parts.push(m.wait.kind === 'support' ? 'پشتیبانی' : `جواب ← {${m.wait.var}}`);
     if (m.cmd) parts.push(m.cmd);
+    if ((m.steps || []).length) parts.push(`${faN(m.steps.length)} کار`);
     if (!parts.length) parts.push(plain(m.text).slice(0, 34) || 'خالی');
     return parts.join(' · ');
   }
@@ -263,7 +269,7 @@
     if (!R.d.bot.connected) el.appendChild(connectBanner());
     const body = h('main', 'bk-body');
     el.appendChild(body);
-    ({ msgs: drawMsgs, parts: drawParts, vars: drawVars, emoji: drawEmoji, bot: drawBot })[R.tab](body);
+    ({ msgs: drawMsgs, parts: drawParts, data: drawData, vars: drawVars, emoji: drawEmoji, bot: drawBot })[R.tab](body);
     el.appendChild(navBar());
     if (R.edit) drawEditor();
   }
@@ -306,11 +312,11 @@
     const b = bt('bk-banner', [ic('bot'), h('span', 'grow', 'ربات هنوز وصل نیست؛ بساز یا وصل کن تا تست کنی'), ic('chl')], () => { R.tab = 'bot'; draw(); });
     return b;
   }
-  const TABS = [['msgs', 'chat', 'پیام‌ها'], ['parts', 'layers', 'اجزا'], ['vars', 'var', 'متغیرها'], ['emoji', 'smile', 'ایموجی'], ['bot', 'bot', 'ربات']];
+  const TABS = [['msgs', 'chat', 'پیام‌ها'], ['parts', 'layers', 'اجزا'], ['data', 'grid', 'داده‌ها'], ['vars', 'var', 'متغیرها'], ['bot', 'bot', 'ربات']];
   function navBar() {
     const n = h('nav', 'bk-nav');
     TABS.forEach(([k, i, t]) => {
-      const b = bt('bk-nav-i' + (R.tab === k ? ' on' : ''), [h('span', 'bk-nav-ic'), t], () => { R.tab = k; draw(); window.scrollTo(0, 0); });
+      const b = bt('bk-nav-i' + (R.tab === k || (k === 'bot' && R.tab === 'emoji') ? ' on' : ''), [h('span', 'bk-nav-ic'), t], () => { R.tab = k; draw(); window.scrollTo(0, 0); });
       b.querySelector('.bk-nav-ic').appendChild(ic(i));
       n.appendChild(b);
     });
@@ -434,7 +440,7 @@
     if (ed) { ed.classList.add('out'); setTimeout(() => ed.remove(), 220); }
     detachVV();
     const body = document.querySelector('#bot .bk-body');
-    if (body) { const b2 = h('main', 'bk-body'); body.replaceWith(b2); ({ msgs: drawMsgs, parts: drawParts, vars: drawVars, emoji: drawEmoji, bot: drawBot })[R.tab](b2); }
+    if (body) { const b2 = h('main', 'bk-body'); body.replaceWith(b2); ({ msgs: drawMsgs, parts: drawParts, data: drawData, vars: drawVars, emoji: drawEmoji, bot: drawBot })[R.tab](b2); }
     drawPill();
   }
   function drawEditor() {
@@ -461,9 +467,11 @@
     const chat = h('div', 'bk-chat');
     ed.appendChild(chat);
     if (inc) { const c = h('span', 'bk-trig'); c.append(ic(inc.icon), document.createTextNode(inc.text)); chat.appendChild(c); }
+    if ((m.steps || []).length) chat.appendChild(stepsRail(m));
     chat.appendChild(bubble(m));
     if (m.kb === 'inline') chat.appendChild(inlineRows(m));
-    if (m.wait) {
+    if (m.wait && m.wait.kind === 'var') chat.appendChild(askCard(m));
+    else if (m.wait) {
       const w = bt('bk-wait', [ic(m.wait.kind === 'support' ? 'inbox' : 'help'),
         m.wait.kind === 'support' ? 'پیام بعدی کاربر به پشتیبانی (تو) می‌رسد' : `جواب کاربر در {${m.wait.var}} ذخیره می‌شود`], () => msgSheet(m));
       chat.appendChild(w);
@@ -733,9 +741,9 @@
     const tool = (i, t, fn) => { const b = bt('bk-dock-b', [h('span', 'bk-dock-ic'), t], fn); b.querySelector('.bk-dock-ic').appendChild(ic(i)); return b; };
     d.append(
       tool('type', 'متن', () => { const t = curText(); if (t) { t.focus(); const r = document.createRange(); r.selectNodeContents(t); r.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } }),
-      tool('image', 'رسانه', () => mediaSheet(m)),
       tool('btn', 'دکمه', () => addButton(m)),
       tool('keyb', 'کیبورد', () => kindSheet(m, true)),
+      tool('flow', 'کار', () => stepsGrid(m)),
       tool('sliders', 'بیشتر', () => msgSheet(m)),
     );
     return d;
@@ -1238,6 +1246,8 @@
   function msgSheet(m) {
     sheet('تنظیمات پیام', `«${m.name}»`, (body, ctx) => {
       field(body, 'نام پیام (فقط برای تو)', input(m.name, v => { m.name = v.slice(0, 40) || 'پیام'; changed(); }, { max: 40 }));
+      optRow(body, 'image', m.media ? (m.media.type === 'photo' ? 'عکس بالای پیام' : 'ویدیو بالای پیام') : 'عکس یا ویدیو', 'متن پیام زیرنویسش می‌شود', h('span', 'bk-opt-e brand', m.media ? 'عوض کن' : 'افزودن'), () => mediaSheet(m));
+      optRow(body, 'flow', (m.steps || []).length ? `${faN(m.steps.length)} کار پیش از این پیام` : 'کار پیش از پیام', 'شرط، حساب، مکث، عضویت کانال، ثبت…', h('span', 'bk-opt-e brand', 'افزودن'), () => stepsGrid(m));
       label(body, 'وقتی با یک دکمه باز شد');
       body.appendChild(seg([['r', 'جای پیام قبلی بنشیند'], ['n', 'پیام تازه بفرستد']], m.opts.replace ? 'r' : 'n', k => { m.opts.replace = k === 'r'; changed(); ctx.redraw(); }));
       body.appendChild(h('span', 'bk-hint', m.opts.replace ? 'چت شلوغ نمی‌شود و حس «صفحه» دارد.' : 'هر بار پیام تازه‌ای زیر پیام‌های قبلی می‌آید.'));
@@ -1252,6 +1262,7 @@
         if (m.wait.kind === 'var') {
           optRow(body, 'var', m.wait.var ? `جواب در {${m.wait.var}}` : 'جواب در کدام متغیر؟', 'متن، شماره یا زیرنویس عکس', h('span', 'bk-opt-e brand', 'انتخاب'),
             () => varPick('جواب در کدام متغیر؟', m.wait.var, n => { m.wait.var = n; changed(); ctx.redraw(); }));
+          optRow(body, 'form', 'نوع جواب: ' + (CHECKS.find(x => x[0] === (m.wait.check || 'text')) || CHECKS[0])[1], 'عدد با بازه، شماره، ایمیل، تاریخ، عکس، گزینه', h('span', 'bk-opt-e brand', 'تنظیم'), () => askSheet(m));
         } else note(body, 'پیام بعدی کاربر برای خودت در همین ربات فرستاده می‌شود؛ با «پاسخ» روی آن جواب بده.');
         const to = find(m.wait.to);
         optRow(body, 'chat', to ? `بعد از جواب: «${to.name}»` : 'بعد از جواب به کدام پیام؟', 'مثلاً «ممنون، رسید»', h('span', 'bk-opt-e brand', 'انتخاب'),
@@ -1293,6 +1304,8 @@
     R.doc.msgs.forEach(m => {
       if (m.then === id) m.then = '';
       if (m.wait && m.wait.to === id) m.wait.to = '';
+      (m.steps || []).forEach(st => { if (st.yes === id) st.yes = ''; if (st.no === id) st.no = ''; if (st.to) st.to = st.to.filter(x => x !== id); });
+      m.steps = (m.steps || []).filter(st => st.type !== 'random' || st.to.length);
       m.rows.concat(m.keys).forEach(r => r.forEach(b => { if (b.act.to === id) b.act.to = ''; }));
     });
     if (R.doc.fallback === id) R.doc.fallback = '';
@@ -1354,6 +1367,474 @@
       img.onerror = () => reject(new Error('این عکس خوانده نشد'));
       img.src = URL.createObjectURL(file);
     });
+  }
+
+  /* ================================================================ کارها (منطق پیش از پیام) */
+  const STEP_META = {
+    if: ['split', 'شرط', 'اگر/وگرنه با متغیر، عضویت، ساعت', 'brand'],
+    calc: ['calc', 'حساب', 'تغییر متغیر با فرمول', 'teal'],
+    random: ['dice', 'تصادفی', 'یکی از چند مسیر', 'amber'],
+    delay: ['clock', 'مکث', 'چند ثانیه تا چند روز بعد', 'brand'],
+    ask: ['form', 'پرسش', 'جواب کاربر با اعتبارسنجی', 'teal'],
+    member: ['tg', 'عضویت کانال', 'قبل از ادامه', 'tg'],
+    notify: ['bell', 'به ادمین', 'خبر فوری برای تو', 'rose'],
+    tag: ['tag', 'برچسب', 'دسته‌بندی کاربرها', 'amber'],
+    save: ['inbox', 'ثبت در داده‌ها', 'جواب‌ها در تب «داده‌ها»', 'teal'],
+  };
+  const STEP_SOON = [['sparkle', 'پاسخ هوشمند', 'جواب از دانسته‌های تو'], ['globe', 'وب‌سرویس', 'دریافت/ارسال داده'], ['cart', 'سبد خرید', 'افزودن، جمع، پرداخت'], ['gift', 'امتیاز', 'دعوت و جایزه']];
+  const CHECKS = [['text', 'متن'], ['number', 'عدد'], ['phone', 'شماره'], ['email', 'ایمیل'], ['date', 'تاریخ'], ['photo', 'عکس'], ['choice', 'گزینه']];
+  const RULE_KINDS = [['var', 'متغیر'], ['tag', 'برچسب'], ['member', 'عضویت'], ['hour', 'ساعت'], ['day', 'روز']];
+  const VAR_OPS = [['=', '='], ['!=', '≠'], ['>', '>'], ['<', '<'], ['>=', '≥'], ['<=', '≤'], ['has', 'دارد'], ['empty', 'خالی'], ['filled', 'پر']];
+  const WEEK = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
+  const UNITS = [[1, 'ثانیه'], [60, 'دقیقه'], [3600, 'ساعت'], [86400, 'روز']];
+  const CHAT_RE = /^(@[A-Za-z][A-Za-z0-9_]{3,31}|-100\d{6,14})$/;
+  const allVarNames = () => R.doc.vars.map(v => v.name).concat(BUILTINS);
+  const mName = id => { const x = find(id); return x ? x.name : ''; };
+  const faDigits = s => String(s).replace(/\d/g, d => FA_D[d]);
+
+  function stepTargets(m) {
+    const out = [];
+    (m.steps || []).forEach(st => { [st.yes, st.no].concat(st.to || []).forEach(x => { if (x) out.push(x); }); });
+    return out;
+  }
+  function delayText(sec) {
+    const u = UNITS.slice().reverse().find(([k]) => sec >= k && sec % k === 0) || UNITS[0];
+    return `${faN(sec / u[0])} ${u[1]}`;
+  }
+  function ruleText(r) {
+    if (r.k === 'member') return `${r.op === 'not' ? 'عضو نیست' : 'عضو'} ${r.a}`;
+    if (r.k === 'tag') return `برچسب #${r.b} ${r.op === 'not' ? 'ندارد' : 'دارد'}`;
+    if (r.k === 'hour') return `${r.op === 'not' ? 'بیرون از' : 'ساعت'} ${faDigits(r.b || '')}`;
+    if (r.k === 'day') return `${r.op === 'not' ? 'غیر از' : 'روز'} ${r.b || ''}`;
+    const op = (VAR_OPS.find(x => x[0] === r.op) || VAR_OPS[0])[1];
+    if (r.op === 'empty' || r.op === 'filled') return `{${r.a}} ${op} است`;
+    return `{${r.a}} ${op} ${faDigits(r.b)}`;
+  }
+  function stepSummary(st) {
+    if (st.type === 'if') return 'اگر ' + st.rules.map(ruleText).join(st.mode === 'or' ? ' یا ' : ' و ');
+    if (st.type === 'calc') {
+      const v = R.doc.vars.find(x => x.name === st.var);
+      const val = faDigits(st.value || '—');
+      if (v && v.type === 'number' && st.op === '+') return `${val} به {${st.var}} اضافه می‌شود`;
+      if (v && v.type === 'number' && st.op === '-') return `${val} از {${st.var}} کم می‌شود`;
+      return `{${st.var}} می‌شود ${val}`;
+    }
+    if (st.type === 'random') return 'یکی از: ' + st.to.map(id => `«${mName(id)}»`).join('، ');
+    if (st.type === 'delay') return `${delayText(st.sec)} بعد ادامه می‌دهد` + (st.sec <= 8 ? ' (با «در حال نوشتن…»)' : '');
+    if (st.type === 'member') return `فقط عضوهای ${st.chat}` + (st.no ? ` · وگرنه «${mName(st.no)}»` : ' · وگرنه پیام عضویت');
+    if (st.type === 'notify') return '«' + plain(st.text).slice(0, 60) + '»';
+    if (st.type === 'tag') return `${st.op === 'remove' ? 'برداشتن' : 'زدن'} برچسب #${st.tag}`;
+    if (st.type === 'save') return `فرم «${st.form}» · ${st.vars.map(v => '{' + v + '}').join(' ')}` + (st.notify ? ' · خبر فوری' : '');
+    return '';
+  }
+  function stepsRail(m) {
+    const wrap = h('div', 'bk-steps');
+    (m.steps || []).forEach((st, i) => {
+      const [icon, title, , tone] = STEP_META[st.type] || STEP_META.if;
+      const c = bt('bk-step' + (st.type === 'if' ? ' cond' : ''), [], () => stepSheet(m, i));
+      const hd = h('span', 'bk-step-h');
+      const tl = h('span', 'bk-tile sm ' + tone);
+      tl.appendChild(ic(icon));
+      hd.append(tl, h('b', 'grow', title), h('span', 'bk-step-n', faN(i + 1)));
+      c.append(hd, h('span', 'bk-step-s', stepSummary(st)));
+      if (st.type === 'if') {
+        const br = h('span', 'bk-branches');
+        br.append(h('span', 'bk-br yes', 'بله › ' + (st.yes ? `«${mName(st.yes)}»` : 'همین پیام')), h('span', 'bk-br no', 'نه › ' + (st.no ? `«${mName(st.no)}»` : 'همین پیام')));
+        c.appendChild(br);
+      }
+      wrap.appendChild(c);
+    });
+    return wrap;
+  }
+  function askCard(m) {
+    const w = m.wait;
+    const c = bt('bk-ask', [], () => askSheet(m));
+    const hd = h('span', 'bk-step-h');
+    const tl = h('span', 'bk-tile sm teal');
+    tl.appendChild(ic('form'));
+    hd.append(tl, h('b', 'grow', 'پرسش'));
+    const to = find(w.to);
+    if (to) hd.appendChild(h('span', 'bk-step-n', '← ' + to.name));
+    const ck = w.check || 'text';
+    let kind = (CHECKS.find(x => x[0] === ck) || CHECKS[0])[1];
+    if (ck === 'number' && (w.min != null || w.max != null)) kind = `عدد ${w.min != null ? 'از ' + faN(w.min) : ''} ${w.max != null ? 'تا ' + faN(w.max) : ''}`.trim();
+    if (ck === 'choice' && (w.choices || []).length) kind = 'یکی از: ' + w.choices.join('، ');
+    const line = h('span', 'bk-step-s');
+    line.append('جواب در ', h('span', 'bk-var static', '{' + (w.var || '؟') + '}'), ' · نوع: ', h('b', '', kind));
+    c.append(hd, line);
+    if (ck !== 'text' || w.error) c.appendChild(h('span', 'bk-step-e', 'اگر اشتباه بود: «' + (w.error || checkError(w)) + '»'));
+    const chips = h('span', 'bk-ask-c');
+    CHECKS.slice(0, 6).forEach(([k, t]) => chips.appendChild(h('span', 'bk-ask-chip' + (k === ck ? ' on' : ''), t)));
+    c.appendChild(chips);
+    return c;
+  }
+  function checkError(w) {
+    const ck = w.check || 'text';
+    if (ck === 'number' && (w.min != null || w.max != null)) {
+      if (w.min != null && w.max != null) return `لطفاً یک عدد بین ${faN(w.min)} تا ${faN(w.max)} بفرست 🙂`;
+      return w.min != null ? `لطفاً یک عدد از ${faN(w.min)} به بالا بفرست 🙂` : `لطفاً یک عدد تا ${faN(w.max)} بفرست 🙂`;
+    }
+    return { number: 'لطفاً یک عدد بفرست 🙂', phone: 'شماره را درست بفرست (مثل ۰۹۱۲۳۴۵۶۷۸۹) یا دکمهٔ «ارسال شماره» را بزن 🙂', email: 'ایمیل درست نیست؛ مثل name@example.com بفرست 🙂',
+      date: 'تاریخ را مثل ۱۴۰۵/۰۷/۱۰ بفرست 🙂', photo: 'لطفاً یک عکس بفرست 📷', choice: 'لطفاً یکی از گزینه‌ها را بفرست 🙂', text: 'لطفاً جوابت را به صورت متن بفرست 🙂' }[ck];
+  }
+
+  /* ---------- «کار تازه» ---------- */
+  function stepsGrid(m) {
+    sheet('کار تازه', 'پیش از این پیام اجرا می‌شود', body => {
+      const g = h('div', 'bk-sgrid');
+      Object.keys(STEP_META).forEach(k => {
+        const [icon, title, sub, tone] = STEP_META[k];
+        const t = bt('bk-stile', [], () => {
+          popSheet();
+          if (k === 'ask') { askSheet(m); return; }
+          if ((m.steps || []).length >= 12) { toast('هر پیام حداکثر ۱۲ کار دارد', true); return; }
+          stepSheet(m, -1, newStep(k));
+        });
+        const tl = h('span', 'bk-tile ' + tone);
+        tl.appendChild(ic(icon));
+        t.append(tl, h('b', '', title), h('span', '', sub));
+        g.appendChild(t);
+      });
+      STEP_SOON.forEach(([icon, title, sub]) => {
+        const t = h('div', 'bk-stile soon');
+        const tl = h('span', 'bk-tile mute');
+        tl.appendChild(ic(icon));
+        t.append(tl, h('b', '', title), h('span', '', sub), h('i', 'bk-soon', 'به‌زودی'));
+        g.appendChild(t);
+      });
+      body.appendChild(g);
+      note(body, 'کارها به ترتیب، قبل از فرستادن پیام انجام می‌شوند. «شرط» و «تصادفی» می‌توانند کاربر را به پیام دیگری ببرند. دستیار هوش مصنوعی هم همین کارها را می‌سازد.');
+    }, { tall: true });
+  }
+  function newStep(k) {
+    const numVar = R.doc.vars.find(v => !v.formula && v.type === 'number');
+    const anyVar = R.doc.vars.find(v => !v.formula);
+    return {
+      if: { type: 'if', rules: [{ k: 'var', a: (anyVar || {}).name || 'نام', op: '=', b: '' }], mode: 'and', yes: '', no: '' },
+      calc: { type: 'calc', var: (numVar || anyVar || {}).name || '', op: numVar ? '+' : '=', value: numVar ? '1' : '' },
+      random: { type: 'random', to: [] },
+      delay: { type: 'delay', sec: 3600 },
+      member: { type: 'member', chat: '@', no: '' },
+      notify: { type: 'notify', text: 'کاربر {نام} به «' + (find(R.edit) || {}).name + '» رسید' },
+      tag: { type: 'tag', tag: '', op: 'add' },
+      save: { type: 'save', form: 'فرم ' + faN(1 + new Set(msgs().flatMap(x => (x.steps || []).filter(s => s.type === 'save').map(s => s.form))).size), vars: anyVar ? [anyVar.name] : ['نام'], notify: true },
+    }[k];
+  }
+  function stepProblem(st) {
+    if (st.type === 'if' && !st.rules.length) return 'دست‌کم یک قاعده لازم است';
+    if (st.type === 'if') {
+      for (const r of st.rules) {
+        if (r.k === 'var' && !r.a) return 'متغیر قاعده را انتخاب کن';
+        if (r.k === 'member' && !CHAT_RE.test(r.a)) return 'نشانی کانال باید مثل ‎@channel باشد';
+        if ((r.k === 'tag' || r.k === 'day') && !r.b) return r.k === 'tag' ? 'نام برچسب را بنویس' : 'دست‌کم یک روز را انتخاب کن';
+        if (r.k === 'hour' && !/^\d{1,2}-\d{1,2}$/.test(normDigits(r.b))) return 'بازهٔ ساعت را کامل کن';
+      }
+    }
+    if (st.type === 'calc' && !st.var) return 'متغیر را انتخاب کن';
+    if (st.type === 'random' && !st.to.length) return 'دست‌کم یک پیام اضافه کن';
+    if (st.type === 'delay' && !(st.sec >= 1 && st.sec <= 30 * 86400)) return 'مکث بین ۱ ثانیه تا ۳۰ روز است';
+    if (st.type === 'member' && !CHAT_RE.test(st.chat)) return 'نشانی کانال باید مثل ‎@channel باشد';
+    if (st.type === 'notify' && !st.text.trim()) return 'متن خبر را بنویس';
+    if (st.type === 'tag' && !st.tag) return 'نام برچسب را بنویس';
+    if (st.type === 'save' && (!st.form.trim() || !st.vars.length)) return 'نام فرم و دست‌کم یک متغیر لازم است';
+    return '';
+  }
+  function anyVarPick(title, current, onPick) {
+    sheet(title, '', body => {
+      R.doc.vars.forEach(v => optRow(body, 'var', '{' + v.name + '}', varSub(v), v.name === current ? ic('check') : null, () => { onPick(v.name); popSheet(); }, v.name === current ? 'on' : ''));
+      label(body, 'آماده از تلگرام');
+      const g = h('div', 'bk-chips');
+      BUILTINS.forEach(n => g.appendChild(bt('bk-chip lg' + (n === current ? ' on' : ''), '{' + n + '}', () => { onPick(n); popSheet(); })));
+      body.appendChild(g);
+      primary(body, 'متغیر تازه', () => varSheet(null, v => { onPick(v.name); popSheet(); }), 's', 'plus');
+    });
+  }
+  function targetRow(body, title, cur, noneText, onPick, ctx) {
+    const t = find(cur);
+    optRow(body, 'chat', t ? `«${t.name}»` : noneText, title, h('span', 'bk-opt-e brand', 'انتخاب'),
+      () => msgPick(title, cur, id => { onPick(id); ctx.redraw(); }, { allowNone: true, exclude: R.edit }));
+  }
+
+  /* ---------- برگهٔ یک کار ---------- */
+  function stepSheet(m, idx, fresh) {
+    const isNew = idx < 0;
+    const w = clone(isNew ? fresh : m.steps[idx]);
+    const [, title, sub] = STEP_META[w.type];
+    sheet(title, sub, (body, ctx) => {
+      const T = w.type;
+      if (T === 'if') {
+        label(body, 'اگر');
+        w.rules.forEach((r, ri) => {
+          const row = bt('bk-rule', [h('span', 'grow', ruleText(r)), ic('pen')], () => ruleSheet(r, () => ctx.redraw()));
+          if (w.rules.length > 1) row.appendChild(bt('bk-round sm', ic('x'), e => { e.stopPropagation(); w.rules.splice(ri, 1); ctx.redraw(); }, 'حذف قاعده'));
+          body.appendChild(row);
+          if (ri < w.rules.length - 1) body.appendChild(h('span', 'bk-andor', w.mode === 'or' ? 'یا' : 'و'));
+        });
+        const tools = h('div', 'bk-row2');
+        if (w.rules.length < 6) tools.appendChild(bt('bk-mini', [ic('plus'), 'قاعدهٔ دیگر'], () => { const r = { k: 'var', a: (R.doc.vars[0] || {}).name || 'نام', op: '=', b: '' }; w.rules.push(r); ruleSheet(r, () => ctx.redraw()); }));
+        if (w.rules.length > 1) tools.appendChild(seg([['and', 'همه (و)'], ['or', 'یکی (یا)']], w.mode, k => { w.mode = k; ctx.redraw(); }));
+        body.appendChild(tools);
+        label(body, 'بله، برو به');
+        targetRow(body, 'اگر درست بود', w.yes, 'همین پیام فرستاده شود', id => { w.yes = id; }, ctx);
+        label(body, 'وگرنه');
+        targetRow(body, 'اگر درست نبود', w.no, 'همین پیام فرستاده شود', id => { w.no = id; }, ctx);
+      }
+      if (T === 'calc') {
+        const v = R.doc.vars.find(x => x.name === w.var);
+        optRow(body, 'var', w.var ? `{${w.var}}` : 'کدام متغیر؟', v ? varSub(v) : '', h('span', 'bk-opt-e brand', 'انتخاب'),
+          () => varPick('کدام متغیر عوض شود؟', w.var, n => { w.var = n; const nv = R.doc.vars.find(x => x.name === n); if (!nv || nv.type !== 'number') w.op = '='; ctx.redraw(); }));
+        if (v && v.type === 'number') body.appendChild(seg([['=', 'بشود'], ['+', 'اضافه شود'], ['-', 'کم شود']], w.op, k => { w.op = k; ctx.redraw(); }));
+        field(body, 'مقدار', input(w.value, val => { w.value = val; }, { max: 300, ph: v && v.type === 'number' ? '۱۰ یا {امتیاز} × ۲' : 'متن، با {متغیر}' }),
+          v && v.type === 'number' ? 'عدد یا فرمول؛ مثل {پاسخ درست} × ۱۰' : 'می‌توانی {متغیر} بگذاری');
+      }
+      if (T === 'random') {
+        label(body, 'یکی از این پیام‌ها، شانسی');
+        w.to.forEach((id, i) => {
+          const row = h('div', 'bk-rule');
+          row.append(h('span', 'grow', `«${mName(id) || '؟'}»`), bt('bk-round sm', ic('x'), () => { w.to.splice(i, 1); ctx.redraw(); }, 'حذف'));
+          body.appendChild(row);
+        });
+        if (w.to.length < 8) primary(body, 'افزودن پیام', () => msgPick('کدام پیام؟', '', id => { if (id && !w.to.includes(id)) w.to.push(id); ctx.redraw(); }, { exclude: m.id }), 's', 'plus');
+      }
+      if (T === 'delay') {
+        const u = UNITS.slice().reverse().find(([k]) => w.sec >= k && w.sec % k === 0) || UNITS[0];
+        let unit = w._u || u[0];
+        const val = Math.max(1, Math.round(w.sec / unit));
+        field(body, 'چقدر صبر کند؟', input(faN(val).replace(/٬/g, ''), x => { w.sec = Math.round(toNum(x) * unit); }, { mode: 'numeric', ph: '۱' }));
+        body.appendChild(seg(UNITS.map(([k, t]) => [String(k), t]), String(unit), k => { const n = Math.max(1, Math.round(w.sec / unit)); w._u = Number(k); w.sec = n * Number(k); ctx.redraw(); }));
+        note(body, w.sec <= 8 ? 'مکث کوتاه: کاربر «در حال نوشتن…» می‌بیند و بعد پیام می‌رسد.' : 'پیام بعد از این مدت خودکار برای همان کاربر فرستاده می‌شود؛ مثلاً یادآوری فردا.');
+      }
+      if (T === 'member') {
+        field(body, 'کانال یا گروه', input(w.chat, x => { w.chat = x.trim(); }, { ltr: true, ph: '@channel', max: 40 }), 'ربات تو باید ادمین همین کانال باشد');
+        label(body, 'اگر عضو نبود');
+        targetRow(body, 'برای کسی که عضو نیست', w.no, 'پیام «عضو شو» با دکمهٔ «✅ عضو شدم»', id => { w.no = id; }, ctx);
+        note(body, 'کاربر بعد از عضویت «عضو شدم» را می‌زند و همین پیام برایش می‌آید. اگر ربات ادمین نباشد، کسی پشت در نمی‌ماند.');
+      }
+      if (T === 'notify') {
+        field(body, 'متن خبر برای تو', input(w.text, x => { w.text = x; }, { area: true, max: 800 }), 'از همین ربات برایت می‌آید؛ می‌توانی {متغیر} بگذاری');
+        const g = h('div', 'bk-chips');
+        allVarNames().slice(0, 10).forEach(n => g.appendChild(bt('bk-chip lg', '{' + n + '}', () => { w.text += ' {' + n + '}'; ctx.redraw(); })));
+        body.appendChild(g);
+      }
+      if (T === 'tag') {
+        body.appendChild(seg([['add', 'برچسب بزن'], ['remove', 'بردار']], w.op, k => { w.op = k; ctx.redraw(); }));
+        field(body, 'برچسب', input(w.tag, x => { w.tag = x.replace(/[#\s]/g, '').slice(0, 24); }, { ph: 'مثلاً vip یا خریدار', max: 24 }), 'بعداً با «شرط» می‌توانی کاربرهای این برچسب را جدا کنی');
+      }
+      if (T === 'save') {
+        field(body, 'نام فرم', input(w.form, x => { w.form = x.slice(0, 40); }, { max: 40, ph: 'ثبت‌نام کلاس' }), 'جواب‌ها در تب «داده‌ها» زیر همین نام جمع می‌شوند');
+        label(body, 'چه چیزهایی ثبت شود؟', faN(w.vars.length));
+        const g = h('div', 'bk-chips');
+        allVarNames().forEach(n => g.appendChild(bt('bk-chip lg' + (w.vars.includes(n) ? ' on' : ''), '{' + n + '}', () => {
+          w.vars = w.vars.includes(n) ? w.vars.filter(x => x !== n) : w.vars.concat(n).slice(0, 20);
+          ctx.redraw();
+        })));
+        body.appendChild(g);
+        toggle(body, 'هر جواب تازه را برایم بفرست', 'در چت خودت با همین ربات', w.notify, v => { w.notify = v; });
+      }
+      const err = h('div', 'bk-err');
+      primary(body, isNew ? 'افزودن کار' : 'ذخیره', () => {
+        delete w._u;
+        const p = stepProblem(w);
+        if (p) { err.textContent = p; toast(p, true); return; }
+        if (!m.steps) m.steps = [];
+        if (isNew) m.steps.push(w); else m.steps[idx] = w;
+        changed();
+        popSheet();
+      });
+      body.appendChild(err);
+      if (!isNew) {
+        const tools = h('div', 'bk-tools');
+        if (idx > 0) tools.appendChild(bt('bk-tool', [ic('up'), 'زودتر'], () => { const [x] = m.steps.splice(idx, 1); m.steps.splice(idx - 1, 0, x); changed(); popSheet(); }));
+        if (idx < m.steps.length - 1) tools.appendChild(bt('bk-tool', [ic('down'), 'دیرتر'], () => { const [x] = m.steps.splice(idx, 1); m.steps.splice(idx + 1, 0, x); changed(); popSheet(); }));
+        tools.appendChild(bt('bk-tool red', [ic('trash'), 'حذف کار'], () => { m.steps.splice(idx, 1); changed(); popSheet(); }));
+        body.appendChild(tools);
+      }
+    }, { tall: T_TALL[w.type], onClose: () => drawEditor() });
+  }
+  const T_TALL = { if: true, save: true, notify: true };
+
+  function ruleSheet(r, done) {
+    sheet('قاعده', 'متغیر، برچسب، عضویت کانال، ساعت یا روز', (body, ctx) => {
+      body.appendChild(seg(RULE_KINDS, r.k, k => {
+        r.k = k;
+        r.op = { var: '=', tag: 'has', member: 'in', hour: 'in', day: 'in' }[k];
+        r.a = k === 'var' ? ((R.doc.vars[0] || {}).name || 'نام') : k === 'member' ? '@' : '';
+        r.b = k === 'hour' ? '9-18' : '';
+        ctx.redraw();
+      }));
+      if (r.k === 'var') {
+        optRow(body, 'var', `{${r.a}}`, 'کدام متغیر؟', h('span', 'bk-opt-e brand', 'انتخاب'), () => anyVarPick('کدام متغیر؟', r.a, n => { r.a = n; ctx.redraw(); }));
+        const ops = h('div', 'bk-ops');
+        VAR_OPS.forEach(([k, t]) => ops.appendChild(bt('bk-op' + (r.op === k ? ' on' : ''), t, () => { r.op = k; ctx.redraw(); })));
+        body.appendChild(ops);
+        if (r.op !== 'empty' && r.op !== 'filled') field(body, 'مقدار', input(r.b, x => { r.b = x; }, { max: 120, ph: 'مثلاً ۵۰ یا تهران' }), 'عدد، متن یا {متغیر}');
+      } else if (r.k === 'tag') {
+        body.appendChild(seg([['has', 'دارد'], ['not', 'ندارد']], r.op, k => { r.op = k; ctx.redraw(); }));
+        field(body, 'برچسب', input(r.b, x => { r.b = x.replace(/[#\s]/g, ''); }, { ph: 'vip', max: 24 }));
+      } else if (r.k === 'member') {
+        body.appendChild(seg([['in', 'عضو است'], ['not', 'عضو نیست']], r.op, k => { r.op = k; ctx.redraw(); }));
+        field(body, 'کانال', input(r.a, x => { r.a = x.trim(); }, { ltr: true, ph: '@channel', max: 40 }), 'ربات باید ادمین کانال باشد');
+      } else if (r.k === 'hour') {
+        body.appendChild(seg([['in', 'بین'], ['not', 'بیرون از']], r.op, k => { r.op = k; ctx.redraw(); }));
+        const [a, b] = (normDigits(r.b || '9-18').split('-').concat(['', ''])).map(x => x.trim());
+        const row = h('div', 'bk-row2');
+        const set = (x, y) => { r.b = `${parseInt(normDigits(x), 10) || 0}-${parseInt(normDigits(y), 10) || 0}`; };
+        let A = a, B = b;
+        row.append(field(h('div'), 'از ساعت', input(faDigits(A), x => { A = x; set(A, B); }, { mode: 'numeric', max: 2 })), field(h('div'), 'تا ساعت', input(faDigits(B), x => { B = x; set(A, B); }, { mode: 'numeric', max: 2 })));
+        body.appendChild(row);
+        note(body, 'به وقت ایران؛ مثلاً از ۲۲ تا ۸ یعنی شب.');
+      } else if (r.k === 'day') {
+        body.appendChild(seg([['in', 'این روزها'], ['not', 'غیر از این‌ها']], r.op, k => { r.op = k; ctx.redraw(); }));
+        const on = (r.b || '').split(/[،,]/).map(x => x.trim()).filter(Boolean);
+        const g = h('div', 'bk-chips');
+        WEEK.forEach(d => g.appendChild(bt('bk-chip lg' + (on.includes(d) ? ' on' : ''), d, () => {
+          const nx = on.includes(d) ? on.filter(x => x !== d) : on.concat(d);
+          r.b = WEEK.filter(x => nx.includes(x)).join('،');
+          ctx.redraw();
+        })));
+        body.appendChild(g);
+      }
+      primary(body, 'تأیید', () => { popSheet(); done(); });
+    });
+  }
+
+  /* ---------- پرسش با اعتبارسنجی ---------- */
+  function askSheet(m) {
+    if (!m.wait || m.wait.kind !== 'var') {
+      const v = R.doc.vars.find(x => !x.formula);
+      m.wait = { kind: 'var', var: v ? v.name : '', to: (m.wait && m.wait.to) || '' };
+      changed();
+    }
+    const w = m.wait;
+    sheet('پرسش', 'جواب کاربر را می‌گیرد و نوعش را چک می‌کند', (body, ctx) => {
+      optRow(body, 'var', w.var ? `جواب در {${w.var}}` : 'جواب در کدام متغیر؟', 'جوابِ درست اینجا ذخیره می‌شود', h('span', 'bk-opt-e brand', 'انتخاب'),
+        () => varPick('جواب در کدام متغیر؟', w.var, n => { w.var = n; changed(); ctx.redraw(); }));
+      label(body, 'نوع جواب');
+      const g = h('div', 'bk-chips');
+      CHECKS.forEach(([k, t]) => g.appendChild(bt('bk-chip lg' + ((w.check || 'text') === k ? ' on' : ''), t, () => {
+        if (k === 'text') delete w.check; else w.check = k;
+        if (k !== 'number') { delete w.min; delete w.max; }
+        if (k !== 'choice') delete w.choices;
+        changed();
+        ctx.redraw();
+      })));
+      body.appendChild(g);
+      if (w.check === 'number') {
+        const row = h('div', 'bk-row2');
+        const num = x => { const s = normDigits(x).trim(); return s === '' || isNaN(Number(s)) ? null : Number(s); };
+        row.append(
+          field(h('div'), 'کمترین', input(w.min != null ? faN(w.min).replace(/٬/g, '') : '', x => { const n = num(x); if (n == null) delete w.min; else w.min = n; changed(); }, { mode: 'decimal', ph: 'مثلاً ۷' })),
+          field(h('div'), 'بیشترین', input(w.max != null ? faN(w.max).replace(/٬/g, '') : '', x => { const n = num(x); if (n == null) delete w.max; else w.max = n; changed(); }, { mode: 'decimal', ph: 'مثلاً ۹۰' })));
+        body.appendChild(row);
+      }
+      if (w.check === 'choice') field(body, 'گزینه‌ها', input((w.choices || []).join('، '), x => { w.choices = x.split(/[،,]/).map(s => s.trim()).filter(Boolean).slice(0, 12); changed(); }, { ph: 'صبح، عصر، شب' }), 'با ، جدا کن؛ جواب باید یکی از این‌ها باشد');
+      if (w.check === 'phone') note(body, 'راحت‌ترش: در همین پیام یک دکمهٔ کیبورد «📱 ارسال شماره» هم بگذار.');
+      field(body, 'اگر جواب اشتباه بود', input(w.error || '', x => { w.error = x.slice(0, 200); changed(); }, { ph: checkError(w) }), 'خالی بگذاری، همین پیام پیش‌فرض می‌رود؛ ربات منتظر جواب درست می‌ماند');
+      const to = find(w.to);
+      optRow(body, 'chat', to ? `بعد از جواب: «${to.name}»` : 'بعد از جواب به کدام پیام؟', 'پرسش بعدی یا «ممنون»', h('span', 'bk-opt-e brand', 'انتخاب'),
+        () => msgPick('بعد از جواب', w.to, id => { w.to = id; changed(); ctx.redraw(); }, { allowNone: true, exclude: m.id, newName: 'پرسش بعدی' }));
+      note(body, 'چند پرسش پشت هم = یک فرم. در پیام آخر کار «ثبت در داده‌ها» بگذار تا جواب‌ها در تب «داده‌ها» جمع شوند.');
+      primary(body, 'برداشتن پرسش', () => { m.wait = null; changed(); popSheet(); }, 'd', 'trash');
+    }, { tall: true, onClose: () => drawEditor() });
+  }
+
+  /* ================================================================ تب داده‌ها */
+  function when(t) {
+    const d = new Date(t * 1000), now = new Date();
+    const day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const diff = Math.round((day(now) - day(d)) / 86400000);
+    if (diff === 0) return d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+    if (diff === 1) return 'دیروز';
+    return d.toLocaleDateString('fa-IR', { day: 'numeric', month: 'long' });
+  }
+  function saveSteps(form) { return msgs().flatMap(m => (m.steps || []).filter(s => s.type === 'save' && (!form || s.form === form))); }
+  function rowLine(r, short) {
+    const vals = Object.entries(r.data).filter(([k]) => k !== 'نام');
+    const row = h('div', 'bk-drow');
+    const nm = r.data['نام'] || r.name || 'کاربر';
+    row.appendChild(h('span', 'bk-dav', nm.trim()[0] || '؟'));
+    const tx = h('span', 'grow');
+    const t1 = h('b', '', nm);
+    if (vals[0] && !short) t1.append(h('i', 'bk-dsep', '|'), document.createTextNode(faDigits(vals[0][1])));
+    tx.appendChild(t1);
+    if (vals.length > 1 && !short) tx.appendChild(h('span', '', vals.slice(1, 3).map(x => faDigits(x[1])).join(' · ')));
+    row.append(tx, h('span', 'bk-dtime', when(r.at)));
+    if (r.test) row.appendChild(h('span', 'bk-chip', 'تست'));
+    return row;
+  }
+  async function exportForm(form) {
+    try {
+      const r = await P().api('bot/data_export', { id: R.appId, form });
+      toast(`فایل اکسل (${faN(r.count)} ردیف) در چت ایزی‌ساز فرستاده شد`);
+    } catch (err) { P().failed(err); }
+  }
+  function drawData(body) {
+    const seg0 = h('div', 'bk-dtabs');
+    seg0.append(h('span', 'bk-dtab on', 'فرم‌ها'), h('span', 'bk-dtab soon', 'محصولات'), h('span', 'bk-dtab soon', 'سفارش‌ها'));
+    body.appendChild(seg0);
+    const box = h('div', 'bk-dbox');
+    box.appendChild(h('div', 'bk-load sm'));
+    body.appendChild(box);
+    P().api('bot/data?id=' + encodeURIComponent(R.appId)).then(async d => {
+      box.textContent = '';
+      const forms = d.forms || [];
+      const planned = [...new Set(saveSteps().map(s => s.form))].filter(f => !forms.some(x => x.form === f));
+      if (!forms.length && !planned.length) {
+        const e = h('div', 'bk-dempty');
+        const tl = h('span', 'bk-tile teal lg');
+        tl.appendChild(ic('inbox'));
+        e.append(tl, h('b', '', 'هنوز فرمی نداری'), h('span', '', 'چند «پرسش» پشت هم بساز و در پیام آخر کار «ثبت در داده‌ها» بگذار؛ هر جواب اینجا می‌آید و خروجی اکسل دارد.'));
+        e.appendChild(bt('bk-btn s', [ic('sparkle'), 'ساخت فرم ثبت‌نام با دستیار'], () => openAI({ text: 'یک فرم ثبت‌نام بساز: اسم، سن (عدد ۷ تا ۹۰) و شماره تماس بپرس، جواب‌ها را در داده‌ها ثبت کن و به من خبر بده', focus: true })));
+        box.appendChild(e);
+        return;
+      }
+      for (const f of forms) {
+        const c = h('div', 'bk-dcard');
+        const hd = h('div', 'bk-dhead');
+        const tx = h('div', 'grow');
+        tx.append(h('b', '', f.form), h('span', '', `${faN(f.count)} جواب · امروز ${faN(f.today)}`));
+        hd.append(tx, bt('bk-mini', [ic('down'), 'خروجی اکسل'], () => exportForm(f.form)));
+        c.appendChild(hd);
+        const rows = h('div', 'bk-drows');
+        rows.appendChild(h('div', 'bk-load sm'));
+        c.appendChild(rows);
+        if (f.count > 4) c.appendChild(bt('bk-dmore', ['همهٔ جواب‌ها', ic('chl')], () => formSheet(f)));
+        const steps = saveSteps(f.form);
+        if (steps.length) toggle(c, 'هر جواب تازه را برایم بفرست', 'در چت خودت با ربات؛ بعد از انتشار', steps.every(s => s.notify), v => { steps.forEach(s => { s.notify = v; }); changed(); });
+        box.appendChild(c);
+        P().api('bot/data?id=' + encodeURIComponent(R.appId) + '&form=' + encodeURIComponent(f.form)).then(x => {
+          rows.textContent = '';
+          x.rows.slice(0, 4).forEach(r => rows.appendChild(rowLine(r)));
+        }).catch(() => { rows.textContent = ''; });
+      }
+      planned.forEach(f => {
+        const c = h('div', 'bk-dcard ghost');
+        const hd = h('div', 'bk-dhead');
+        const tx = h('div', 'grow');
+        tx.append(h('b', '', f), h('span', '', 'هنوز جوابی نرسیده؛ بعد از انتشار، جواب‌ها اینجا می‌آیند'));
+        hd.appendChild(tx);
+        c.appendChild(hd);
+        box.appendChild(c);
+      });
+    }).catch(err => { box.textContent = ''; P().failed(err); });
+  }
+  function formSheet(f) {
+    sheet(f.form, `${faN(f.count)} جواب`, async body => {
+      body.appendChild(h('div', 'bk-load sm'));
+      try {
+        const x = await P().api('bot/data?id=' + encodeURIComponent(R.appId) + '&form=' + encodeURIComponent(f.form));
+        body.textContent = '';
+        primary(body, 'خروجی اکسل در چت ایزی‌ساز', () => exportForm(f.form), 's', 'down');
+        x.rows.forEach(r => {
+          const c = h('div', 'bk-dfull');
+          c.appendChild(rowLine(r, true));
+          const dl = h('dl', '');
+          Object.entries(r.data).forEach(([k, v]) => { dl.append(h('dt', '', k), h('dd', '', faDigits(v || '—'))); });
+          c.appendChild(dl);
+          body.appendChild(c);
+        });
+      } catch (err) { P().failed(err); }
+    }, { tall: true });
   }
 
   /* ================================================================ متغیرها و فرمول */
@@ -1892,6 +2373,7 @@
     body.appendChild(sts);
     secT(body, 'بیشتر');
     const card3 = h('div', 'bk-card');
+    optRow(card3, 'smile', 'ایموجی‌های پریمیوم', `${faN(R.emoji.length)} ایموجی برای متن و دکمه‌ها`, null, () => { R.tab = 'emoji'; draw(); window.scrollTo(0, 0); });
     optRow(card3, 'refresh', 'عوض کردن ربات', 'ساخت ربات تازه یا وصل کردن ربات دیگر', null, () => sheet('ربات دیگر', 'پیام‌ها و تنظیمات همین‌جا می‌مانند', bb => {
       optRow(bb, 'tg', 'ساخت ربات با یک دکمه', 'بی BotFather', null, () => P().openBot('newbot_' + R.appId));
       optRow(bb, 'key', 'اتصال با توکن', 'از BotFather', null, () => P().openBot('connect'));

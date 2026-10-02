@@ -12,7 +12,7 @@ import asyncio
 import logging
 
 from app.config import config
-from app.runtime import build, setup_logging, setup_main_bot
+from app.runtime import build, due_loop, setup_logging, setup_main_bot
 
 setup_logging()
 log = logging.getLogger("easysaz")
@@ -28,9 +28,11 @@ async def main() -> None:
     await parts.bot.delete_webhook(drop_pending_updates=True)
     await setup_main_bot(parts.bot)
     log.info("@%s started (polling)", me.username)
+    ticker = asyncio.create_task(due_loop(parts))
     try:
         await parts.dp.start_polling(parts.bot, allowed_updates=list(config.allowed_updates))
     finally:
+        ticker.cancel()
         await parts.db.close()
         await parts.bot.session.close()
         await parts.clients.session.close()

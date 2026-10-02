@@ -807,6 +807,15 @@ async def _to_admin(ctx: Ctx, message: Message) -> None:
 
 async def on_callback(bot: Bot, db, app, call: CallbackQuery) -> bool:  # noqa: ANN001
     data = call.data or ""
+    if data.startswith("bs|s|"):
+        # دکمه‌های وضعیت سفارش در چت صاحب ربات، حتی وقتی ربات‌ساز خاموش است
+        parts = data.split("|")
+        if call.from_user.id != app["owner_id"] or len(parts) != 4:
+            await call.answer("فقط صاحب ربات وضعیت سفارش را عوض می‌کند.", show_alert=True)
+            return True
+        o = await shop.set_status(db, bot, app, parts[2], parts[3])
+        await call.answer(f"سفارش: {shop.STATUS_FA[o['status']]}" if o else "سفارش پیدا نشد", show_alert=o is None)
+        return True
     if data.startswith("bs|") and call.message is not None:
         ctx = await _ctx(bot, db, app, call.from_user)
         if ctx is None:

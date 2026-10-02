@@ -10,7 +10,7 @@ callback ها (حداکثر ۶۴ بایت):
   bs|c              سبد خرید               bs|e          ویرایش سبد
   bs|+|<pid> / bs|-|<pid>  تعداد             bs|x          خالی کردن سبد
   bs|k              کد تخفیف              bs|o          ثبت سفارش
-  bs|m|<card|cod|stars>    روش پرداخت      bs|s|<order>|<status>  وضعیت (فقط صاحب ربات)
+  bs|m|<card|cod|stars>    روش پرداخت      bs|s|<order>|<status>  وضعیت (فقط صاحب ربات؛ در engine)
   bs|n              هیچ (شمارهٔ صفحه)
 
 پرداخت: کارت‌به‌کارت (سفارش «منتظر رسید»؛ عکس رسید برای صاحب ربات می‌رود)، در محل،
@@ -526,13 +526,6 @@ async def on_callback(ctx, call: CallbackQuery) -> None:  # noqa: ANN001, C901
     arg = parts[2] if len(parts) > 2 else ""
     chat = call.message.chat.id
     msg = call.message
-    if kind == "s":
-        if call.from_user.id != ctx.app["owner_id"] or len(parts) != 4:
-            await call.answer("فقط صاحب ربات وضعیت سفارش را عوض می‌کند.", show_alert=True)
-            return
-        o = await set_status(ctx.db, ctx.bot, ctx.app, arg, parts[3])
-        await call.answer(f"سفارش: {STATUS_FA[o['status']]}" if o else "سفارش پیدا نشد", show_alert=o is None)
-        return
     if kind == "n":
         await call.answer()
         return

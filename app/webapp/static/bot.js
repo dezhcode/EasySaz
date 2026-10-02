@@ -45,7 +45,7 @@
     split: 'M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6M18 3v4M6 17v4',
     clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2', dice: 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01',
     form: 'M6 3h12v18H6zM9 8h6M9 12h6M9 16h3', tag: 'M3 12V4h8l10 10-8 8L3 12zM7.5 7.5h.01', globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.7 3.5 5.7 3.5 9s-1 6.3-3.5 9c-2.5-2.7-3.5-5.7-3.5-9s1-6.3 3.5-9z',
-    cart: 'M3 4h2l2.5 11h11L21 7H6.2M9 20h.01M17 20h.01', grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', refresh: 'M4 12a8 8 0 0 1 14-5.3L20 8M20 4v4h-4M20 12a8 8 0 0 1-14 5.3L4 16M4 20v-4h4',
+    cart: 'M3 4h2l2.5 11h11L21 7H6.2M9 20h.01M17 20h.01', bag: 'M5 8h14l-1 12H6zM9 8V7a3 3 0 0 1 6 0v1', grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', refresh: 'M4 12a8 8 0 0 1 14-5.3L20 8M20 4v4h-4M20 12a8 8 0 0 1-14 5.3L4 16M4 20v-4h4',
   };
   function ic(name, cls) {
     const s = document.createElementNS(SVG_NS, 'svg');
@@ -80,6 +80,8 @@
     ['share', 'share', 'فرستادن برای دوست', 'معرفی ربات در چت‌های دیگر', 'green'],
     ['pay', 'star', 'پرداخت با ستاره', 'فروش با Telegram Stars', 'gold'],
     ['alert', 'bell', 'پیام کوتاه بالای چت', 'اعلان یا پنجرهٔ هشدار', 'amber'],
+    ['shop', 'bag', 'نمایش محصولات', 'کارت محصول، ورق‌زدن، سبد', 'green'],
+    ['cart', 'cart', 'سبد خرید', 'سبد، کد تخفیف، ثبت سفارش', 'gold'],
     ['none', 'ban', 'غیرفعال', 'دیده می‌شود، کاری نمی‌کند', 'mute'],
   ];
   const KEY_ACTS = [
@@ -706,7 +708,7 @@
     if (ico) k.appendChild(h('span', 'bk-key-ic', ico.alt));
     k.appendChild(h('span', 'bk-key-t', b.text));
     const a = b.act || {};
-    const mark = { url: 'link', copy: 'copy', app: 'phone', share: 'share', pay: 'star', alert: 'bell', none: 'ban', contact: 'phone', location: 'pin', user: 'user', chat: 'users', poll: 'poll' }[a.type];
+    const mark = { url: 'link', copy: 'copy', app: 'phone', share: 'share', pay: 'star', alert: 'bell', none: 'ban', contact: 'phone', location: 'pin', user: 'user', chat: 'users', poll: 'poll', shop: 'bag', cart: 'cart' }[a.type];
     if (mark) k.appendChild(ic(mark, 'bk-key-m'));
     return k;
   }
@@ -1010,6 +1012,8 @@
     if (t === 'share') return 'فرستادن ربات برای دوست';
     if (t === 'pay') return `پرداخت ${faN(a.stars || 0)} ستاره`;
     if (t === 'alert') return a.text ? `پیام کوتاه: «${a.text.slice(0, 18)}»` : 'پیام کوتاه';
+    if (t === 'shop') return a.cat ? `محصولات «${a.cat}»` : 'نمایش محصولات';
+    if (t === 'cart') return 'سبد خرید';
     return 'غیرفعال';
   }
   function findRow(list, b) {
@@ -1090,7 +1094,7 @@
           if (b.act.type !== k) b.act = defaultAct(k);
           changed();
           popSheet();
-          if (k !== 'none' && k !== 'share') actDetail(m, b);
+          if (k !== 'none' && k !== 'share' && k !== 'cart') actDetail(m, b);
           parent.redraw();
         });
         const tl = h('span', 'bk-act-ic');
@@ -1098,21 +1102,16 @@
         card.append(tl, h('b', '', t), h('span', '', d));
         g.appendChild(card);
       });
-      const soon = h('div', 'bk-act soon');
-      const tl = h('span', 'bk-act-ic');
-      tl.appendChild(ic('flow'));
-      soon.append(tl, h('b', '', 'اجرای کار'), h('span', '', 'پرسیدن، حساب، شرط'), h('span', 'bk-soon', 'به‌زودی'));
-      g.appendChild(soon);
       body.appendChild(g);
     }, { tall: true });
   }
   function defaultAct(k) {
     return ({ goto: { type: 'goto', to: '' }, url: { type: 'url', url: '' }, copy: { type: 'copy', text: '' }, app: { type: 'app', url: '' },
-      share: { type: 'share', text: 'این ربات رو ببین 👇' }, pay: { type: 'pay', stars: 50, title: 'خرید', to: '' }, alert: { type: 'alert', text: '', popup: false }, none: { type: 'none' } })[k];
+      share: { type: 'share', text: 'این ربات رو ببین 👇' }, pay: { type: 'pay', stars: 50, title: 'خرید', to: '' }, alert: { type: 'alert', text: '', popup: false }, shop: { type: 'shop', cat: '' }, cart: { type: 'cart' }, none: { type: 'none' } })[k];
   }
   function actDetail(m, b) {
     const a = b.act;
-    const titles = { goto: 'رفتن به پیام', url: 'باز کردن لینک', copy: 'کپی متن', app: 'باز کردن مینی‌اپ', share: 'فرستادن برای دوست', pay: 'پرداخت با ستاره', alert: 'پیام کوتاه بالای چت' };
+    const titles = { shop: 'نمایش محصولات', goto: 'رفتن به پیام', url: 'باز کردن لینک', copy: 'کپی متن', app: 'باز کردن مینی‌اپ', share: 'فرستادن برای دوست', pay: 'پرداخت با ستاره', alert: 'پیام کوتاه بالای چت' };
     if (a.type === 'goto') { msgPick('رفتن به پیام', a.to, id => { a.to = id; changed(); }, { exclude: m.id, newName: b.text.replace(/^\p{Extended_Pictographic}️?\s*/u, '') }); return; }
     sheet(titles[a.type], `دکمهٔ «${b.text}»`, (body, ctx) => {
       if (a.type === 'url') {
@@ -1141,6 +1140,15 @@
         optRow(body, 'chat', 'بعد از پرداخت', to ? `پیام «${to.name}»` : 'فقط «پرداخت انجام شد»', h('span', 'bk-opt-e brand', 'انتخاب'),
           () => msgPick('بعد از پرداخت', a.to, id => { a.to = id; changed(); ctx.redraw(); }, { allowNone: true, newName: 'بعد از خرید' }));
         note(body, 'پول با Telegram Stars پرداخت و در حساب ربات‌ات جمع می‌شود.');
+      } else if (a.type === 'shop') {
+        const cats = (R.shop && R.shop.cats) || [];
+        label(body, 'کدام محصولات؟');
+        const g = h('div', 'bk-chips');
+        [''].concat(cats).forEach(c => g.appendChild(bt('bk-chip lg' + ((a.cat || '') === c ? ' on' : ''), c || 'همه', () => { a.cat = c; changed(); ctx.redraw(); })));
+        body.appendChild(g);
+        if (!cats.length) { if (!R.shop) loadShop().then(() => ctx.redraw()).catch(() => {}); }
+        note(body, 'کاربر کارت محصول را با عکس، قیمت و «افزودن به سبد» می‌بیند و ورق می‌زند. محصولات را در «داده‌ها ← محصولات» وارد کن.');
+        primary(body, 'رفتن به محصولات', () => { closeAllSheets(); closeEditor(); R.tab = 'data'; R.dseg = 'products'; draw(); }, 's', 'bag');
       } else if (a.type === 'alert') {
         field(body, 'متن', input(a.text, v => { a.text = v.slice(0, 190); changed(); }, { area: true, max: 190 }), 'تا ۱۹۰ حرف؛ متغیر هم می‌شود');
         toggle(body, 'پنجرهٔ هشدار', 'به‌جای اعلان کوتاه بالای چت، پنجره‌ای با «باشه»', a.popup, v => { a.popup = v; changed(); });
@@ -1770,11 +1778,14 @@
   }
   function drawData(body) {
     const seg0 = h('div', 'bk-dtabs');
-    seg0.append(h('span', 'bk-dtab on', 'فرم‌ها'), h('span', 'bk-dtab soon', 'محصولات'), h('span', 'bk-dtab soon', 'سفارش‌ها'));
+    const cur = R.dseg || 'forms';
+    [['forms', 'فرم‌ها'], ['products', 'محصولات'], ['orders', 'سفارش‌ها']].forEach(([k, t]) => seg0.appendChild(bt('bk-dtab' + (k === cur ? ' on' : ''), t, () => { R.dseg = k; draw(); })));
     body.appendChild(seg0);
     const box = h('div', 'bk-dbox');
     box.appendChild(h('div', 'bk-load sm'));
     body.appendChild(box);
+    if (cur === 'products') { drawProducts(box); return; }
+    if (cur === 'orders') { drawOrders(box); return; }
     P().api('bot/data?id=' + encodeURIComponent(R.appId)).then(async d => {
       box.textContent = '';
       const forms = d.forms || [];
@@ -1834,6 +1845,254 @@
           body.appendChild(c);
         });
       } catch (err) { P().failed(err); }
+    }, { tall: true });
+  }
+
+  /* ================================================================ فروشگاه: محصولات، سفارش‌ها، تنظیمات */
+  const ORDER_ST = [['', 'همه'], ['new', 'تازه'], ['pending', 'منتظر پرداخت'], ['paid', 'پرداخت‌شده'], ['sent', 'ارسال‌شده'], ['done', 'تحویل‌شده'], ['canceled', 'لغوشده']];
+  const ST_TONE = { new: 'brand', pending: 'amber', paid: 'ok', sent: 'tg', done: 'ok', canceled: 'red' };
+  const PAY_NAME = { card: 'کارت‌به‌کارت', cod: 'در محل', stars: 'ستاره' };
+  function shopCfg() {
+    if (!R.doc.shop) R.doc.shop = { pay: ['card', 'cod'], card: '', card_name: '', stars_rate: 0, ship: 0, coupons: [], ask_info: true, info_text: '', after: '', unit: 'تومان' };
+    return R.doc.shop;
+  }
+  const money = n => `${faN(n)} ${shopCfg().unit || 'تومان'}`;
+  const numIn = v => Math.max(0, Math.round(toNum(v)));
+  function hasShopButton() { return msgs().some(m => m.rows.some(r => r.some(b => b.act.type === 'shop'))); }
+  async function loadShop() {
+    R.shop = await P().api('bot/shop?id=' + encodeURIComponent(R.appId));
+    return R.shop;
+  }
+  function thumb(p, size) {
+    const t = h('span', 'bk-pth');
+    if (size) t.style.setProperty('--s', size + 'px');
+    if (p && p.photo) { const im = h('img'); im.src = p.photo; im.alt = ''; im.loading = 'lazy'; t.appendChild(im); } else t.appendChild(ic('bag'));
+    return t;
+  }
+  function stockText(p) {
+    if (!p.active) return ['پنهان', 'mute'];
+    if (p.stock === 0) return ['تمام شد', 'red'];
+    if (p.stock < 0) return ['نامحدود', ''];
+    return [`${faN(p.stock)} عدد`, ''];
+  }
+
+  function drawProducts(box) {
+    loadShop().then(d => {
+      box.textContent = '';
+      if (!hasShopButton()) {
+        const n = h('div', 'bk-dcard tip');
+        const tx = h('div', 'grow');
+        tx.append(h('b', '', 'فروشگاه هنوز در ربات دیده نمی‌شود'), h('span', '', 'دکمه‌های «🛍 محصولات» و «🧺 سبد خرید» را زیر پیام شروع بگذار.'));
+        n.append(tx, bt('bk-mini', [ic('plus'), 'بگذار'], () => {
+          const m = find(R.doc.start);
+          if (!m) return;
+          if (m.kb === 'reply') { toast('پیام شروع کیبورد پایین دارد؛ دکمه را دستی روی پیامی دیگر بگذار', true); return; }
+          m.kb = 'inline';
+          m.rows.push([newBtn('🛍 محصولات', { type: 'shop', cat: '' }), newBtn('🧺 سبد خرید', { type: 'cart' })]);
+          m.rows[m.rows.length - 1][0].style = 'primary';
+          changed();
+          toast('دکمه‌های فروشگاه زیر پیام شروع آمد؛ بعد از «انتشار» در ربات دیده می‌شود');
+          drawProducts(box);
+        }));
+        box.appendChild(n);
+      }
+      if (!d.products.length) {
+        const e = h('div', 'bk-dempty');
+        const tl = h('span', 'bk-tile green lg');
+        tl.appendChild(ic('bag'));
+        e.append(tl, h('b', '', 'اولین محصولت را اضافه کن'), h('span', '', 'عکس، قیمت، موجودی و دسته را یک بار این‌جا وارد کن؛ ربات خودش کارت محصول، ورق‌زدن، سبد خرید و سفارش را می‌سازد.'));
+        e.appendChild(bt('bk-btn p', [ic('plus'), 'محصول تازه'], () => productSheet(null, box)));
+        box.appendChild(e);
+      } else {
+        const c = h('div', 'bk-dcard flush');
+        d.products.forEach(p => {
+          const [stx, tone] = stockText(p);
+          const r = bt('bk-prow' + (p.active ? '' : ' off'), [], () => productSheet(p, box));
+          const tx = h('span', 'grow');
+          const sub = h('span', '');
+          sub.append(document.createTextNode(money(p.price)), h('i', 'bk-dsep', '|'), h('em', tone, stx));
+          if (p.cat) sub.append(h('i', 'bk-dsep', '|'), document.createTextNode(p.cat));
+          tx.append(h('b', '', p.title), sub);
+          r.append(thumb(p, 54), tx, ic('chl', 'bk-row-go'));
+          c.appendChild(r);
+        });
+        box.appendChild(c);
+      }
+      const s = shopCfg();
+      const chips = h('div', 'bk-chips pad');
+      const pays = s.pay.filter(x => (x !== 'card' || s.card) && (x !== 'stars' || s.stars_rate > 0)).map(x => PAY_NAME[x]);
+      [['دسته‌ها: ' + faN(d.cats.length)], ['ارسال: ' + (s.ship ? money(s.ship) : 'رایگان')], ['پرداخت: ' + (pays.join(' و ') || 'تنظیم نشده')], s.coupons.length ? ['کد تخفیف: ' + faN(s.coupons.length)] : null]
+        .filter(Boolean).forEach(([t]) => chips.appendChild(bt('bk-chip lg', t, () => shopSettings(box))));
+      chips.appendChild(bt('bk-chip lg brand', [ic('sliders'), 'تنظیمات فروشگاه'], () => shopSettings(box)));
+      box.appendChild(chips);
+      if (s.pay.includes('card') && !s.card) note(box, 'کارت‌به‌کارت روشن است ولی شمارهٔ کارت وارد نشده؛ از «تنظیمات فروشگاه» واردش کن.', 'warn');
+      if (d.products.length) box.appendChild(fab('محصول تازه', () => productSheet(null, box)));
+    }).catch(err => { box.textContent = ''; P().failed(err); });
+  }
+
+  function productSheet(p, box) {
+    const w = p ? clone(p) : { title: '', descr: '', price: 0, stock: -1, cat: '', photo: '', active: true };
+    sheet(p ? 'محصول' : 'محصول تازه', p ? p.title : 'یک بار وارد کن؛ ربات کارتش را می‌سازد', (body, ctx) => {
+      const ph = bt('bk-pphoto', [], () => pickImage(url => { w.photo = url; ctx.redraw(); }));
+      if (w.photo) { const im = h('img'); im.src = w.photo; im.alt = ''; ph.appendChild(im); ph.appendChild(h('span', 'bk-pphoto-c', 'عوض کردن عکس')); }
+      else ph.append(ic('image'), h('span', '', 'عکس محصول'));
+      body.appendChild(ph);
+      field(body, 'نام', input(w.title, v => { w.title = v.slice(0, 60); }, { max: 60, ph: 'کیک شکلاتی' }));
+      field(body, 'توضیح', input(plain(w.descr), v => { w.descr = esc(v).slice(0, 700); }, { area: true, ph: 'اسفنج کاکائو، گاناش تلخ، ۱٫۵ کیلو' }));
+      const pr = input(w.price ? faN(w.price).replace(/٬/g, '') : '', v => { w.price = numIn(v); hint.textContent = w.price ? money(w.price) : ''; }, { mode: 'numeric', ph: '۴۵۰۰۰۰' });
+      const f = field(body, `قیمت (${shopCfg().unit || 'تومان'})`, pr);
+      const hint = h('span', 'bk-f-h', w.price ? money(w.price) : '');
+      f.appendChild(hint);
+      label(body, 'موجودی');
+      body.appendChild(seg([['inf', 'نامحدود'], ['n', 'تعداد مشخص']], w.stock < 0 ? 'inf' : 'n', k => { w.stock = k === 'inf' ? -1 : Math.max(0, w.stock); ctx.redraw(); }));
+      if (w.stock >= 0) field(body, '', input(faN(w.stock).replace(/٬/g, ''), v => { w.stock = numIn(v); }, { mode: 'numeric', ph: '۸' }), 'با هر سفارش کم می‌شود؛ صفر = «تمام شد»');
+      const ci = input(w.cat, v => { w.cat = v.slice(0, 30); }, { max: 30, ph: 'مثلاً کیک' });
+      field(body, 'دسته (اختیاری)', ci, 'برای دکمه‌ای که فقط یک دسته را نشان می‌دهد');
+      const cats = (R.shop && R.shop.cats) || [];
+      if (cats.length) {
+        const g = h('div', 'bk-chips');
+        cats.forEach(c => g.appendChild(bt('bk-chip lg' + (w.cat === c ? ' on' : ''), c, () => { w.cat = w.cat === c ? '' : c; ctx.redraw(); })));
+        body.appendChild(g);
+      }
+      toggle(body, 'نمایش در ربات', 'خاموش = پنهان، بی‌آنکه پاک شود', w.active, v => { w.active = v; });
+      primary(body, p ? 'ذخیره' : 'افزودن محصول', async () => {
+        if (!w.title.trim()) { toast('نام محصول را بنویس', true); return; }
+        try {
+          const r = await P().api('bot/product_save', { id: R.appId, product: w });
+          R.shop = r;
+          toast(p ? 'ذخیره شد' : `«${r.product.title}» اضافه شد`);
+          closeAllSheets();
+          drawProducts(box);
+        } catch (err) { P().failed(err); }
+      });
+      if (p) {
+        primary(body, 'حذف محصول', () => P().confirm(`«${p.title}» حذف شود؟ سفارش‌های قبلی دست نمی‌خورند.`, async () => {
+          try { R.shop = await P().api('bot/product_del', { id: R.appId, product: p.id }); closeAllSheets(); drawProducts(box); } catch (err) { P().failed(err); }
+        }, { danger: true, yes: 'حذف' }), 'd', 'trash');
+      }
+    }, { tall: true });
+  }
+
+  function shopSettings(box) {
+    const s = shopCfg();
+    const on = k => s.pay.includes(k);
+    const setPay = (k, v) => { s.pay = v ? [...new Set(s.pay.concat(k))] : s.pay.filter(x => x !== k); changed(); };
+    sheet('تنظیمات فروشگاه', 'بعد از «انتشار» در ربات اعمال می‌شود', (body, ctx) => {
+      label(body, 'روش‌های پرداخت');
+      toggle(body, '💳 کارت‌به‌کارت', 'مشتری عکس رسید را می‌فرستد و برای تو می‌آید', on('card'), v => { setPay('card', v); ctx.redraw(); });
+      if (on('card')) {
+        field(body, 'شمارهٔ کارت', input(s.card, v => { s.card = v; changed(); }, { ltr: true, mode: 'numeric', ph: '6037 9911 2233 4455', max: 24 }));
+        field(body, 'به نام', input(s.card_name, v => { s.card_name = v.slice(0, 40); changed(); }, { ph: 'سارا محمدی', max: 40 }));
+      }
+      toggle(body, '🚚 پرداخت در محل', 'سفارش بی‌پرداخت ثبت می‌شود', on('cod'), v => setPay('cod', v));
+      toggle(body, '⭐ ستارهٔ تلگرام', 'برای کالا و خدمات دیجیتال', on('stars'), v => { setPay('stars', v); ctx.redraw(); });
+      if (on('stars')) field(body, 'هر ستاره چند تومان؟', input(s.stars_rate ? faN(s.stars_rate).replace(/٬/g, '') : '', v => { s.stars_rate = numIn(v); changed(); }, { mode: 'numeric', ph: '۵۰۰۰' }), 'مبلغ سفارش به ستاره تبدیل و گرد به بالا می‌شود');
+      label(body, 'ارسال');
+      field(body, `هزینهٔ ارسال (${s.unit || 'تومان'})`, input(s.ship ? faN(s.ship).replace(/٬/g, '') : '', v => { s.ship = numIn(v); changed(); }, { mode: 'numeric', ph: '۰ = رایگان' }));
+      toggle(body, 'پرسیدن نام، شماره و نشانی', 'قبل از انتخاب پرداخت', s.ask_info, v => { s.ask_info = v; changed(); ctx.redraw(); });
+      if (s.ask_info) field(body, 'متن پرسش (اختیاری)', input(s.info_text, v => { s.info_text = v.slice(0, 200); changed(); }, { ph: '📝 نام، شماره و نشانی‌ات را بفرست' }));
+      label(body, 'کدهای تخفیف', faN(s.coupons.length));
+      s.coupons.forEach((c, i) => {
+        const row = h('div', 'bk-rule');
+        row.append(h('b', 'grow ltr', c.code), h('span', 'bk-opt-e', c.pct ? `${faN(c.pct)}٪` : money(c.amount)), bt('bk-round sm', ic('x'), () => { s.coupons.splice(i, 1); changed(); ctx.redraw(); }, 'حذف'));
+        body.appendChild(row);
+      });
+      if (s.coupons.length < 20) primary(body, 'کد تخفیف تازه', () => couponSheet(c => { s.coupons.push(c); changed(); ctx.redraw(); }), 's', 'plus');
+      label(body, 'بعد از ثبت سفارش');
+      const af = find(s.after);
+      optRow(body, 'chat', af ? `«${af.name}»` : 'فقط پیام «سفارش ثبت شد»', 'مثلاً انتخاب زمان تحویل', h('span', 'bk-opt-e brand', 'انتخاب'),
+        () => msgPick('بعد از ثبت سفارش', s.after, id => { s.after = id; changed(); ctx.redraw(); }, { allowNone: true, newName: 'زمان تحویل' }));
+    }, { tall: true, onClose: () => { if (box && R.dseg === 'products') drawProducts(box); } });
+  }
+  function couponSheet(done) {
+    const c = { code: '', pct: 10, amount: 0 };
+    let kind = 'pct';
+    sheet('کد تخفیف تازه', 'مشتری در سبد خرید واردش می‌کند', (body, ctx) => {
+      field(body, 'کد', input(c.code, v => { c.code = v.toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 20); }, { ltr: true, ph: 'NAR10', max: 20 }), 'حروف انگلیسی و عدد');
+      body.appendChild(seg([['pct', 'درصد'], ['amount', 'مبلغ ثابت']], kind, k => { kind = k; ctx.redraw(); }));
+      if (kind === 'pct') field(body, 'چند درصد؟', input(faN(c.pct), v => { c.pct = Math.min(100, numIn(v)); }, { mode: 'numeric' }));
+      else field(body, 'چقدر کم شود؟', input(c.amount ? faN(c.amount).replace(/٬/g, '') : '', v => { c.amount = numIn(v); }, { mode: 'numeric', ph: '۵۰۰۰۰' }));
+      primary(body, 'افزودن', () => {
+        if (c.code.length < 2) { toast('کد دست‌کم ۲ حرف', true); return; }
+        const out = kind === 'pct' ? { code: c.code, pct: c.pct, amount: 0 } : { code: c.code, pct: 0, amount: c.amount };
+        if (!out.pct && !out.amount) { toast('مقدار تخفیف را بنویس', true); return; }
+        if (shopCfg().coupons.some(x => x.code === out.code)) { toast('این کد را قبلاً ساخته‌ای', true); return; }
+        popSheet();
+        done(out);
+      });
+    });
+  }
+
+  function drawOrders(box) {
+    const flt = R.ofilter || '';
+    P().api('bot/orders?id=' + encodeURIComponent(R.appId) + (flt ? '&status=' + flt : '')).then(d => {
+      box.textContent = '';
+      const cn = d.counts;
+      const top = h('div', 'bk-stats');
+      [[cn.today, 'سفارش امروز'], [cn.new + cn.pending, 'منتظر کار تو'], [cn.today_total, 'فروش امروز', true]].forEach(([v, t, m]) => {
+        const c = h('div', 'bk-stat');
+        const big = v >= 1e6 ? (Math.round(v / 1e5) / 10).toLocaleString('fa-IR') + ' میلیون' : v >= 1e3 ? faN(Math.round(v / 1e3)) + ' هزار' : faN(v);
+        c.append(h('b', '', m ? big : faN(v)), h('span', '', t));
+        top.appendChild(c);
+      });
+      box.appendChild(top);
+      const chips = h('div', 'bk-chips pad scroll');
+      ORDER_ST.forEach(([k, t]) => {
+        const n = k ? cn[k] : null;
+        if (k && !n && k !== flt) return;
+        chips.appendChild(bt('bk-chip lg' + (k === flt ? ' on' : ''), t + (n ? ' ' + faN(n) : ''), () => { R.ofilter = k; drawOrders(box); }));
+      });
+      box.appendChild(chips);
+      if (!d.orders.length) {
+        const e = h('div', 'bk-dempty');
+        const tl = h('span', 'bk-tile brand lg');
+        tl.appendChild(ic('cart'));
+        e.append(tl, h('b', '', flt ? 'سفارشی با این وضعیت نیست' : 'هنوز سفارشی نرسیده'), h('span', '', 'هر سفارش شماره دارد و این‌جا با وضعیتش می‌آید؛ همان لحظه هم در چت ربات برایت خبر می‌آید.'));
+        box.appendChild(e);
+        return;
+      }
+      const c = h('div', 'bk-dcard flush');
+      d.orders.forEach(o => {
+        const r = bt('bk-orow', [], () => orderSheet(o, box));
+        const tx = h('span', 'grow');
+        tx.append(h('b', '', `#${faDigits(o.num)} · ${o.name || 'مشتری'}`), h('span', '', `${money(o.total)} · ${PAY_NAME[o.pay]} · ${o.items.length > 1 ? faN(o.items.length) + ' قلم' : (o.items[0] || {}).title || ''}`));
+        r.append(tx, h('span', 'bk-st ' + (ST_TONE[o.status] || ''), (ORDER_ST.find(x => x[0] === o.status) || ['', o.status])[1]), h('span', 'bk-dtime', when(o.at)));
+        if (o.test) r.appendChild(h('span', 'bk-chip', 'تست'));
+        c.appendChild(r);
+      });
+      box.appendChild(c);
+    }).catch(err => { box.textContent = ''; P().failed(err); });
+  }
+  function orderSheet(o, box) {
+    sheet(`سفارش #${faDigits(o.num)}`, `${o.name || 'مشتری'}${o.username ? ' · @' + o.username : ''} · ${when(o.at)}`, body => {
+      const c = h('div', 'bk-dfull');
+      const dl = h('dl', '');
+      o.items.forEach(x => dl.append(h('dt', '', `${faN(x.qty)}× ${x.title}`), h('dd', '', money(x.price * x.qty))));
+      if (o.discount) dl.append(h('dt', '', `تخفیف ${o.coupon}`), h('dd', '', '−' + money(o.discount)));
+      if (o.ship) dl.append(h('dt', '', 'ارسال'), h('dd', '', money(o.ship)));
+      dl.append(h('dt', '', 'جمع'), h('dd', 'b', money(o.total)));
+      dl.append(h('dt', '', 'پرداخت'), h('dd', '', PAY_NAME[o.pay] + (o.pay === 'stars' ? ` (${faN(o.stars)} ستاره)` : '')));
+      c.appendChild(dl);
+      body.appendChild(c);
+      if (o.info) { label(body, 'نام، شماره و نشانی'); body.appendChild(h('div', 'bk-dinfo', o.info)); }
+      if (o.pay === 'card') note(body, o.receipt ? 'عکس رسید را همان لحظه در چت ربات برایت فرستادیم؛ بعد از دیدنش «پرداخت تأیید شد» را بزن.' : 'هنوز رسیدی نرسیده.', o.receipt ? '' : 'warn');
+      label(body, 'وضعیت', (ORDER_ST.find(x => x[0] === o.status) || ['', ''])[1]);
+      if (o.status === 'canceled') { note(body, 'این سفارش لغو شده و موجودی‌اش برگشته.'); return; }
+      const set = st => async () => {
+        try {
+          const r = await P().api('bot/order_status', { id: R.appId, order: o.id, status: st });
+          toast('وضعیت: ' + (ORDER_ST.find(x => x[0] === st) || ['', st])[1] + ' · به مشتری خبر دادیم');
+          Object.assign(o, r.order);
+          closeAllSheets();
+          drawOrders(box);
+        } catch (err) { P().failed(err); }
+      };
+      const g = h('div', 'bk-ostates');
+      [['paid', 'check', 'پرداخت تأیید شد'], ['sent', 'send', 'ارسال شد'], ['done', 'inbox', 'تحویل شد']].forEach(([k, i, t]) => {
+        g.appendChild(bt('bk-ost' + (o.status === k ? ' on' : ''), [ic(i), t], o.status === k ? null : set(k)));
+      });
+      body.appendChild(g);
+      primary(body, 'لغو سفارش', () => P().confirm(`سفارش #${faDigits(o.num)} لغو شود؟ موجودی برمی‌گردد و به مشتری خبر می‌دهیم.`, set('canceled'), { danger: true, yes: 'لغو' }), 'd', 'ban');
     }, { tall: true });
   }
 

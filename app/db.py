@@ -107,6 +107,11 @@ MIGRATIONS = [
     "ALTER TABLE users ADD COLUMN is_premium INTEGER NOT NULL DEFAULT 0",
     # ویدیوی معرفی فقط در اولین /start خودکار پخش می‌شود
     "ALTER TABLE users ADD COLUMN intro_seen INTEGER NOT NULL DEFAULT 0",
+    # دستیار: مرحلهٔ کار، پیشرفت زنده، پیش‌نویس بعد از نوبت (نسخه‌ها)
+    "ALTER TABLE bk_ai_turns ADD COLUMN phase TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE bk_ai_turns ADD COLUMN progress TEXT NOT NULL DEFAULT '{}'",
+    "ALTER TABLE bk_ai_turns ADD COLUMN doc_after TEXT",
+    "ALTER TABLE bk_ai_turns ADD COLUMN started_at INTEGER",
 ]
 
 _SLUG_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789"  # بدون l/o/0/1 که با هم قاطی می شوند

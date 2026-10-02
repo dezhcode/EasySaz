@@ -44,7 +44,7 @@
     slash: 'M15 4L9 20', rocket: 'M5 15c-1 1-1.5 3.5-1.5 5.5 2 0 4.5-.5 5.5-1.5M9 15l-3-3c1.5-4 5-8 12-8 0 7-4 10.5-8 12l-3-3zM15 9v.01', tap: 'M9 11V5a2 2 0 0 1 4 0v5M13 10a2 2 0 0 1 4 0v1M17 11a2 2 0 0 1 4 0v3a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.4L5 14a2 2 0 0 1 3.3-2.2L9 13',
     split: 'M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6M18 3v4M6 17v4',
     clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2', hist: 'M3 12a9 9 0 1 0 9-9 9.5 9.5 0 0 0-6.7 2.8L3 8M3 3v5h5M12 7v5l4 2',
-    expand: 'M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6', map: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14', dot: 'M12 12h.01', dice: 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01',
+    expand: 'M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6', dots: 'M5 12h.01M12 12h.01M19 12h.01', map: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14', dot: 'M12 12h.01', dice: 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01',
     form: 'M6 3h12v18H6zM9 8h6M9 12h6M9 16h3', tag: 'M3 12V4h8l10 10-8 8L3 12zM7.5 7.5h.01', globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.7 3.5 5.7 3.5 9s-1 6.3-3.5 9c-2.5-2.7-3.5-5.7-3.5-9s1-6.3 3.5-9z',
     cart: 'M3 4h2l2.5 11h11L21 7H6.2M9 20h.01M17 20h.01', bag: 'M5 8h14l-1 12H6zM9 8V7a3 3 0 0 1 6 0v1', grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', refresh: 'M4 12a8 8 0 0 1 14-5.3L20 8M20 4v4h-4M20 12a8 8 0 0 1-14 5.3L4 16M4 20v-4h4',
   };
@@ -2840,7 +2840,36 @@
   }
   function aiStick() {
     const sc = document.querySelector('#bot .ai-scroll');
-    if (sc && R.ai && R.ai.stick) sc.scrollTop = sc.scrollHeight;
+    if (!sc || !R.ai) return;
+    if (R.ai.stick) sc.scrollTop = sc.scrollHeight;
+    else { const d = document.querySelector('#bot .ai-down'); if (d) d.classList.add('new'); }
+  }
+  /* دکمهٔ «آخرین پیام»: وقتی کاربر بالا رفته پیدا می‌شود؛ اگر در این فاصله چیز تازه‌ای آمد نقطه می‌گیرد */
+  function aiDownSync(sc) {
+    const d = document.querySelector('#bot .ai-down');
+    if (!d) return;
+    const far = sc.scrollHeight - sc.scrollTop - sc.clientHeight > 240;
+    d.classList.toggle('on', far);
+    if (!far) d.classList.remove('new');
+  }
+  function aiMenu() {
+    const A = R.ai;
+    const vers = aiVersions();
+    sheet('گفتگو با دستیار', `روی «${R.d.bot.name || R.d.app.name}»`, body => {
+      if (vers.length) optRow(body, 'hist', 'نسخه‌ها', `${faN(vers.length)} نقطهٔ برگشت`, ic('chl'), () => { popSheet(); versionsSheet(); });
+      optRow(body, 'trash', 'پاک کردن تاریخچهٔ گفتگو', 'پیش‌نویس و ربات منتشرشده دست نمی‌خورند', null, () => {
+        if (A.busy) { toast('اول کار دستیار را متوقف کن', true); return; }
+        P().confirm('تاریخچهٔ گفتگو پاک شود؟ پیام‌ها و نسخه‌ها (نقطه‌های برگشت) پاک می‌شوند؛ رباتت همان‌طور که هست می‌ماند و دستیار گفتگوهای قبلی را فراموش می‌کند.', async () => {
+          try {
+            const res = await P().api('bot/ai_clear', { id: R.appId });
+            Object.assign(A, { turns: res.turns, sv: {}, open: {}, t0: {}, flash: null, liveId: null, stick: true });
+            closeAllSheets();
+            toast('تاریخچهٔ گفتگو پاک شد');
+            drawAI();
+          } catch (err) { P().failed(err); }
+        }, { danger: true, yes: 'پاک کن' });
+      }, 'danger');
+    });
   }
 
   /* ---------- باز و بسته ---------- */
@@ -2915,10 +2944,11 @@
     const tgt = bt('ai-target' + (many ? ' sw' : ''), [h('span', 'ai-target-t', `روی «${R.d.bot.name || R.d.app.name}»`)], many ? switchApp : null);
     if (many) tgt.appendChild(ic('down'));
     id.append(aiOrb('sm'), h('span', 'ai-id-t'));
-    id.querySelector('.ai-id-t').append(h('b', '', 'دستیار ایزی‌ساز'), tgt);
+    id.querySelector('.ai-id-t').append(h('b', '', A.turns.length ? 'دستیار' : 'دستیار ایزی‌ساز'), tgt);
     top.appendChild(id);
     const vers = aiVersions();
     if (vers.length) { const vb = bt('ai-hist', [ic('hist'), h('span', '', faN(vers.length))], versionsSheet, 'نسخه‌ها'); top.appendChild(vb); }
+    if (A.turns.length) top.appendChild(bt('ai-more', ic('dots'), aiMenu, 'بیشتر'));
     top.appendChild(testBtn(''));
     el.appendChild(top);
     if (R.doc && R.doc.msgs.length && (A.turns.length || A.busy)) el.appendChild(aiLive());
@@ -2927,7 +2957,8 @@
     const col = h('div', 'ai-col');
     sc.appendChild(col);
     el.appendChild(sc);
-    sc.addEventListener('scroll', () => { A.stick = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 120; }, { passive: true });
+    sc.addEventListener('scroll', () => { A.stick = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 120; aiDownSync(sc); }, { passive: true });
+    const down = bt('ai-down', ic('down'), () => { A.stick = true; sc.scrollTo({ top: sc.scrollHeight, behavior: 'smooth' }); down.classList.remove('new'); }, 'آخرین پیام');
 
     if (!A.enabled) col.appendChild(aiNote('warn', 'دستیار هنوز روشن نشده', 'مدیر سرور باید کلید دستیار هوش مصنوعی را در تنظیمات بگذارد. تا آن موقع ربات را دستی بساز.'));
     if (!A.turns.length) col.appendChild(aiEmpty());
@@ -2942,8 +2973,10 @@
       col.appendChild(aiNote('brand', 'سهم امروزت تمام شد', `امروز ${faN(A.quota.limit)} پیام به دستیار دادی. فردا دوباره می‌توانی؛ ویرایش دستی همیشه باز است.`,
         [['پلن‌ها', 'star', 'p', () => P().openBot('plans')], ['ادامهٔ دستی', 'pen', 's', () => { A.fromHome = false; closeAI(); }]]));
     }
-    el.appendChild(aiComposer());
-    requestAnimationFrame(() => { if (A.stick || fresh) sc.scrollTop = sc.scrollHeight; });
+    const cw = aiComposer();
+    cw.appendChild(down);   // درست بالای کادر نوشتن، هر قدر هم کادر بلند شود
+    el.appendChild(cw);
+    requestAnimationFrame(() => { if (A.stick || fresh) sc.scrollTop = sc.scrollHeight; aiDownSync(sc); });
   }
 
   /* ---------- A · قاب زنده: خود ربات بالای گفتگو ---------- */

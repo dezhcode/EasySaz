@@ -15,6 +15,7 @@
   POST /api/bot/ai_stop        توقف نوبت در جریان (پیش‌نویس دست نمی‌خورد)
   POST /api/bot/ai_restore     برگشت پیش‌نویس به «نسخهٔ» بعد از یک نوبت (یا نسخهٔ منتشرشده)
   GET  /api/bot/ai_compare?id=&turn=  قبل و بعد پیام‌های عوض‌شده در یک نوبت
+  POST /api/bot/ai_clear       پاک کردن تاریخچهٔ گفتگو و نسخه‌ها (پیش‌نویس دست نمی‌خورد)
   GET  /api/bot/data?id=&form= فرم‌ها و جواب‌های ثبت‌شده با کار «ثبت در داده‌ها»
   POST /api/bot/data_export    فایل CSV یک فرم در چت صاحب ربات
   GET  /api/bot/shop?id=       محصولات، دسته‌ها، شمار سفارش‌ها
@@ -45,7 +46,7 @@ log = logging.getLogger("easysaz.botkit.api")
 PACK_RE = re.compile(r"(?:t\.me/addemoji/|addemoji/)?([A-Za-z0-9_]{3,64})/?$")
 
 ACTIONS = {"": "GET", "save": "POST", "publish": "POST", "off": "POST", "test": "POST", "takeover": "POST",
-           "emoji_pack": "POST", "emoji_del": "POST", "ai": "GET", "ai_send": "POST", "ai_poll": "GET", "ai_undo": "POST", "ai_stop": "POST", "ai_restore": "POST", "ai_compare": "GET",
+           "emoji_pack": "POST", "emoji_del": "POST", "ai": "GET", "ai_send": "POST", "ai_poll": "GET", "ai_undo": "POST", "ai_stop": "POST", "ai_restore": "POST", "ai_compare": "GET", "ai_clear": "POST",
            "data": "GET", "data_export": "POST", "shop": "GET", "product_save": "POST", "product_del": "POST",
            "orders": "GET", "order_status": "POST"}
 
@@ -395,6 +396,18 @@ class BotApi:
         await store.save_draft(self.db, app["id"], doc)
         await self._mark_undone(app["id"], lambda tid: tid > turn_id)
         return {"doc": doc, "turns": await agent.history(self.db, app["id"])}
+
+    async def ai_clear(self, init_data: str, body: dict) -> dict:
+        """تاریخچهٔ گفتگوی دستیار این ربات پاک می‌شود؛ پیش‌نویس و نسخهٔ منتشرشده همان می‌مانند.
+        نوبت‌های پاک‌شده از سهم امروز هم کم نمی‌شوند (سهم بر اساس همین جدول شمرده می‌شود)، پس فقط علامت می‌خورند."""
+        _u, _p, app = await self._ctx(init_data, body.get("id"), write=True)
+        busy = await self.db.fetchone("SELECT id FROM bk_ai_turns WHERE app_id = ? AND status IN ('queued','running') AND updated_at > ?",
+                                      (app["id"], store.now() - agent.STALE))
+        if busy:
+            raise _err(409, "دستیار هنوز روی پیام قبلی کار می‌کند؛ اول متوقفش کن")
+        await self.db.execute("UPDATE bk_ai_turns SET status = 'cleared', ask = '', say = '', partial = '', result = '{}', doc_before = NULL, doc_after = NULL "
+                              "WHERE app_id = ?", (app["id"],))
+        return {"turns": await agent.history(self.db, app["id"])}
 
     async def ai_compare(self, init_data: str, query: dict) -> dict:
         _u, _p, app = await self._ctx(init_data, query.get("id"))

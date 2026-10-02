@@ -676,7 +676,7 @@ async def used_today(db, user_id: int) -> int:  # noqa: ANN001
 
 
 async def history(db, app_id: int, limit: int = 30) -> list[dict]:  # noqa: ANN001
-    rows = await db.fetchall("SELECT * FROM bk_ai_turns WHERE app_id = ? ORDER BY id DESC LIMIT ?", (app_id, limit))
+    rows = await db.fetchall("SELECT * FROM bk_ai_turns WHERE app_id = ? AND status != 'cleared' ORDER BY id DESC LIMIT ?", (app_id, limit))
     return [turn_json(r) for r in reversed(rows)]
 
 

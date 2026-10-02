@@ -43,7 +43,8 @@
     send: 'M21 3L3 11l7 3 3 7 8-18zM10 14l4-4', power: 'M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0', eyeoff: 'M3 3l18 18M6.6 6.6C3.9 8.3 2 12 2 12s3.6 6 10 6c1.9 0 3.5-.5 4.9-1.3M10.6 6.1A9.6 9.6 0 0 1 12 6c6.4 0 10 6 10 6a17 17 0 0 1-3.2 3.8M9.9 9.9a3 3 0 0 0 4.2 4.2',
     slash: 'M15 4L9 20', rocket: 'M5 15c-1 1-1.5 3.5-1.5 5.5 2 0 4.5-.5 5.5-1.5M9 15l-3-3c1.5-4 5-8 12-8 0 7-4 10.5-8 12l-3-3zM15 9v.01', tap: 'M9 11V5a2 2 0 0 1 4 0v5M13 10a2 2 0 0 1 4 0v1M17 11a2 2 0 0 1 4 0v3a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.4L5 14a2 2 0 0 1 3.3-2.2L9 13',
     split: 'M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6M18 3v4M6 17v4',
-    clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2', dice: 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01',
+    clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2', hist: 'M3 12a9 9 0 1 0 9-9 9.5 9.5 0 0 0-6.7 2.8L3 8M3 3v5h5M12 7v5l4 2',
+    expand: 'M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6', map: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14', dot: 'M12 12h.01', dice: 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01',
     form: 'M6 3h12v18H6zM9 8h6M9 12h6M9 16h3', tag: 'M3 12V4h8l10 10-8 8L3 12zM7.5 7.5h.01', globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.7 3.5 5.7 3.5 9s-1 6.3-3.5 9c-2.5-2.7-3.5-5.7-3.5-9s1-6.3 3.5-9z',
     cart: 'M3 4h2l2.5 11h11L21 7H6.2M9 20h.01M17 20h.01', bag: 'M5 8h14l-1 12H6zM9 8V7a3 3 0 0 1 6 0v1', grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', refresh: 'M4 12a8 8 0 0 1 14-5.3L20 8M20 4v4h-4M20 12a8 8 0 0 1-14 5.3L4 16M4 20v-4h4',
   };
@@ -494,9 +495,11 @@
     }
     if (m.kb === 'reply') ed.appendChild(replyPanel(m));
     ed.appendChild(dock(m));
+    ed.appendChild(copilotBtn(m));
     ed.appendChild(fmtBar());
     if (fresh) ed.classList.add('in');
     chat.scrollTop = keepScroll;
+    drawCop();
     attachVV();
   }
 
@@ -2843,7 +2846,10 @@
   /* ---------- باز و بسته ---------- */
   async function openAI(opts) {
     opts = opts || {};
-    if (!R.ai) R.ai = { turns: [], quota: { used: 0, limit: 0 }, enabled: true, max: 800, busy: 0, pos: 0, draft: '', sv: {}, insights: [], img: null, stick: true, open: {} };
+    if (!R.ai) {
+      R.ai = { turns: [], quota: { used: 0, limit: 0 }, enabled: true, max: 800, busy: 0, pos: 0, draft: '', sv: {}, insights: [], img: null, stick: true, open: {}, t0: {} };
+      try { R.ai.liveOpen = localStorage.getItem('es-ai-live') !== '0'; } catch (e) {}
+    }
     R.ai.on = true;
     R.ai.fromHome = !!opts.fromHome;
     if (opts.text) R.ai.draft = opts.text;
@@ -2855,7 +2861,7 @@
       Object.assign(R.ai, { turns: d.turns, quota: d.quota, enabled: d.enabled, max: d.max_ask || 800, insights: d.insights || [] });
       d.turns.forEach(t => { if (!known.has(t.id) && t.say) feed(t.id, t.say, t.status !== 'running', false); });
       const run = d.turns.find(t => t.status === 'queued' || t.status === 'running');
-      if (run) { R.ai.busy = run.id; aiPoll(); }
+      if (run) { R.ai.busy = run.id; aiPoll(); aiTick(); }
       if (R.ai.on) drawAI();
       if (opts.send && !run) aiSend(opts.send);
       else if (opts.focus) setTimeout(() => { const ta = document.querySelector('#bot .ai-comp textarea'); if (ta) ta.focus(); }, 300);
@@ -2884,6 +2890,12 @@
   }
 
   /* ---------- صفحه ---------- */
+  function aiVersions() {
+    return R.ai.turns.filter(t => t.status === 'done' && t.result && (t.result.changes || []).length);
+  }
+  function hhmm(sec) {
+    try { return new Date(sec * 1000).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; }
+  }
   function drawAI(fresh) {
     if (!R.ai || !R.ai.on) return;
     const A = R.ai;
@@ -2904,8 +2916,12 @@
     if (many) tgt.appendChild(ic('down'));
     id.append(aiOrb('sm'), h('span', 'ai-id-t'));
     id.querySelector('.ai-id-t').append(h('b', '', 'دستیار ایزی‌ساز'), tgt);
-    top.append(id, testBtn(''));
+    top.appendChild(id);
+    const vers = aiVersions();
+    if (vers.length) { const vb = bt('ai-hist', [ic('hist'), h('span', '', faN(vers.length))], versionsSheet, 'نسخه‌ها'); top.appendChild(vb); }
+    top.appendChild(testBtn(''));
     el.appendChild(top);
+    if (R.doc && R.doc.msgs.length && (A.turns.length || A.busy)) el.appendChild(aiLive());
 
     const sc = h('div', 'ai-scroll');
     const col = h('div', 'ai-col');
@@ -2916,13 +2932,426 @@
     if (!A.enabled) col.appendChild(aiNote('warn', 'دستیار هنوز روشن نشده', 'مدیر سرور باید کلید دستیار هوش مصنوعی را در تنظیمات بگذارد. تا آن موقع ربات را دستی بساز.'));
     if (!A.turns.length) col.appendChild(aiEmpty());
     const lastDone = [...A.turns].reverse().find(x => x.status === 'done');
-    A.turns.forEach(turn => col.appendChild(aiTurn(turn, turn === lastDone)));
+    const current = [...vers].reverse().find(t => !t.result.undone);
+    A.turns.forEach((turn, i) => {
+      col.appendChild(aiTurn(turn, turn === lastDone, A.turns[i + 1] || null));
+      const k = vers.indexOf(turn);
+      if (k >= 0) col.appendChild(aiVerChip(turn, k + 1, turn === current));
+    });
     if (A.quota.limit && A.quota.used >= A.quota.limit && !A.busy) {
       col.appendChild(aiNote('brand', 'سهم امروزت تمام شد', `امروز ${faN(A.quota.limit)} پیام به دستیار دادی. فردا دوباره می‌توانی؛ ویرایش دستی همیشه باز است.`,
         [['پلن‌ها', 'star', 'p', () => P().openBot('plans')], ['ادامهٔ دستی', 'pen', 's', () => { A.fromHome = false; closeAI(); }]]));
     }
     el.appendChild(aiComposer());
     requestAnimationFrame(() => { if (A.stick || fresh) sc.scrollTop = sc.scrollHeight; });
+  }
+
+  /* ---------- A · قاب زنده: خود ربات بالای گفتگو ---------- */
+  function liveCurrent() {
+    const A = R.ai;
+    return find(A.liveId) || find(R.doc.start) || R.doc.msgs[0];
+  }
+  function liveMsgEl(m, onGo, glow) {
+    const box = h('div', 'ai-pv live' + (glow ? ' glow' : ''));
+    const b = h('div', 'bk-bub');
+    if (m.media && m.media.type === 'photo') { const im = h('img', 'ai-live-img'); im.src = m.media.url; im.alt = ''; b.appendChild(im); }
+    const t = h('div', 'bk-text');
+    fillEditable(t, m.text || '…');
+    b.append(t, h('span', 'bk-time', '۹:۴۱'));
+    box.appendChild(b);
+    const rows = m.kb === 'inline' ? m.rows : m.kb === 'reply' ? m.keys : [];
+    if (rows.length) {
+      const k = h('div', 'bk-keys');
+      rows.forEach(r => { const rr = h('div', 'bk-krow'); r.forEach(x => rr.appendChild(keyEl(x, m.kb === 'reply' ? 'rk' : '', x.act && x.act.to && find(x.act.to) ? () => onGo(x.act.to) : null))); k.appendChild(rr); });
+      box.appendChild(k);
+    }
+    return box;
+  }
+  function aiLive() {
+    const A = R.ai;
+    const open = A.liveOpen !== false;
+    const w = h('div', 'ai-live' + (open ? '' : ' shut'));
+    const m = liveCurrent();
+    const head = h('div', 'ai-live-h');
+    const tog = bt('ai-live-t', [h('i', 'ai-live-dot' + (A.busy ? ' busy' : '')), h('b', '', 'ربات تو'),
+      h('span', 'ai-live-s', A.busy ? 'در حال ساخت…' : `پیش‌نویس · ${faN(R.doc.msgs.length)} پیام`)], () => {
+      A.liveOpen = !open;
+      try { localStorage.setItem('es-ai-live', A.liveOpen ? '1' : '0'); } catch (e) {}
+      w.replaceWith(aiLive());
+    });
+    if (A.flash && A.flash.until > Date.now()) tog.appendChild(h('span', 'ai-live-badge ' + A.flash.kind, A.flash.kind === 'add' ? '+ تازه' : 'تغییر'));
+    tog.appendChild(ic(open ? 'up' : 'down'));
+    head.appendChild(tog);
+    if (open) head.appendChild(bt('ai-live-big', [ic('expand'), 'بزرگ'], () => liveSheet(m && m.id)));
+    w.appendChild(head);
+    const busyRow = h('div', 'ai-live-b');
+    w.appendChild(busyRow);
+    if (open && m) {
+      const f = h('div', 'ai-live-f');
+      f.appendChild(h('span', 'ai-live-n', `«${m.name}»`));
+      const glow = A.flash && A.flash.until > Date.now() && A.flash.ids.includes(m.id);
+      f.appendChild(liveMsgEl(m, to => { A.liveId = to; w.replaceWith(aiLive()); }, glow));
+      w.appendChild(f);
+    }
+    return w;
+  }
+  function aiLiveBusy(prog) {
+    const row = document.querySelector('#bot .ai-live-b');
+    if (!row) return;
+    const names = (prog && prog.msgs) || [];
+    const key = names.join('|');
+    if (row.dataset.k === key) return;
+    row.dataset.k = key;
+    row.textContent = '';
+    if (!names.length) return;
+    row.appendChild(h('span', 'ai-live-bl', 'در حال ساختن:'));
+    names.slice(-4).forEach((n, i, a) => row.appendChild(h('span', 'ai-live-chip' + (i === a.length - 1 ? ' run' : ''), n)));
+  }
+  function liveSheet(startId) {
+    let cur = startId || (liveCurrent() || {}).id;
+    sheet('ربات تو', `پیش‌نویس · ${faN(R.doc.msgs.length)} پیام`, (body, ctx) => {
+      const chips = h('div', 'bk-chips scroll');
+      R.doc.msgs.forEach(m => chips.appendChild(bt('bk-chip lg' + (m.id === cur ? ' on' : ''), m.name, () => { cur = m.id; ctx.redraw(); })));
+      body.appendChild(chips);
+      const m = find(cur) || R.doc.msgs[0];
+      const inc = incoming(m.id);
+      const f = h('div', 'ai-live-f big');
+      f.appendChild(liveMsgEl(m, to => { cur = to; ctx.redraw(); }, false));
+      body.appendChild(f);
+      body.appendChild(h('span', 'bk-hint', inc ? 'می‌رسد از: ' + inc.text : 'هنوز به این پیام نمی‌رسیم'));
+      const row = h('div', 'bk-row2');
+      row.append(bt('bk-btn t', [ic('play'), 'تست در تلگرام'], () => { closeAllSheets(); testSheet(m.id); }), bt('bk-btn s', [ic('pen'), 'ویرایش دستی'], () => { closeAllSheets(); aiOpenMsg(m.id); }));
+      body.appendChild(row);
+      note(body, 'روی دکمه‌ها بزن تا به همان پیام بروی؛ دقیقاً همان چیزی است که کاربر در تلگرام می‌بیند.');
+    }, { tall: true, onClose: () => { R.ai.liveId = cur; const lv = document.querySelector('#bot .ai-live'); if (lv) lv.replaceWith(aiLive()); } });
+  }
+
+  /* ---------- B · کارت پیشرفت با مرحله‌های واقعی ---------- */
+  const PH = {
+    queue: ['در صف هستم', 6], think: ['دارم درخواستت را می‌فهمم', 18], write: ['دارم جواب را می‌نویسم', 36],
+    build: ['دارم پیام‌ها و دکمه‌ها را می‌سازم', 58], ask: ['دارم سؤال را آماده می‌کنم', 70], plan: ['دارم نقشهٔ ربات را می‌کشم', 70],
+    fix: ['یک ایراد کوچک را درست می‌کنم', 84], check: ['بررسی نهایی', 93],
+  };
+  const PH_I = { queue: -1, think: 0, write: 1, build: 2, ask: 2, plan: 2, fix: 3, check: 3 };
+  function aiElapsed(turn) {
+    const A = R.ai;
+    A.t0 = A.t0 || {};
+    if (!A.t0[turn.id]) A.t0[turn.id] = Date.now();
+    return Math.max(0, Math.round((Date.now() - A.t0[turn.id]) / 1000));
+  }
+  function prevPlan(turn) {
+    const A = R.ai;
+    const i = A.turns.indexOf(turn);
+    for (let j = i - 1; j >= 0; j--) {
+      const t = A.turns[j];
+      if (t.status !== 'done') continue;
+      return (t.result && t.result.plan && t.result.plan.length) ? t.result.plan : null;
+    }
+    return null;
+  }
+  function stepEl(t, state, sub) {
+    const r = h('div', 'ai-st ' + state);
+    r.append(h('i', 'ai-st-m'), h('span', 'ai-st-t'));
+    r.querySelector('.ai-st-m').appendChild(ic(state === 'ok' ? 'check' : 'dot'));
+    r.querySelector('.ai-st-t').append(h('b', '', t));
+    if (sub) r.querySelector('.ai-st-t').appendChild(sub);
+    return r;
+  }
+  function aiProg(turn) {
+    const A = R.ai;
+    const phase = turn.status === 'queued' ? 'queue' : (turn.phase || 'think');
+    const prog = turn.progress || {};
+    const c = h('div', 'ai-prog');
+    const hd = h('div', 'ai-prog-h');
+    const tt = h('span', 'grow ai-prog-t');
+    const title = phase === 'queue' && A.pos > 0 ? `در صف · نفر ${faN(A.pos + 1)}` : PH[phase][0];
+    tt.append(h('b', '', title), h('span', 'ai-prog-time', `${faN(aiElapsed(turn))} ثانیه · معمولاً ۱۵ تا ۴۰ ثانیه`));
+    hd.append(aiOrb('spin'), tt);
+    c.appendChild(hd);
+    let pct = PH[phase][1];
+    if (phase === 'build') pct = Math.min(80, 50 + (prog.ops || 0) * 3);
+    const bar = h('div', 'ai-bar');
+    const fill = h('i');
+    fill.style.width = pct + '%';
+    bar.appendChild(fill);
+    c.appendChild(bar);
+    const at = PH_I[phase];
+    const st = i => (at > i ? 'ok' : at === i ? 'run' : 'wait');
+    c.appendChild(stepEl('فهمیدن درخواست', st(0)));
+    c.appendChild(stepEl('نوشتن جواب', st(1)));
+    const plan = prevPlan(turn);
+    const names = prog.msgs || [];
+    let sub = null;
+    if (plan && (phase === 'build' || at >= 2)) {
+      sub = h('span', 'ai-st-plan');
+      const lastSeen = names[names.length - 1];
+      plan.forEach(p => {
+        const seen = names.includes(p.t);
+        const s = at > 2 ? 'ok' : seen ? (p.t === lastSeen ? 'run' : 'ok') : 'wait';
+        sub.appendChild(stepEl(p.t, s));
+      });
+    } else if (names.length) sub = h('span', 'ai-st-s', names.slice(-4).join('، ') + (names.length > 4 ? '…' : ''));
+    c.appendChild(stepEl(phase === 'ask' ? 'آماده کردن سؤال' : phase === 'plan' ? 'کشیدن نقشهٔ ربات' : 'ساختن پیام‌ها و دکمه‌ها', st(2), sub));
+    c.appendChild(stepEl('بررسی نهایی', st(3), phase === 'fix' ? h('span', 'ai-st-s', 'یک ایراد کوچک پیدا شد؛ دارم درستش می‌کنم') : null));
+    return c;
+  }
+  /* در حال کار: فقط همان نوبت آخر به‌روز می‌شود، نه کل صفحه (جلوی پرش و چشمک را می‌گیرد) */
+  function aiPatchRunning(turn) {
+    const w = document.querySelector(`#bot .bk-ai .ai-turn[data-id="${turn.id}"]`);
+    if (!w) { drawAI(); return; }
+    const a = w.querySelector('.ai-a');
+    const st = R.ai.sv[turn.id];
+    const old = a.querySelector('.ai-prog');
+    const card = aiProg(turn);
+    if (old) old.replaceWith(card); else a.appendChild(card);
+    if (st && !st.el.isConnected) a.insertBefore(st.el, card);
+    aiLiveBusy(turn.progress);
+    const s = document.querySelector('#bot .ai-live-s');
+    if (s) s.textContent = 'در حال ساخت…';
+    aiStick();
+  }
+  function aiTick() {
+    const A = R.ai;
+    clearInterval(A.tick);
+    A.tick = setInterval(() => {
+      if (!A.busy || !A.on) { clearInterval(A.tick); return; }
+      const t = A.turns.find(x => x.id === A.busy);
+      const el = t && document.querySelector(`#bot .ai-turn[data-id="${t.id}"] .ai-prog-time`);
+      if (el) el.textContent = `${faN(aiElapsed(t))} ثانیه · معمولاً ۱۵ تا ۴۰ ثانیه`;
+    }, 1000);
+  }
+
+  function aiTurn(turn, last, next) {
+    const A = R.ai;
+    const w = h('div', 'ai-turn');
+    w.dataset.id = turn.id;
+    const u = h('div', 'ai-u');
+    if (turn.img) { const im = h('img', 'ai-u-img'); im.src = turn.img; im.alt = ''; u.appendChild(im); }
+    u.appendChild(h('span', '', turn.ask.replace(/^📷 /, '')));
+    if (!turn.img && /^📷 /.test(turn.ask)) u.prepend(h('span', 'ai-u-tag', '📷 عکس'));
+    w.appendChild(u);
+    const a = h('div', 'ai-a');
+    const head = h('div', 'ai-a-h');
+    head.append(aiOrb('xs'), h('b', '', 'دستیار'));
+    a.appendChild(head);
+    const running = turn.status === 'queued' || turn.status === 'running';
+    const st = A.sv[turn.id];
+    if (turn.status === 'error') {
+      if (st && st.keys.length) a.appendChild(st.el);
+      a.appendChild(aiNote('warn', turn.error || 'دستیار جواب نداد', 'چیزی در پیش‌نویست عوض نشد.', last || turn === A.turns[A.turns.length - 1] ? [['دوباره بفرست', 'refresh', 'p', () => aiSend(turn.ask.replace(/^📷 /, ''))]] : null));
+      w.appendChild(a);
+      return w;
+    }
+    if (turn.say || st) {
+      const s2 = streamState(turn.id);
+      if (!st) feed(turn.id, turn.say, !running, false);
+      a.appendChild(s2.el);
+    }
+    if (running) { a.appendChild(aiProg(turn)); w.appendChild(a); return w; }
+    const res = turn.result || {};
+    const isLast = turn === A.turns[A.turns.length - 1];
+    if (res.ask) a.appendChild(aiAskCard(turn, isLast && !A.busy, next));
+    if (res.plan && res.plan.length) a.appendChild(aiPlanCard(turn, isLast && !A.busy, next));
+    if (res.changes && res.changes.length) a.appendChild(aiResult(turn, last));
+    if (last && res.chips && res.chips.length && !A.busy && !res.ask) {
+      const c = h('div', 'ai-chips');
+      res.chips.forEach(x => c.appendChild(bt('ai-chip', [x], () => aiSend(x))));
+      a.appendChild(c);
+    }
+    if (last && !A.busy) {
+      const tools = h('div', 'ai-tools');
+      tools.appendChild(bt('ai-tool', ic('copy'), () => { try { navigator.clipboard.writeText(turn.say || ''); toast('کپی شد'); } catch (e) {} }, 'کپی'));
+      tools.appendChild(bt('ai-tool', ic('refresh'), () => aiRedo(turn), 'دوباره بساز'));
+      a.appendChild(tools);
+    }
+    w.appendChild(a);
+    return w;
+  }
+
+  /* ---------- C · سؤال با گزینه و نقشهٔ ربات ---------- */
+  function aiFocusComposer(text, ph) {
+    const ta = document.querySelector('#bot .ai-comp textarea');
+    if (!ta) return;
+    if (text != null) { ta.value = text; R.ai.draft = text; }
+    if (ph) ta.placeholder = ph;
+    ta.focus();
+    ta.dispatchEvent(new Event('input'));
+  }
+  function aiAskCard(turn, active, next) {
+    const q = turn.result.ask;
+    const c = h('div', 'ai-askc' + (active ? '' : ' done'));
+    const top = h('div', 'ai-askc-top');
+    const dots = h('span', 'ai-dots');
+    for (let i = 1; i <= q.of; i++) dots.appendChild(h('i', i < q.step ? 'ok' : i === q.step ? 'on' : ''));
+    top.append(h('span', 'grow ai-cap0', q.of > 1 ? `سؤال ${faN(q.step)} از ${faN(q.of)}` : 'یک سؤال'), dots);
+    c.append(top, h('b', 'ai-askc-q', q.q));
+    const g = h('div', 'ai-opts');
+    const chosen = next ? next.ask : '';
+    q.options.forEach(o => {
+      const b = bt('ai-opt' + (chosen === o.t ? ' on' : ''), [h('span', 'ai-opt-e', o.e || '•'), h('b', '', o.t), o.d ? h('span', 'ai-opt-d', o.d) : null], active ? () => aiSend(o.t) : null);
+      g.appendChild(b);
+    });
+    if (active) g.appendChild(bt('ai-opt other', [h('span', 'ai-opt-e', '✍️'), h('b', '', 'چیز دیگه…'), h('span', 'ai-opt-d', 'خودم می‌نویسم')], () => aiFocusComposer('', 'جوابت را بنویس…')));
+    c.appendChild(g);
+    if (active) {
+      const r = h('div', 'ai-acts');
+      r.appendChild(bt('ai-act o', ['رد کن؛ خودت تصمیم بگیر'], () => aiSend('رد کن؛ خودت بهترین گزینه رو انتخاب کن و ادامه بده')));
+      c.appendChild(r);
+    }
+    return c;
+  }
+  function aiPlanCard(turn, active, next) {
+    const plan = turn.result.plan;
+    const built = next && next.status === 'done' && (next.result.changes || []).length;
+    const c = h('div', 'ai-plan' + (active ? '' : ' done'));
+    const hd = h('div', 'ai-plan-h');
+    hd.append(ic('map'), h('b', 'grow', 'نقشهٔ ربات'), h('span', 'ai-cap0', built ? 'ساخته شد ✓' : `${faN(plan.length)} پیام · حدود ۳۰ ثانیه`));
+    c.appendChild(hd);
+    plan.forEach(p => {
+      const r = h('div', 'ai-plan-i');
+      r.style.setProperty('--lv', p.lv || 0);
+      const tl = h('span', 'bk-tile sm ' + ['brand', 'green', 'amber'][p.lv || 0]);
+      tl.appendChild(ic('chat'));
+      const tx = h('span', 'grow');
+      tx.append(h('b', '', p.t));
+      if (p.d) tx.appendChild(h('span', '', p.d));
+      r.append(tl, tx);
+      c.appendChild(r);
+    });
+    if (active) {
+      const r = h('div', 'ai-acts');
+      r.append(bt('ai-act p', [ic('sparkle'), 'بساز'], () => aiSend('بساز')), bt('ai-act s', [ic('pen'), 'عوضش کن'], () => aiFocusComposer('نقشه رو این‌طوری عوض کن: ')));
+      c.appendChild(r);
+    }
+    return c;
+  }
+
+  /* ---------- B · نتیجهٔ کوتاه با یک قدم بعدی ---------- */
+  function aiResult(turn, last) {
+    const res = turn.result;
+    const n = res.changes.length + (res.more || 0);
+    const c = h('div', 'ai-res' + (res.undone ? ' undone' : ''));
+    const hd = h('div', 'ai-art-h');
+    const i = h('span', 'ai-art-i'); i.appendChild(ic(res.undone ? 'undo' : 'check'));
+    const tt = h('span', 'grow ai-art-t');
+    tt.append(h('b', '', res.undone ? 'برگردانده شد' : (res.title || 'پیش‌نویس به‌روز شد')),
+      h('span', '', res.stats ? `${faN(res.stats.msgs)} پیام · ${faN(res.stats.buttons)} دکمه · ${faN(res.stats.vars)} متغیر` : ''));
+    hd.append(i, tt);
+    c.appendChild(hd);
+    if (res.undone) {
+      c.appendChild(bt('ai-act s', [ic('hist'), 'دیدن نسخه‌ها'], versionsSheet));
+      return c;
+    }
+    if (last) {
+      const pv = (res.previews && res.previews[0]) || res.preview;
+      if (pv) c.appendChild(aiPreview(pv));
+      if ((res.warnings || []).length) c.appendChild(h('div', 'ai-w', res.warnings[0]));
+      c.appendChild(bt('ai-act t big', [ic('play'), 'تست در تلگرام'], () => testSheet((pv && pv.id) || '')));
+    }
+    const row = h('div', 'ai-acts');
+    row.appendChild(bt('ai-act s', [ic('list'), `دیدن ${faN(n)} تغییر`], () => changesSheet(turn)));
+    if (turn.can_undo && last) row.appendChild(bt('ai-act o sm', [ic('undo'), 'برگردان'], () => aiUndo(turn)));
+    c.appendChild(row);
+    return c;
+  }
+  function changesSheet(turn) {
+    const res = turn.result;
+    const n = res.changes.length + (res.more || 0);
+    sheet(`${faN(n)} تغییر در پیش‌نویس`, res.title ? `«${res.title}» · نسخهٔ منتشرشده دست نخورده` : 'نسخهٔ منتشرشده دست نخورده', body => {
+      const list = h('div', 'ai-diff');
+      res.changes.forEach(d => {
+        const r = h('div', 'ai-d ' + d.k);
+        r.append(h('span', 'ai-dk', { add: '+', mod: '~', del: '−' }[d.k] || '·'), h('span', 'grow', d.t));
+        list.appendChild(r);
+      });
+      if (res.more) list.appendChild(h('div', 'ai-d more', `و ${faN(res.more)} تغییر دیگر`));
+      body.appendChild(list);
+      (res.warnings || []).forEach(x => body.appendChild(h('div', 'ai-w', x)));
+      if (res.previews && res.previews.length) { label(body, 'پیام‌های تازه و عوض‌شده'); body.appendChild(aiChanged(res.previews, res.previews_more)); }
+      const row = h('div', 'bk-row2');
+      if (turn.has_after) row.appendChild(bt('bk-btn s', [ic('split'), 'قبل و بعد'], () => compareSheet(turn)));
+      row.appendChild(bt('bk-btn s', [ic('pen'), 'باز کردن در ربات‌ساز'], () => { closeAllSheets(); aiOpenMsg((res.previews && res.previews[0] && res.previews[0].id) || R.doc.start); }));
+      body.appendChild(row);
+      if (turn.can_undo) primary(body, 'برگردان این نوبت', () => { closeAllSheets(); aiUndo(turn); }, 'd', 'undo');
+    }, { tall: true });
+  }
+
+  /* ---------- E · نسخه‌ها ---------- */
+  function aiVerChip(turn, k, current) {
+    const res = turn.result;
+    const w = h('div', 'ai-ver' + (res.undone ? ' undone' : '') + (current ? ' cur' : ''));
+    w.append(h('i'), bt('ai-ver-c', [ic('hist'), `نسخهٔ ${faN(k)} · ${res.title || 'تغییر'} · ${hhmm(turn.created_at)}` + (current ? ' · الان' : '')], versionsSheet), h('i'));
+    return w;
+  }
+  function versionsSheet() {
+    const A = R.ai;
+    const vers = aiVersions();
+    const current = [...vers].reverse().find(t => !t.result.undone);
+    sheet('نسخه‌ها', 'هر نوبت دستیار یک نقطهٔ برگشت امن است', body => {
+      const tl = h('div', 'ai-tl');
+      vers.map((t, i) => [t, i + 1]).reverse().forEach(([t, k]) => {
+        const cur = t === current;
+        const r = h('div', 'ai-tl-r' + (cur ? ' cur' : '') + (t.result.undone ? ' undone' : ''));
+        const tx = bt('ai-tl-t', [h('b', '', `نسخهٔ ${faN(k)} · ${t.result.title || 'تغییر'}`),
+          h('span', '', `${hhmm(t.created_at)} · ${faN(t.result.changes.length + (t.result.more || 0))} تغییر` + (t.result.undone ? ' · برگردانده‌شده' : ''))], () => (t.has_after ? compareSheet(t) : null));
+        r.append(h('i', 'ai-tl-dot'), tx);
+        if (cur) r.appendChild(h('span', 'bk-chip ok', 'الان'));
+        else if (t.has_after) r.appendChild(bt('ai-tl-go', [ic('undo'), 'برگرد'], () => aiRestore({ turn: t.id }, `نسخهٔ ${faN(k)}`)));
+        tl.appendChild(r);
+      });
+      if (R.pub) {
+        const r = h('div', 'ai-tl-r pub');
+        r.append(h('i', 'ai-tl-dot'), h('span', 'ai-tl-t', ''));
+        r.querySelector('.ai-tl-t').append(h('b', '', 'نسخهٔ منتشرشده'), h('span', '', 'همان که کاربرهای ربات الان می‌بینند'));
+        r.appendChild(bt('ai-tl-go', [ic('undo'), 'برگرد'], () => aiRestore({ published: true }, 'نسخهٔ منتشرشده')));
+        tl.appendChild(r);
+      }
+      body.appendChild(tl);
+      note(body, 'روی هر نسخه بزن تا قبل و بعدش را ببینی. «برگرد» پیش‌نویس را همان نسخه می‌کند (ویرایش‌های دستیِ بعد از آن هم برمی‌گردند)؛ نسخه‌های بعدی می‌مانند و می‌شود دوباره جلو رفت.');
+    }, { tall: true });
+    return A;
+  }
+  function aiRestore(target, name) {
+    P().confirm(`پیش‌نویس به «${name}» برگردد؟ نسخهٔ منتشرشده برای کاربرها دست نمی‌خورد.`, async () => {
+      try {
+        const res = await P().api('bot/ai_restore', Object.assign({ id: R.appId }, target));
+        R.doc = res.doc;
+        const keep = new Map(R.ai.turns.map(t => [t.id, t.img]));
+        R.ai.turns = res.turns.map(t => Object.assign(t, { img: keep.get(t.id) }));
+        drawPill();
+        closeAllSheets();
+        toast(`پیش‌نویس شد «${name}»`);
+        drawAI();
+      } catch (err) { P().failed(err); }
+    });
+  }
+  function compareSheet(turn) {
+    sheet('قبل و بعد', turn.result.title ? `«${turn.result.title}»` : 'پیام‌های عوض‌شده در این نوبت', async (body, ctx) => {
+      if (!ctx.data) {
+        body.appendChild(h('div', 'bk-load sm'));
+        try { ctx.data = await P().api(`bot/ai_compare?id=${encodeURIComponent(R.appId)}&turn=${turn.id}`); } catch (err) { P().failed(err); return; }
+        ctx.redraw();
+        return;
+      }
+      ctx.data.items.forEach(it => {
+        const hd = h('div', 'ai-pv-l ' + (it.kind === 'add' ? 'add' : it.kind === 'del' ? 'del' : 'mod'));
+        hd.append(h('span', 'ai-pv-k', { add: 'تازه', del: 'حذف شد', mod: 'تغییر کرد' }[it.kind]), h('b', 'grow', it.name));
+        body.appendChild(hd);
+        const g = h('div', 'ai-cmp');
+        [['قبل', it.before], ['بعد', it.after]].forEach(([t, pv], i) => {
+          const col = h('div', 'ai-cmp-c' + (i ? ' after' : ''));
+          col.appendChild(h('span', 'ai-cmp-t', t));
+          col.appendChild(pv ? aiPreview(pv) : h('div', 'ai-cmp-none', i ? 'حذف شد' : 'نبود'));
+          g.appendChild(col);
+        });
+        body.appendChild(g);
+      });
+      if (!ctx.data.items.length) note(body, 'پیامی عوض نشده؛ فقط متغیرها یا تنظیمات.');
+      const row = h('div', 'bk-row2');
+      row.appendChild(bt('bk-btn p', [ic('check'), 'نگه دار'], popSheet));
+      if (turn.can_undo) row.appendChild(bt('bk-btn o', [ic('undo'), 'برگرد به پیش از این'], () => { closeAllSheets(); aiUndo(turn); }));
+      body.appendChild(row);
+    }, { tall: true });
   }
 
   function aiEmpty() {
@@ -2943,71 +3372,6 @@
       g.appendChild(c);
     });
     w.appendChild(g);
-    return w;
-  }
-
-  function aiThinkText(turn) {
-    const A = R.ai;
-    const st = A.sv[turn.id];
-    const shown = st && (st.keys.length || st.q.length);
-    if (turn.status === 'queued' && A.pos > 0 && !shown) return `در صف · نفر ${faN(A.pos + 1)}`;
-    return shown ? 'دارم می‌سازم…' : 'دارم فکر می‌کنم…';
-  }
-  /* در حال کار: فقط همان نوبت آخر به‌روز می‌شود، نه کل صفحه (جلوی پرش و چشمک را می‌گیرد) */
-  function aiPatchRunning(turn) {
-    const w = document.querySelector(`#bot .bk-ai .ai-turn[data-id="${turn.id}"]`);
-    if (!w) { drawAI(); return; }
-    const a = w.querySelector('.ai-a');
-    const th = a.querySelector('.ai-think');
-    const txt = aiThinkText(turn);
-    if (th && th.textContent !== txt) th.textContent = txt;
-    const st = R.ai.sv[turn.id];
-    if (st && !st.el.isConnected) a.insertBefore(st.el, a.querySelector('.ai-pulse'));
-    aiStick();
-  }
-
-  function aiTurn(turn, last) {
-    const A = R.ai;
-    const w = h('div', 'ai-turn');
-    w.dataset.id = turn.id;
-    const u = h('div', 'ai-u');
-    if (turn.img) { const im = h('img', 'ai-u-img'); im.src = turn.img; im.alt = ''; u.appendChild(im); }
-    u.appendChild(h('span', '', turn.ask.replace(/^📷 /, '')));
-    if (!turn.img && /^📷 /.test(turn.ask)) u.prepend(h('span', 'ai-u-tag', '📷 عکس'));
-    w.appendChild(u);
-    const a = h('div', 'ai-a');
-    const head = h('div', 'ai-a-h');
-    head.append(aiOrb('xs'), h('b', '', 'دستیار'));
-    const running = turn.status === 'queued' || turn.status === 'running';
-    const st = A.sv[turn.id];
-    if (running) head.appendChild(h('span', 'ai-think', aiThinkText(turn)));
-    a.appendChild(head);
-    if (turn.status === 'error') {
-      if (st && st.keys.length) a.appendChild(st.el);
-      a.appendChild(aiNote('warn', turn.error || 'دستیار جواب نداد', 'چیزی در پیش‌نویست عوض نشد.', last || turn === A.turns[A.turns.length - 1] ? [['دوباره بفرست', 'refresh', 'p', () => aiSend(turn.ask.replace(/^📷 /, ''))]] : null));
-      w.appendChild(a);
-      return w;
-    }
-    if (turn.say || st) {
-      const s2 = streamState(turn.id);
-      if (!st) feed(turn.id, turn.say, !running, false);
-      a.appendChild(s2.el);
-    }
-    if (running) { a.appendChild(h('i', 'ai-pulse')); w.appendChild(a); return w; }
-    const res = turn.result || {};
-    if (res.changes && res.changes.length) a.appendChild(aiArtifact(turn, last));
-    if (last && res.chips && res.chips.length && !A.busy) {
-      const c = h('div', 'ai-chips');
-      res.chips.forEach(x => c.appendChild(bt('ai-chip', [x], () => aiSend(x))));
-      a.appendChild(c);
-    }
-    if (last && !A.busy) {
-      const tools = h('div', 'ai-tools');
-      tools.appendChild(bt('ai-tool', ic('copy'), () => { try { navigator.clipboard.writeText(turn.say || ''); toast('کپی شد'); } catch (e) {} }, 'کپی'));
-      tools.appendChild(bt('ai-tool', ic('refresh'), () => aiRedo(turn), 'دوباره بساز'));
-      a.appendChild(tools);
-    }
-    w.appendChild(a);
     return w;
   }
 
@@ -3057,49 +3421,6 @@
     }
     return box;
   }
-  function aiArtifact(turn, last) {
-    const A = R.ai;
-    const res = turn.result;
-    const first = A.turns.filter(x => x.status === 'done' && x.result && x.result.changes && x.result.changes.length)[0] === turn;
-    const c = h('div', 'ai-art' + (res.undone ? ' undone' : ''));
-    const hd = h('div', 'ai-art-h');
-    const i = h('span', 'ai-art-i'); i.appendChild(ic(res.undone ? 'undo' : 'bot'));
-    const tt = h('span', 'grow ai-art-t');
-    tt.append(h('b', '', res.undone ? 'برگردانده شد' : (first ? 'پیش‌نویس ربات آماده شد' : 'پیش‌نویس به‌روز شد')),
-      h('span', '', res.stats ? `${faN(res.stats.msgs)} پیام · ${faN(res.stats.buttons)} دکمه · ${faN(res.stats.vars)} متغیر` : ''));
-    hd.append(i, tt);
-    c.appendChild(hd);
-    if (last && !res.undone) {
-      if (res.previews && res.previews.length) c.appendChild(aiChanged(res.previews, res.previews_more));
-      else if (res.preview) c.appendChild(aiPreview(res.preview));
-    }
-    const n = res.changes.length + (res.more || 0);
-    const openK = A.open[turn.id] != null ? A.open[turn.id] : (last && n <= 4);
-    const tg2 = bt('ai-art-sum', [h('span', 'grow', `${faN(n)} تغییر در پیش‌نویس`), ic(openK ? 'up' : 'down')], () => { A.open[turn.id] = !openK; drawAI(); });
-    c.appendChild(tg2);
-    if (openK) {
-      const list = h('div', 'ai-diff');
-      res.changes.forEach(d => {
-        const r = h('div', 'ai-d ' + d.k);
-        r.append(h('span', 'ai-dk', { add: '+', mod: '~', del: '−' }[d.k] || '·'), h('span', 'grow', d.t));
-        list.appendChild(r);
-      });
-      if (res.more) list.appendChild(h('div', 'ai-d more', `و ${faN(res.more)} تغییر دیگر`));
-      c.appendChild(list);
-    }
-    (res.warnings || []).forEach(x => c.appendChild(h('div', 'ai-w', x)));
-    if (!res.undone) {
-      const a = h('div', 'ai-acts');
-      if (last) {
-        a.appendChild(bt('ai-act t', [ic('play'), 'تست در تلگرام'], () => testSheet('')));
-        a.appendChild(bt('ai-act s', [ic('pen'), 'باز کردن در ربات‌ساز'], () => aiOpenMsg((res.previews && res.previews[0] && res.previews[0].id) || (res.preview && res.preview.id) || R.doc.start)));
-      }
-      if (turn.can_undo) a.appendChild(bt('ai-act o', [ic('undo'), last ? 'برگردان' : 'برگرد به پیش از این'], () => aiUndo(turn)));
-      if (a.childNodes.length) c.appendChild(a);
-    }
-    return c;
-  }
-
   function aiComposer() {
     const A = R.ai;
     const box = h('div', 'ai-comp-w');
@@ -3174,6 +3495,7 @@
       A.quota = res.quota || A.quota;
       if (node) { node.dataset.id = tmp.id; aiPatchRunning(tmp); } else drawAI();
       aiPoll();
+      aiTick();
     } catch (err) {
       A.turns.pop();
       A.busy = 0;
@@ -3203,6 +3525,11 @@
           if (res.doc) {
             R.doc = res.doc;
             drawPill();
+            const pvs = (t.result && t.result.previews) || [];
+            if (pvs.length) {
+              A.liveId = pvs[0].id;
+              A.flash = { kind: pvs[0].kind === 'add' ? 'add' : 'mod', ids: pvs.map(x => x.id), until: Date.now() + 8000 };
+            }
             if (t.result && t.result.changes && t.result.changes.length) haptic('medium');
             if (!A.on) draw();
           }
@@ -3248,6 +3575,144 @@
     aiSend(turn.ask.replace(/^📷 /, ''));
   }
 
+
+  /* ================================================================ F · دستیار در ویرایشگر، روی همان پیام */
+  const COP_QUICK = [
+    ['✨', 'جذاب‌ترش کن', 'متن این پیام رو گرم‌تر و جذاب‌تر کن، با یکی دو ایموجی مناسب'],
+    ['✂️', 'کوتاه‌ترش کن', 'متن این پیام رو کوتاه‌تر و روشن‌تر کن، بدون اینکه اطلاعاتش کم بشه'],
+    ['➕', 'یک دکمهٔ مناسب اضافه کن', 'یک دکمهٔ مناسب و کاربردی به این پیام اضافه کن'],
+    ['🎨', 'رنگ دکمه‌ها رو هماهنگ کن', 'رنگ دکمه‌های این پیام رو هماهنگ کن: مسیر اصلی آبی، تأیید سبز، لغو قرمز'],
+    ['🔤', 'غلط‌ها رو درست کن', 'غلط‌های املایی و نگارشی متن این پیام رو درست کن'],
+  ];
+  function copilotBtn(m) {
+    return bt('bk-cop-b', [ic('sparkle'), 'از دستیار بخواه'], () => copilotSheet(m));
+  }
+  function copilotSheet(m) {
+    let ask = '';
+    sheet(`دستیار · روی «${m.name}»`, 'فقط همین پیام عوض می‌شود؛ بعد خودت تصمیم می‌گیری', body => {
+      COP_QUICK.forEach(([e, t, q]) => body.appendChild(bt('bk-cop-q', [h('span', 'bk-cop-e', e), h('b', 'grow', t), ic('chl')], () => copilotRun(m, t, q))));
+      const box = h('div', 'bk-cop-in');
+      const ta = input('', v => { ask = v; }, { area: true, ph: 'یا بگو چی بشه… مثلاً «قیمت‌ها رو پررنگ کن»' });
+      ta.rows = 2;
+      box.append(h('span', 'bk-cop-ctx', '«' + m.name + '»'), ta,
+        bt('ai-send', ic('up'), () => { if (ask.trim()) copilotRun(m, ask.trim().slice(0, 40), ask.trim()); }, 'بفرست'));
+      body.appendChild(box);
+    }, { tall: true });
+  }
+  async function copilotRun(m, label, ask) {
+    closeAllSheets();
+    clearTimeout(R.cop && R.cop.pollT);
+    R.cop = { mid: m.id, before: clone(m), label, ask, phase: 'queue', t0: Date.now(), state: 'run' };
+    drawCop();
+    try {
+      const res = await P().api('bot/ai_send', { id: R.appId, text: `«${m.name}»: ${ask}`, doc: R.doc, focus: m.id });
+      R.cop.turn = res.turn;
+      R.ai = null;      // گفتگوی صفحهٔ دستیار بعداً از نو خوانده می‌شود
+      copPoll();
+    } catch (err) {
+      R.cop = null;
+      drawCop();
+      P().failed(err);
+    }
+  }
+  function copPoll() {
+    const C = R.cop;
+    if (!C || C.state !== 'run') return;
+    C.pollT = setTimeout(async () => {
+      if (R.cop !== C) return;
+      try {
+        const res = await P().api(`bot/ai_poll?id=${encodeURIComponent(R.appId)}&turn=${C.turn}`);
+        const t = res.turn;
+        C.phase = t.status === 'queued' ? 'queue' : (t.phase || 'think');
+        if (t.status === 'done') {
+          C.state = 'done';
+          C.t = t;
+          if (res.doc) { R.doc = res.doc; drawPill(); }
+          C.after = find(C.mid);
+          haptic('medium');
+          if (R.edit === C.mid) drawEditor(); else drawCop();
+          return;
+        }
+        if (t.status === 'error') { C.state = 'error'; C.error = t.error; drawCop(); return; }
+        drawCop();
+      } catch (e) {}
+      copPoll();
+    }, 700);
+  }
+  async function copUndo(again) {
+    const C = R.cop;
+    if (!C || !C.t) return;
+    try {
+      if ((C.t.result.changes || []).length) {
+        const res = await P().api('bot/ai_undo', { id: R.appId, turn: C.t.id });
+        R.doc = res.doc;
+        drawPill();
+      }
+      const m = find(C.mid);
+      R.cop = null;
+      drawEditor();
+      if (again && m) copilotRun(m, C.label, C.ask + ' (یک پیشنهاد دیگر، متفاوت با قبلی)');
+    } catch (err) { P().failed(err); }
+  }
+  function copEl() {
+    const C = R.cop;
+    const c = h('div', 'bk-cop ' + C.state);
+    const hd = h('div', 'bk-cop-h');
+    hd.append(aiOrb(C.state === 'run' ? 'xs spin' : 'xs'), h('b', 'grow', C.state === 'run' ? PH[C.phase][0] : C.state === 'error' ? 'دستیار جواب نداد' : 'پیشنهاد دستیار'), h('span', 'ai-cap0', C.label));
+    c.appendChild(hd);
+    if (C.state === 'run') {
+      const bar = h('div', 'ai-bar');
+      const f = h('i');
+      f.style.width = PH[C.phase][1] + '%';
+      bar.appendChild(f);
+      c.appendChild(bar);
+      c.appendChild(bt('ai-act o', [ic('x'), 'منصرف شدم'], async () => {
+        try { await P().api('bot/ai_stop', { id: R.appId, turn: C.turn }); } catch (e) {}
+        R.cop = null; drawCop();
+      }));
+      return c;
+    }
+    if (C.state === 'error') {
+      c.appendChild(h('p', 'bk-cop-p', (C.error || '') + ' · پیامت دست نخورد.'));
+      const r = h('div', 'ai-acts');
+      r.append(bt('ai-act p', [ic('refresh'), 'دوباره'], () => { const m = find(C.mid); if (m) copilotRun(m, C.label, C.ask); }), bt('ai-act s', 'بستن', () => { R.cop = null; drawCop(); }));
+      c.appendChild(r);
+      return c;
+    }
+    const changed = (C.t.result.changes || []).length;
+    const a = C.after, b = C.before;
+    if (!changed || !a) {
+      c.appendChild(h('p', 'bk-cop-p', plain(C.t.say || 'تغییری لازم نبود.').slice(0, 220)));
+      c.appendChild(bt('ai-act s', 'باشه', () => { R.cop = null; drawCop(); }));
+      return c;
+    }
+    if (a.text !== b.text) {
+      c.appendChild(h('div', 'bk-cop-old', plain(b.text)));
+      const nw = h('div', 'bk-cop-new bk-text');
+      fillEditable(nw, a.text);
+      c.appendChild(nw);
+    }
+    const sig = m => JSON.stringify((m.rows || []).concat(m.keys || []).map(r => r.map(x => [x.text, x.style, x.act])));
+    if (sig(a) !== sig(b)) c.appendChild(h('div', 'bk-cop-note', '🔘 دکمه‌های همین پیام هم عوض شد؛ پایین ببین'));
+    const r = h('div', 'ai-acts');
+    r.append(bt('ai-act g', [ic('check'), 'بپذیر'], () => { R.cop = null; drawCop(); toast('پذیرفته شد'); }),
+      bt('ai-act s', [ic('refresh'), 'یکی دیگه'], () => copUndo(true)), bt('ai-act o sm', 'نه', () => copUndo(false)));
+    c.appendChild(r);
+    return c;
+  }
+  function drawCop() {
+    const ed = document.querySelector('#bot .bk-ed');
+    if (!ed) return;
+    const old = ed.querySelector('.bk-cop');
+    const btn = ed.querySelector('.bk-cop-b');
+    const show = R.cop && R.cop.mid === R.edit;
+    if (btn) btn.style.display = show ? 'none' : '';
+    const bub = ed.querySelector('.bk-bub');
+    if (bub) bub.classList.toggle('cop-busy', !!(show && R.cop.state === 'run'));
+    if (!show) { if (old) old.remove(); return; }
+    const n = copEl();
+    if (old) old.replaceWith(n); else ed.appendChild(n);
+  }
 
   /* وقتی از چت تلگرام برمی‌گردد (مثلاً بعد از افزودن ایموجی یا ساخت ربات) */
   document.addEventListener('visibilitychange', () => { if (!document.hidden && R.on) reload(); });

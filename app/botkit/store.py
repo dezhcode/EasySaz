@@ -70,6 +70,44 @@ CREATE TABLE IF NOT EXISTS bk_rows (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_bk_rows_form ON bk_rows(app_id, form, id);
+-- فروشگاه: محصولات (داده، بی‌پیش‌نویس) و سفارش‌ها
+CREATE TABLE IF NOT EXISTS bk_products (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  app_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  descr TEXT NOT NULL DEFAULT '',
+  price INTEGER NOT NULL DEFAULT 0,
+  stock INTEGER NOT NULL DEFAULT -1,     -- ‎-1 یعنی نامحدود
+  cat TEXT NOT NULL DEFAULT '',
+  photo TEXT NOT NULL DEFAULT '',
+  active INTEGER NOT NULL DEFAULT 1,
+  pos INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_bk_products_app ON bk_products(app_id, pos, id);
+CREATE TABLE IF NOT EXISTS bk_orders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  app_id INTEGER NOT NULL,
+  num INTEGER NOT NULL,
+  tg_id INTEGER NOT NULL,
+  items TEXT NOT NULL,                   -- [{pid, title, price, qty}]
+  subtotal INTEGER NOT NULL,
+  discount INTEGER NOT NULL DEFAULT 0,
+  ship INTEGER NOT NULL DEFAULT 0,
+  total INTEGER NOT NULL,
+  coupon TEXT NOT NULL DEFAULT '',
+  pay TEXT NOT NULL,                     -- card | cod | stars
+  stars INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL,                  -- pending | new | paid | sent | done | canceled
+  info TEXT NOT NULL DEFAULT '',
+  receipt TEXT NOT NULL DEFAULT '',
+  charge TEXT NOT NULL DEFAULT '',
+  test INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_bk_orders_app ON bk_orders(app_id, id);
 -- دستیار هوش مصنوعی: هر نوبت گفتگو هم «کار» پس‌زمینه است هم نقطهٔ برگشت
 CREATE TABLE IF NOT EXISTS bk_ai_turns (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -239,7 +277,7 @@ async def emoji_remove(db, app_id: int, emoji_id: str) -> None:  # noqa: ANN001
 
 
 async def remove_all(db, app_id: int) -> None:  # noqa: ANN001
-    for t in ("bk_flows", "bk_users", "bk_globals", "bk_emoji", "bk_support", "bk_ai_turns", "bk_jobs", "bk_rows"):
+    for t in ("bk_flows", "bk_users", "bk_globals", "bk_emoji", "bk_support", "bk_ai_turns", "bk_jobs", "bk_rows", "bk_products", "bk_orders"):
         await db.execute(f"DELETE FROM {t} WHERE app_id = ?", (app_id,))
 
 

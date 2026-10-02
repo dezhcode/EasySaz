@@ -50,7 +50,7 @@ EMOJI_ID_RE = re.compile(r"^\d{5,24}$")
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f‪-‮⁦-⁩]")
 
 STYLES = ("", "primary", "success", "danger")
-INLINE_ACTS = ("goto", "url", "copy", "app", "share", "pay", "alert", "none")
+INLINE_ACTS = ("goto", "url", "copy", "app", "share", "pay", "alert", "shop", "cart", "none")
 KEY_ACTS = ("text", "contact", "location", "user", "chat", "poll", "app")
 MEDIA_TYPES = ("photo", "video")
 VAR_TYPES = ("text", "number", "bool", "date")
@@ -485,6 +485,10 @@ def _inline_act(raw: object, var_names: set[str]) -> dict:
                 "to": _id(a.get("to"))}
     if t == "alert":
         return {"type": "alert", "text": _s(a.get("text"), 190), "popup": bool(a.get("popup"))}
+    if t == "shop":
+        return {"type": "shop", "cat": _one_line(a.get("cat"), 30)}
+    if t == "cart":
+        return {"type": "cart"}
     return {"type": "none"}
 
 
@@ -742,7 +746,48 @@ def clean_doc(raw: object) -> dict:
     if start not in seen:
         start = msgs[0]["id"] if msgs else ""
     fb = _id(raw.get("fallback"))
-    return {"v": 1, "start": start, "fallback": fb if fb in seen else "", "msgs": msgs, "vars": vars_, "comps": comps}
+    shop = clean_shop(raw.get("shop"))
+    if shop["after"] not in seen:
+        shop["after"] = ""
+    return {"v": 1, "start": start, "fallback": fb if fb in seen else "", "msgs": msgs, "vars": vars_, "comps": comps, "shop": shop}
+
+
+# ---------------------------------------------------------------- تنظیمات فروشگاه
+PAY_METHODS = ("card", "cod", "stars")
+COUPON_RE = re.compile(r"^[A-Z0-9_\-]{2,20}$")
+
+
+def _int(v: object, lo: int, hi: int, default: int = 0) -> int:
+    n = _num(v, lo, hi)
+    return default if n is None else int(n)
+
+
+def clean_shop(raw: object) -> dict:
+    """فروشگاه: روش‌های پرداخت، کارت، نرخ ستاره، هزینهٔ ارسال، کدهای تخفیف، پرسش نشانی، پیام بعد از سفارش."""
+    r = raw if isinstance(raw, dict) else {}
+    pay = [p for p in (r.get("pay") if isinstance(r.get("pay"), list) else ["card", "cod"]) if p in PAY_METHODS]
+    digits = re.sub(r"\D", "", _one_line(r.get("card"), 40).translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")))[:19]
+    card = " ".join(digits[i:i + 4] for i in range(0, len(digits), 4))
+    coupons, seen = [], set()
+    for c in (r.get("coupons") if isinstance(r.get("coupons"), list) else [])[:20]:
+        if not isinstance(c, dict):
+            continue
+        code = _one_line(c.get("code"), 20).upper()
+        pct, amount = _int(c.get("pct"), 0, 100), _int(c.get("amount"), 0, 10**10)
+        if COUPON_RE.match(code) and code not in seen and (pct or amount):
+            seen.add(code)
+            coupons.append({"code": code, "pct": pct, "amount": 0 if pct else amount})
+    return {
+        "pay": list(dict.fromkeys(pay)),
+        "card": card, "card_name": _one_line(r.get("card_name"), 40),
+        "stars_rate": _int(r.get("stars_rate"), 0, 10**7),      # چند تومان = یک ستاره؛ ۰ یعنی ستاره خاموش
+        "ship": _int(r.get("ship"), 0, 10**9),
+        "coupons": coupons,
+        "ask_info": bool(r.get("ask_info", True)),
+        "info_text": _one_line(r.get("info_text"), 200),
+        "after": _id(r.get("after")),
+        "unit": _one_line(r.get("unit"), 12) or "تومان",
+    }
 
 
 def empty_doc(name: str = "") -> dict:

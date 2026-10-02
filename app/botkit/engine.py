@@ -45,7 +45,7 @@ from aiogram.types import (
 )
 
 from ..config import config
-from . import schema, store
+from . import schema, shop, store
 
 log = logging.getLogger("easysaz.botkit")
 
@@ -240,6 +240,8 @@ def _inline(ctx: Ctx, msg: dict, premium: bool) -> InlineKeyboardMarkup | None:
                 kw["callback_data"] = _cb("a", msg["id"], b["id"])
             elif t == "pay":
                 kw["callback_data"] = _cb("p", msg["id"], b["id"])
+            elif t in ("shop", "cart"):
+                kw["callback_data"] = _cb("s", msg["id"], b["id"])
             elif t == "url" and a["url"]:
                 kw["url"] = a["url"]
             elif t == "copy" and a["text"]:
@@ -717,6 +719,10 @@ async def on_message(bot: Bot, db, app, message: Message) -> bool:  # noqa: ANN0
     # منتظر جواب (پرسش یا پشتیبانی)
     wait = st.get("wait")
     if wait and not text.startswith("/"):
+        if wait["kind"] in shop.WAITS:
+            await shop.on_wait(ctx, message, wait)
+            await _persist(ctx)
+            return True
         if wait["kind"] == "support":
             st.pop("wait", None)
             await _to_admin(ctx, message)
@@ -801,6 +807,14 @@ async def _to_admin(ctx: Ctx, message: Message) -> None:
 
 async def on_callback(bot: Bot, db, app, call: CallbackQuery) -> bool:  # noqa: ANN001
     data = call.data or ""
+    if data.startswith("bs|") and call.message is not None:
+        ctx = await _ctx(bot, db, app, call.from_user)
+        if ctx is None:
+            await call.answer("فروشگاه الان در دسترس نیست.", show_alert=True)
+            return True
+        await shop.on_callback(ctx, call)
+        await _persist(ctx)
+        return True
     if not data.startswith("bk|"):
         return False
     parts = data.split("|")
@@ -839,6 +853,11 @@ async def on_callback(bot: Bot, db, app, call: CallbackQuery) -> bool:  # noqa: 
                 await send(ctx, chat, target, edit=call.message if target["opts"]["replace"] else None)
         await _persist(ctx)
         return True
+    if kind == "s" and a["type"] in ("shop", "cart"):
+        await call.answer()
+        await shop.open_from_button(ctx, chat, a, call.message)
+        await _persist(ctx)
+        return True
     if kind == "a" and a["type"] == "alert":
         await call.answer(ctx.fill_plain(a["text"])[:190] or "✓", show_alert=a["popup"])
         return True
@@ -852,6 +871,9 @@ async def on_callback(bot: Bot, db, app, call: CallbackQuery) -> bool:  # noqa: 
 
 
 async def on_pre_checkout(bot: Bot, db, app, q: PreCheckoutQuery) -> bool:  # noqa: ANN001
+    if (q.invoice_payload or "").startswith("bs|"):
+        await shop.pre_checkout(db, app, q)
+        return True
     if not (q.invoice_payload or "").startswith("bk|"):
         return False
     await q.answer(ok=True)
@@ -860,6 +882,15 @@ async def on_pre_checkout(bot: Bot, db, app, q: PreCheckoutQuery) -> bool:  # no
 
 async def on_paid(bot: Bot, db, app, message: Message) -> bool:  # noqa: ANN001
     sp = message.successful_payment
+    if sp is not None and (sp.invoice_payload or "").startswith("bs|"):
+        ctx = await _ctx(bot, db, app, message.from_user)
+        if ctx:
+            await shop.paid(ctx, message)
+            await _persist(ctx)
+        else:
+            await shop.mark_paid(db, app, sp)
+            await message.answer("✅ پرداخت انجام شد. ممنون!")
+        return True
     if sp is None or not (sp.invoice_payload or "").startswith("bk|"):
         return False
     _, src, bid = (sp.invoice_payload.split("|") + ["", ""])[:3]

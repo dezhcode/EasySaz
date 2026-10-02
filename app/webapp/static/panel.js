@@ -5561,6 +5561,13 @@
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
     return { id: Number(m[1]), tab: m[2] || '' };
   }
+  /* برگشت از تست در چت ربات: مینی‌اپ بسته شده بود؛ همان ربات‌ساز (یا دستیار) دوباره باز می‌شود */
+  function resumeBot() {
+    let r = null;
+    try { r = JSON.parse(localStorage.getItem('es-resume') || 'null'); localStorage.removeItem('es-resume'); } catch (e) {}
+    if (!r || !r.id || Date.now() - (r.t || 0) > 45 * 60 * 1000) return null;
+    return { id: Number(r.id), tab: r.tab || '' };
+  }
   window.EasySazPanel = {
     api, toast, failed, haptic, show, openBot, botLink,
     confirm: confirmBox,
@@ -5595,7 +5602,7 @@
       const wl = pendingWebLogin();
       if (wl) setTimeout(() => loginConfirm(wl), 450);   // شیت تأیید روی هر صفحه‌ای که باز شد
       if (!me.apps.length) { onboard(); return; }
-      const bk = pendingBot();
+      const bk = pendingBot() || resumeBot();
       if (bk && me.apps.some(a => a.id === bk.id)) { await openApp(bk.id, true); openBotBuilder(bk.id, bk.tab); return; }
       let last = 0;
       try { last = Number(localStorage.getItem('es-last-app')) || 0; } catch (e) {}

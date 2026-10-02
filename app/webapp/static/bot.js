@@ -1922,42 +1922,33 @@
       });
       return;
     }
-    let pick = from ? 'here' : 'start';
-    sheet('تست در تلگرام', 'پیش‌نویس ذخیره می‌شود', (body, ctx) => {
-      const opt = (k, t, d) => {
-        const r = bt('bk-radio big' + (pick === k ? ' on' : ''), [h('i', 'bk-radio-c'), h('span', 'grow')], () => { pick = k; ctx.redraw(); });
-        r.querySelector('.grow').append(h('b', '', t), h('span', '', d));
-        body.appendChild(r);
-      };
-      if (from && find(from)) opt('here', 'از همین پیام', `«${find(from).name}» همین الان در چت ربات می‌آید`);
-      opt('start', 'از اول، مثل یک کاربر تازه', '/start با متغیرهای خالی');
-      note(body, 'فقط تو نسخهٔ پیش‌نویس را می‌بینی. کاربرهای ربات تا «انتشار» همان نسخهٔ قبلی را دارند. برای خروج از حالت تست در چت ربات /exit بفرست.', 'warn');
-      primary(body, 'باز کردن چت ربات', () => runTest(pick === 'here' ? from : ''), 't', 'tg');
-    });
+    runTest(from && find(from) ? from : '');
   }
+  /* تست از خود ربات واقعی: پیش‌نویس ذخیره می‌شود، مینی‌اپ جمع می‌شود و چت ربات با لینک
+     استارت (?start=test یا t_<پیام>) باز می‌شود؛ ربات پیش‌نویس را جلوی چشم صاحبش می‌فرستد. */
   async function runTest(from) {
     await save();
+    toast('در حال باز کردن ربات…');
     try {
       const res = await P().api('bot/test', { id: R.appId, doc: R.doc, from });
       closeAllSheets();
-      if (res.need_start) {
-        sheet('یک بار ربات را استارت کن', 'تلگرام اجازه نمی‌دهد ربات اول پیام بدهد', body => {
-          note(body, 'دکمهٔ پایین چت ربات را باز می‌کند؛ «Start» را بزن تا پیش‌نویس همان‌جا بیاید.');
-          primary(body, 'باز کردن و استارت', () => openLink(res.link), 't', 'tg');
-        });
-        return;
-      }
-      openLink(res.link);
+      openTestChat(res.link);
     } catch (err) {
       if (err.status === 409) { takeover(() => runTest(from)); return; }
       P().failed(err);
     }
   }
-  function openLink(link) {
-    if (tg && tg.initData && tg.openTelegramLink) tg.openTelegramLink(link);
-    else toast('در تلگرام باز می‌شود: ' + link.replace('https://', ''));
+  function openTestChat(link) {
+    // وقتی کاربر دوباره مینی‌اپ را باز کند، همین‌جا برمی‌گردد
+    try { localStorage.setItem('es-resume', JSON.stringify({ id: R.appId, tab: R.ai && R.ai.on ? 'ai' : R.tab, t: Date.now() })); } catch (e) {}
+    if (tg && tg.initData && tg.openTelegramLink) {
+      tg.openTelegramLink(link);
+      setTimeout(() => {
+        try { tg.disableClosingConfirmation(); } catch (e) {}
+        try { tg.close(); } catch (e) {}
+      }, 350);
+    } else toast('در تلگرام باز می‌شود: ' + link.replace('https://', ''));
   }
-
   /* ================================================================ انتشار */
   function publishSheet() {
     sheet('انتشار', 'کاربرها از همین لحظه نسخهٔ تازه را می‌بینند', (body, ctx) => {

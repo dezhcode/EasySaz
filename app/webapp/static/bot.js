@@ -22,7 +22,7 @@
   /* ---------------------------------------------------------------- آیکن‌ها */
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const IC = {
-    stop: 'M7 7h10v10H7z', back: 'M9 6l6 6-6 6', chl: 'M15 6l-6 6 6 6', x: 'M6 6l12 12M18 6L6 18', plus: 'M12 5v14M5 12h14', play: 'M8 5v14l11-7z',
+    stop: 'M8 6h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z', back: 'M9 6l6 6-6 6', chl: 'M15 6l-6 6 6 6', x: 'M6 6l12 12M18 6L6 18', plus: 'M12 5v14M5 12h14', play: 'M8 5v14l11-7z',
     chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.3A8 8 0 1 1 21 12z', keyb: 'M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M7 14h10',
     layers: 'M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5', var: 'M8 4c-2 0-2 2-2 4s-2 4-2 4 2 2 2 4 0 4 2 4M16 4c2 0 2 2 2 4s2 4 2 4-2 2-2 4 0 4-2 4',
     smile: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8.5 14a4 4 0 0 0 7 0M9 9.5h.01M15 9.5h.01', bot: 'M5 9h14v10H5zM12 5v4M9 13v.01M15 13v.01M9 16h6',
@@ -2273,16 +2273,35 @@
     }
     return c;
   }
+  function aiChanged(list, more) {
+    const wrap = h('div', 'ai-pvs');
+    list.forEach(pv => {
+      const lab = h('div', 'ai-pv-l ' + pv.kind);
+      lab.append(h('span', 'ai-pv-k', { add: 'تازه', new: 'بازنویسی شد' }[pv.kind] || 'تغییر کرد'), h('b', 'grow', pv.name),
+        bt('ai-pv-go', [ic('pen')], () => aiOpenMsg(pv.id), 'باز کردن در ربات‌ساز'));
+      wrap.append(lab, aiPreview(pv));
+    });
+    if (more) wrap.appendChild(h('div', 'ai-pv-more', `و ${faN(more)} پیام دیگر`));
+    return wrap;
+  }
+  function aiOpenMsg(id) {
+    const A = R.ai;
+    A.on = false; A.fromHome = false;
+    const e2 = document.querySelector('#bot .bk-ai'); if (e2) e2.remove();
+    R.tab = 'msgs'; draw();
+    if (id && find(id)) openEditor(id);
+  }
   function aiPreview(pv) {
     const box = h('div', 'ai-pv');
     const b = h('div', 'bk-bub');
     const t = h('div', 'bk-text');
     fillEditable(t, pv.text);
     b.append(t, h('span', 'bk-time', '۹:۴۱'));
+    if (pv.text_changed) b.classList.add('hl');
     box.appendChild(b);
     if (pv.rows && pv.rows.length) {
       const k = h('div', 'bk-keys');
-      pv.rows.forEach(r => { const rr = h('div', 'bk-krow'); r.forEach(x => rr.appendChild(keyEl(x, pv.kb === 'reply' ? 'rk' : '', null))); k.appendChild(rr); });
+      pv.rows.forEach(r => { const rr = h('div', 'bk-krow'); r.forEach(x => rr.appendChild(keyEl(x, (pv.kb === 'reply' ? 'rk' : '') + (x.hl ? ' hl' : ''), null))); k.appendChild(rr); });
       box.appendChild(k);
     }
     return box;
@@ -2299,7 +2318,10 @@
       h('span', '', res.stats ? `${faN(res.stats.msgs)} پیام · ${faN(res.stats.buttons)} دکمه · ${faN(res.stats.vars)} متغیر` : ''));
     hd.append(i, tt);
     c.appendChild(hd);
-    if (res.preview && last && !res.undone) c.appendChild(aiPreview(res.preview));
+    if (last && !res.undone) {
+      if (res.previews && res.previews.length) c.appendChild(aiChanged(res.previews, res.previews_more));
+      else if (res.preview) c.appendChild(aiPreview(res.preview));
+    }
     const n = res.changes.length + (res.more || 0);
     const openK = A.open[turn.id] != null ? A.open[turn.id] : (last && n <= 4);
     const tg2 = bt('ai-art-sum', [h('span', 'grow', `${faN(n)} تغییر در پیش‌نویس`), ic(openK ? 'up' : 'down')], () => { A.open[turn.id] = !openK; drawAI(); });
@@ -2319,12 +2341,7 @@
       const a = h('div', 'ai-acts');
       if (last) {
         a.appendChild(bt('ai-act t', [ic('play'), 'تست در تلگرام'], () => testSheet('')));
-        a.appendChild(bt('ai-act s', [ic('pen'), 'باز کردن در ربات‌ساز'], () => {
-          const sid = (res.preview && res.preview.id) || R.doc.start;
-          A.on = false; A.fromHome = false;
-          const e2 = document.querySelector('#bot .bk-ai'); if (e2) e2.remove();
-          R.tab = 'msgs'; draw(); if (sid) openEditor(sid);
-        }));
+        a.appendChild(bt('ai-act s', [ic('pen'), 'باز کردن در ربات‌ساز'], () => aiOpenMsg((res.previews && res.previews[0] && res.previews[0].id) || (res.preview && res.preview.id) || R.doc.start)));
       }
       if (turn.can_undo) a.appendChild(bt('ai-act o', [ic('undo'), last ? 'برگردان' : 'برگرد به پیش از این'], () => aiUndo(turn)));
       if (a.childNodes.length) c.appendChild(a);
@@ -2354,15 +2371,16 @@
     comp.appendChild(ta);
     const row = h('div', 'ai-comp-r');
     const full = A.quota.limit && A.quota.used >= A.quota.limit;
-    row.appendChild(bt('ai-att-b', ic('image'), () => pickFile(async f => {
-      try { A.img = await resize(f, 1280); drawAI(); } catch (err) { toast(err.message); }
-    }), 'پیوست عکس'));
-    const left = A.quota.limit ? Math.max(0, A.quota.limit - A.quota.used) : 0;
-    row.appendChild(h('span', 'ai-hint grow', A.quota.limit && left <= 5 ? `${faN(left)} پیام دیگر برای امروز` : 'دستیار فقط پیش‌نویس را عوض می‌کند'));
+    // ارسال سمت راست (اول ردیف در راست‌به‌چپ)، پیوست عکس سمت چپ
     let send;
     if (A.busy) send = bt('ai-send stop', ic('stop'), aiStop, 'توقف');
     else send = bt('ai-send' + (!A.enabled || full ? ' off' : ''), ic('up'), () => go(), 'بفرست');
     row.appendChild(send);
+    const left = A.quota.limit ? Math.max(0, A.quota.limit - A.quota.used) : 0;
+    row.appendChild(h('span', 'ai-hint grow', A.quota.limit && left <= 5 ? `${faN(left)} پیام دیگر برای امروز` : 'دستیار فقط پیش‌نویس را عوض می‌کند'));
+    row.appendChild(bt('ai-att-b', ic('image'), () => pickFile(async f => {
+      try { A.img = await resize(f, 1280); drawAI(); } catch (err) { toast(err.message); }
+    }), 'پیوست عکس'));
     comp.appendChild(row);
     box.appendChild(comp);
     const go = () => {

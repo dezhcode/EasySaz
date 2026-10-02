@@ -1212,6 +1212,9 @@ def test_ai() -> None:  # noqa: C901
        "کارت تغییرها، آمار و پیشنهادهای بعدی")
     ok(res1["preview"]["id"] == "m_welcome" and res1["preview"]["rows"][0][0]["style"] == "primary" and any("[…]" in x for x in res1["warnings"]),
        "پیش‌نمایش پیام شروع و هشدار جای خالی «[…]»")
+    pv = {p["name"]: p for p in res1["previews"]}
+    ok(pv["خوش‌آمد"]["kind"] == "new" and pv["دوره‌ها"]["kind"] == "add" and len(res1["previews"]) == 3 and res1["previews_more"] == 1,
+       "کارت نتیجه پیام‌های ساخته/عوض‌شده را نشان می‌دهد، نه فقط صفحهٔ اول")
     st, g = jcall("GET", f"/api/bot?id={app_id}")
     ok(g["doc"] == doc and g["published"] != doc, "فقط پیش‌نویس عوض شد، نسخهٔ منتشرشده دست نخورد")
 
@@ -1258,6 +1261,9 @@ def test_ai() -> None:  # noqa: C901
     ok("=== BOT INFO ===" in prompts[-2] and "MINI_APP_URL: https://example.com/easysaz/a/" in prompts[-2] and "=== IMAGE ===" in prompts[-2],
        "پرامپت: نام و آدرس مینی‌اپ ربات، و عکس پیوست")
     ok("not reachable" in prompts[-1], "پیام تازه‌ای که به هیچ‌جا وصل نیست، تعمیر خودکار می‌خواهد")
+    wv = next(p for p in done["turn"]["result"]["previews"] if p["id"] == "m_welcome")
+    ok(wv["kind"] == "mod" and [x["hl"] for r in wv["rows"] for x in r] == [True, True] and not wv["text_changed"],
+       "تغییر جزئی: فقط دکمه‌های تازه/عوض‌شدهٔ همان پیام برجسته‌اند")
     pm = next(m for m in done["doc"]["msgs"] if m["id"] == "m_prices")
     ok(pm["opts"]["typing"] and pm["opts"]["effect"] == "🎉" and done["turn"]["ask"].startswith("📷 "), "ویژگی‌های پیام (در حال نوشتن، افکت) و نشان عکس")
     ok("**چی ساختم**" in done["turn"]["say"] and "\n- " in done["turn"]["say"], "جواب دستیار Markdown و چندخطی می‌ماند")

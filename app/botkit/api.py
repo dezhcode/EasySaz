@@ -13,13 +13,20 @@
   GET  /api/bot/ai_poll?id=&turn=  متن در حال تایپ، جای صف، نتیجه و پیش‌نویس تازه
   POST /api/bot/ai_undo        برگرداندن پیش‌نویس به پیش از یک نوبت
   POST /api/bot/ai_stop        توقف نوبت در جریان (پیش‌نویس دست نمی‌خورد)
+  GET  /api/bot/data?id=&form= فرم‌ها و جواب‌های ثبت‌شده با کار «ثبت در داده‌ها»
+  POST /api/bot/data_export    فایل CSV یک فرم در چت صاحب ربات
 """
 from __future__ import annotations
 
+import csv
+import html
+import io
 import logging
 import re
+import time
 
 from aiogram.exceptions import TelegramAPIError
+from aiogram.types import BufferedInputFile
 
 from ..clients import LinkError
 from ..config import config
@@ -31,7 +38,8 @@ log = logging.getLogger("easysaz.botkit.api")
 PACK_RE = re.compile(r"(?:t\.me/addemoji/|addemoji/)?([A-Za-z0-9_]{3,64})/?$")
 
 ACTIONS = {"": "GET", "save": "POST", "publish": "POST", "off": "POST", "test": "POST", "takeover": "POST",
-           "emoji_pack": "POST", "emoji_del": "POST", "ai": "GET", "ai_send": "POST", "ai_poll": "GET", "ai_undo": "POST", "ai_stop": "POST"}
+           "emoji_pack": "POST", "emoji_del": "POST", "ai": "GET", "ai_send": "POST", "ai_poll": "GET", "ai_undo": "POST", "ai_stop": "POST",
+           "data": "GET", "data_export": "POST"}
 
 
 def _image_b64(raw: object) -> str | None:
@@ -83,7 +91,7 @@ class BotApi:
     async def handle(self, action: str, init_data: str, query: dict, body: dict) -> dict:
         if action == "":
             return await self.get(init_data, query.get("id"))
-        if action in ("ai", "ai_poll"):
+        if action in ("ai", "ai_poll", "data"):
             return await getattr(self, action)(init_data, query)
         return await getattr(self, action)(init_data, body)
 
@@ -166,6 +174,48 @@ class BotApi:
         frm = schema._id(body.get("from"))
         payload = f"t_{frm}" if frm and doc is not None and schema.find(doc, frm) else "test"
         return {"ok": True, "link": f"https://t.me/{app['bot_username']}?start={payload}"}
+
+    # ------------------------------------------------------------ داده‌ها (جواب فرم‌ها)
+    async def data(self, init_data: str, query: dict) -> dict:
+        _u, _p, app = await self._ctx(init_data, query.get("id"))
+        forms = await store.forms(self.db, app["id"])
+        form = str(query.get("form") or "")[:40]
+        out: dict = {"forms": forms}
+        if form:
+            out["form"] = form
+            out["rows"] = await store.rows_of(self.db, app["id"], form)
+        return out
+
+    async def data_export(self, init_data: str, body: dict) -> dict:
+        """فایل CSV جواب‌های یک فرم را ربات ایزی‌ساز در چت صاحبش می‌فرستد."""
+        user, _p, app = await self._ctx(init_data, body.get("id"), write=True)
+        form = str(body.get("form") or "")[:40]
+        rows = await store.rows_of(self.db, app["id"], form, limit=5000)
+        if not rows:
+            raise _err(404, "هنوز جوابی برای این فرم ثبت نشده")
+        cols: list[str] = []
+        for r in rows:
+            for k in r["data"]:
+                if k not in cols:
+                    cols.append(k)
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(["ردیف", "زمان", "شناسه", "نام", "یوزرنیم", *cols, "تست"])
+        for i, r in enumerate(reversed(rows), 1):
+            when = time.strftime("%Y-%m-%d %H:%M", time.gmtime(r["at"] + 3.5 * 3600))
+            w.writerow([i, when, r["tg_id"], r["name"], ("@" + r["username"]) if r["username"] else "",
+                        *[str(r["data"].get(c, "")) for c in cols], "بله" if r["test"] else ""])
+        data = ("\ufeff" + buf.getvalue()).encode("utf-8")   # BOM: اکسل فارسی را درست باز کند
+        safe = re.sub(r"[^\w\-]+", "_", form, flags=re.UNICODE).strip("_") or "form"
+        try:
+            await self.main_bot.send_document(
+                user.id, BufferedInputFile(data, filename=f"{safe}.csv"),
+                caption=f"📊 جواب‌های «{html.escape(form)}» · {len(rows)} ردیف",
+            )
+        except TelegramAPIError as exc:
+            log.info("csv export failed: %s", exc)
+            raise _err(400, "ربات ایزی‌ساز نتوانست فایل را بفرستد؛ اول ربات را استارت کن") from exc
+        return {"ok": True, "count": len(rows)}
 
     # ------------------------------------------------------------ ایموجی
     async def emoji_pack(self, init_data: str, body: dict) -> dict:

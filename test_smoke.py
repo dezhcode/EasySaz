@@ -1323,6 +1323,147 @@ def test_ai() -> None:  # noqa: C901
     web_api._RATE.clear()  # این بخش چند نوشتن پشت سر هم داشت؛ بخش‌های بعد سقف دقیقه‌ای خودشان را دارند
 
 
+STEPS_DOC = {
+    "start": "m_start",
+    "vars": [{"name": "سن", "type": "number"}, {"name": "شماره", "type": "text"}, {"name": "امتیاز", "type": "number", "init": "0"}],
+    "msgs": [
+        {"id": "m_start", "name": "شروع", "text": "شروع", "kb": "inline",
+         "steps": [{"type": "calc", "var": "امتیاز", "op": "+", "value": "5"}, {"type": "tag", "tag": "#vip"}, {"type": "bogus"}],
+         "rows": [[{"id": "b_age", "text": "فرم", "act": {"type": "goto", "to": "m_age"}},
+                   {"id": "b_gate", "text": "کانال", "act": {"type": "goto", "to": "m_gate"}}],
+                  [{"id": "b_rand", "text": "شانس", "act": {"type": "goto", "to": "m_rand"}},
+                   {"id": "b_wait", "text": "بعداً", "act": {"type": "goto", "to": "m_wait"}}],
+                  [{"id": "b_vip", "text": "ویژه", "act": {"type": "goto", "to": "m_vip"}},
+                   {"id": "b_short", "text": "کوتاه", "act": {"type": "goto", "to": "m_short"}}]]},
+        {"id": "m_age", "name": "سن", "text": "چند سالته؟", "wait": {"kind": "var", "var": "سن", "to": "m_phone", "check": "number", "min": "۱", "max": 120}},
+        {"id": "m_phone", "name": "شماره", "text": "شماره‌ات؟", "wait": {"kind": "var", "var": "شماره", "to": "m_done", "check": "phone"}},
+        {"id": "m_done", "name": "پایان", "text": "ممنون {سن}",
+         "steps": [{"type": "save", "form": "ثبت‌نام", "vars": ["سن", "شماره", "نام"], "notify": True},
+                   {"type": "if", "rules": [{"k": "var", "a": "سن", "op": "<", "b": "18"}], "yes": "m_kid", "no": "m_ghost"}]},
+        {"id": "m_kid", "name": "کوچک", "text": "کوچولو"},
+        {"id": "m_gate", "name": "کانال", "text": "عضوی!", "steps": [{"type": "member", "chat": "@kaboos_ch"}]},
+        {"id": "m_rand", "name": "شانس", "text": "x", "steps": [{"type": "random", "to": ["m_a", "m_nope"]}]},
+        {"id": "m_a", "name": "الف", "text": "A"},
+        {"id": "m_wait", "name": "بعداً", "text": "یک ساعت بعد", "steps": [{"type": "delay", "sec": 3600}]},
+        {"id": "m_vip", "name": "ویژه؟", "text": "?", "steps": [{"type": "if", "rules": [{"k": "tag", "b": "vip"}], "yes": "m_isvip", "no": "m_novip"}]},
+        {"id": "m_isvip", "name": "ویژه", "text": "امتیاز {امتیاز}"},
+        {"id": "m_novip", "name": "عادی", "text": "عادی"},
+        {"id": "m_short", "name": "کوتاه", "text": "رسیدی", "steps": [{"type": "delay", "sec": 1}, {"type": "notify", "text": "کاربر {نام} رسید"}]},
+    ],
+}
+
+
+def test_steps() -> None:  # noqa: C901
+    print("ربات‌ساز پیشرفته: کارها، پرسش با بررسی، داده‌ها")
+    import sqlite3
+
+    from app.botkit import agent, engine
+    from app.webapp import api as web_api
+
+    web_api._RATE.clear()
+    con = sqlite3.connect(os.environ["DB_PATH"])
+    app_id, bot_id = con.execute("SELECT id, bot_id FROM apps WHERE owner_id = 7 ORDER BY id").fetchone()
+    st, res = jcall("POST", "/api/bot/publish", {"id": app_id, "doc": STEPS_DOC})
+    doc = res["doc"]
+    by = {m["id"]: m for m in doc["msgs"]}
+    ok(st == 200 and len(by["m_start"]["steps"]) == 2 and by["m_start"]["steps"][1] == {"type": "tag", "tag": "vip", "op": "add"}
+       and by["m_done"]["steps"][1]["no"] == "" and by["m_rand"]["steps"][0]["to"] == ["m_a"] and by["m_age"]["wait"]["min"] == 1,
+       "کارها ذخیره می‌شوند: نوع ناشناخته، مقصد ناموجود و # برچسب پاک، عدد فارسی خوانده می‌شود")
+    ok({"m_kid", "m_isvip", "m_novip"} <= agent.reachable(doc), "پیام‌هایی که فقط از شرط می‌رسند «بی‌راه» حساب نمی‌شوند")
+
+    def sent(n0: int, chat: int) -> list[str]:
+        return [p.get("text", "") for b, m, p in FakeSession.calls[n0:] if b == str(bot_id) and m in ("SendMessage", "EditMessageText") and p.get("chat_id") == chat]
+
+    u = 60
+    n0 = len(FakeSession.calls)
+    chook(cmsg(u, text="/start"), bot_id)
+    ok(sent(n0, u) == ["شروع"], "پیام با کار «محاسبه» و «برچسب» فرستاده می‌شود")
+
+    # پرسش با بررسی
+    chook(ccb(u, "bk|g|m_start|b_age"), bot_id)
+    n0 = len(FakeSession.calls)
+    chook(cmsg(u, text="سلام"), bot_id)
+    chook(cmsg(u, text="۲۵۰"), bot_id)
+    errs = sent(n0, u)
+    ok(len(errs) == 2 and all("بین ۱ تا ۱۲۰" in e for e in errs), "جواب نادرست (متن یا بیرون از بازه): پیام خطا و هنوز منتظر")
+    n0 = len(FakeSession.calls)
+    chook(cmsg(u, text="۱۵"), bot_id)
+    chook(cmsg(u, text="12345"), bot_id)
+    out = sent(n0, u)
+    ok(out[0] == "شماره‌ات؟" and "شماره را درست" in out[1], "عدد درست قبول، شمارهٔ نادرست رد می‌شود")
+    n0 = len(FakeSession.calls)
+    chook(cmsg(u, text="+98 912 123 4567"), bot_id)
+    out = sent(n0, u)
+    owner = sent(n0, 7)
+    ok(out == ["کوچولو"], "شرط «سن کمتر از ۱۸» به پیام دیگر می‌پرد")
+    ok(owner and "ثبت‌نام" in owner[0] and "09121234567" in owner[0] and "Sara" in owner[0], "ثبت در داده‌ها + خبر فوری برای صاحب ربات")
+    row = json.loads(con.execute("SELECT data FROM bk_rows WHERE app_id = ?", (app_id,)).fetchone()[0])
+    ok(row == {"سن": "15", "شماره": "09121234567", "نام": "Sara"}, "ردیف فرم با شمارهٔ یکدست‌شده ذخیره می‌شود")
+
+    st, res = jcall("GET", f"/api/bot/data?id={app_id}")
+    ok(st == 200 and res["forms"][0]["form"] == "ثبت‌نام" and res["forms"][0]["count"] == 1, "داده‌ها: فهرست فرم‌ها")
+    st, res = jcall("GET", f"/api/bot/data?id={app_id}&form=" + quote("ثبت‌نام"))
+    ok(res["rows"][0]["data"]["شماره"] == "09121234567" and res["rows"][0]["username"] == "sara", "داده‌ها: جواب‌های یک فرم")
+    st, _ = jcall("GET", f"/api/bot/data?id={app_id}", uid=8)
+    ok(st in (403, 404), "داده‌های ربات دیگران دیده نمی‌شود")
+    n0 = len(FakeSession.calls)
+    st, res = jcall("POST", "/api/bot/data_export", {"id": app_id, "form": "ثبت‌نام"})
+    doc_call = [p for b, m, p in FakeSession.calls[n0:] if m == "SendDocument"]
+    ok(st == 200 and doc_call and doc_call[0]["chat_id"] == 7, "خروجی CSV در چت ایزی‌ساز صاحب ربات")
+    csv_bytes = doc_call[0]["document"].data
+    ok(csv_bytes.startswith("﻿".encode()) and "09121234567" in csv_bytes.decode("utf-8"), "CSV با BOM برای اکسل")
+    st, _ = jcall("POST", "/api/bot/data_export", {"id": app_id, "form": "نیست"})
+    ok(st == 404, "فرم بی‌جواب خروجی ندارد")
+
+    # عضویت کانال
+    FakeSession.members.discard(u)
+    n0 = len(FakeSession.calls)
+    chook(ccb(u, "bk|g|m_start|b_gate"), bot_id)
+    gate = [p for b, m, p in FakeSession.calls[n0:] if m == "SendMessage" and p.get("chat_id") == u]
+    ok(gate and "@kaboos_ch" in gate[0]["text"] and gate[0]["reply_markup"]["inline_keyboard"][-1][0]["callback_data"] == "bk|r|m_gate|0",
+       "کاربر عضو کانال نیست: پیام عضویت با «عضو شدم»")
+    chook(ccb(u, "bk|r|m_gate|0"), bot_id)
+    ans = calls("AnswerCallbackQuery", bot_id)[-1]
+    ok(ans.get("show_alert") and "هنوز" in ans["text"], "«عضو شدم» بی‌عضویت: هشدار")
+    FakeSession.members.add(u)
+    n0 = len(FakeSession.calls)
+    chook(ccb(u, "bk|r|m_gate|0"), bot_id)
+    ok(sent(n0, u) == ["عضوی!"] and [m for b, m, p in FakeSession.calls[n0:] if m == "DeleteMessage"], "بعد از عضویت پیام اصلی می‌رسد")
+
+    n0 = len(FakeSession.calls)
+    chook(ccb(u, "bk|g|m_start|b_rand"), bot_id)
+    ok(sent(n0, u) == ["A"], "تصادفی: فقط بین مقصدهای موجود")
+    n0 = len(FakeSession.calls)
+    chook(ccb(u, "bk|g|m_start|b_vip"), bot_id)
+    ok(sent(n0, u) == ["امتیاز ۵"], "شرط برچسب و محاسبهٔ متغیر")
+    n0 = len(FakeSession.calls)
+    chook(ccb(u, "bk|g|m_start|b_short"), bot_id)
+    ok(sent(n0, u) == ["رسیدی"] and any("کاربر Sara رسید" in t for t in sent(n0, 7)), "مکث کوتاه و خبر به صاحب ربات")
+
+    # مکث بلند: صف پس‌زمینه
+    n0 = len(FakeSession.calls)
+    chook(ccb(u, "bk|g|m_start|b_wait"), bot_id)
+    job = con.execute("SELECT msg_id, step, due_at FROM bk_jobs WHERE app_id = ? AND tg_id = ?", (app_id, u)).fetchone()
+    ok(not sent(n0, u) and job and job[0] == "m_wait" and job[1] == 1 and job[2] > time.time() + 3500, "مکث یک‌ساعته در صف می‌رود و الان چیزی نمی‌رسد")
+    con.execute("UPDATE bk_jobs SET due_at = 0 WHERE app_id = ?", (app_id,))
+    con.commit()
+    rt.runtime.run(engine.run_due(rt.runtime.db, rt.runtime.parts.clients))
+    left = con.execute("SELECT COUNT(*) FROM bk_jobs WHERE app_id = ?", (app_id,)).fetchone()[0]
+    ok("یک ساعت بعد" in sent(n0, u) and left == 0, "وقتش رسید: ادامهٔ پیام برای همان کاربر")
+
+    # دستیار: کار و پرسش با بررسی
+    d2, probs = agent.apply_ops(doc, [
+        {"op": "msg", "id": "m_mail", "name": "ایمیل", "text": "ایمیلت؟", "wait": {"var": "شماره", "to": "m_kid", "check": "email"}},
+        {"op": "steps", "msg": "m_mail", "steps": [{"type": "if", "rules": [{"k": "tag", "b": "vip"}], "yes": "m_isvip"}]},
+        {"op": "buttons", "msg": "m_kid", "rows": [[{"text": "ایمیل", "act": {"type": "goto", "to": "m_mail"}}]]},
+        {"op": "steps", "msg": "m_a", "steps": [{"type": "random", "to": ["m_gone"]}]},
+    ])
+    mail = next(m for m in d2["msgs"] if m["id"] == "m_mail")
+    ok(mail["wait"]["check"] == "email" and mail["steps"][0]["yes"] == "m_isvip", "دستیار: عملیات steps و پرسش با بررسی")
+    ok(any("m_gone" in p for p in probs) and any("کار در «ایمیل»" in x["t"] for x in agent.diff(doc, d2)), "دستیار: مقصد ناموجود کار برای تعمیر گزارش می‌شود؛ تغییر کارها در کارت نتیجه")
+    web_api._RATE.clear()
+
+
 if __name__ == "__main__":
     test_blocks()
     test_auth()
@@ -1330,6 +1471,7 @@ if __name__ == "__main__":
     test_bot()
     test_botkit()
     test_ai()
+    test_steps()
     test_site()
     test_mag()
     print(f"\nهمه {PASSED} تست گذشت ✅")

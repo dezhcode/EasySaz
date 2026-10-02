@@ -6,12 +6,17 @@
 
 داده‌های دکمه‌های شیشه‌ای: bk|<کار>|<پیام مبدأ>|<دکمه>
   g = رفتن به پیام، a = پیام کوتاه، p = پرداخت ستاره، n = بی‌کار
+  r = «عضو شدم» (ادامهٔ همان پیام از کار عضویت؛ به‌جای دکمه، شمارهٔ کار)
+
+«کار»ها (schema: steps) پیش از فرستادن هر پیام اجرا می‌شوند: شرط و تصادفی می‌پرند،
+مکث کوتاه همین‌جا و مکث بلند در bk_jobs (run_due) ادامه می‌یابد.
 """
 from __future__ import annotations
 
 import asyncio
 import html
 import logging
+import random
 import re
 import time
 from urllib.parse import quote
@@ -20,6 +25,7 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError, TelegramBadRequest, TelegramForbiddenError
 from aiogram.types import (
     CallbackQuery,
+    User,
     CopyTextButton,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -299,8 +305,18 @@ def _emoji_error(exc: Exception) -> bool:
     return "emoji" in s or "entit" in s or "icon" in s or "style" in s
 
 
-async def send(ctx: Ctx, chat_id: int, msg: dict, edit: Message | None = None, depth: int = 0) -> None:
-    """یک «پیام» سند را می‌فرستد (یا جای پیام قبلی می‌نشاند) و پیام بعدی همان مرحله را هم."""
+async def send(ctx: Ctx, chat_id: int, msg: dict, edit: Message | None = None, depth: int = 0, step: int = 0, hops: int = 0) -> None:
+    """یک «پیام» سند را می‌فرستد (یا جای پیام قبلی می‌نشاند) و پیام بعدی همان مرحله را هم.
+    اول «کار»های پیام از step به بعد اجرا می‌شوند؛ شرط و تصادفی ممکن است به پیام دیگری بپرند."""
+    if msg.get("steps") and step < len(msg["steps"]):
+        jump = await run_steps(ctx, chat_id, msg, step)
+        if jump is STOP:
+            return
+        if jump:
+            target = schema.find(ctx.doc, jump)
+            if target is not None and hops < 8:
+                await send(ctx, chat_id, target, edit, depth, 0, hops + 1)
+            return
     o = msg["opts"]
     for attempt in (0, 1):
         premium = ctx.premium and attempt == 0
@@ -371,6 +387,252 @@ async def _deliver(ctx: Ctx, chat_id: int, msg: dict, text: str, kb, edit: Messa
         await bot.send_video(video=media["url"], caption=text, **common)
     else:
         await bot.send_message(text=text, link_preview_options=LinkPreviewOptions(is_disabled=not o["preview"]), **common)
+
+
+# ---------------------------------------------------------------- کارها
+STOP = object()
+_WEEK = ("دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه", "یکشنبه")   # tm_wday: دوشنبه = ۰
+_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+
+
+def _as_num(v: object) -> float | None:
+    if isinstance(v, (int, float)):
+        return float(v)
+    try:
+        return float(str(v).translate(_DIGITS).replace("٫", ".").replace(",", "").replace("٬", "").strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def tags_of(ctx: Ctx) -> list[str]:
+    t = ctx.user.setdefault("vars", {}).get("#tags")
+    return t if isinstance(t, list) else []
+
+
+async def is_member(ctx: Ctx, chat: str) -> bool:
+    cache = ctx.__dict__.setdefault("_member", {})
+    if chat in cache:
+        return cache[chat]
+    try:
+        m = await ctx.bot.get_chat_member(chat, ctx.user["tg_id"])
+        ok = getattr(m, "status", "") in ("member", "administrator", "creator") or bool(getattr(m, "is_member", False))
+    except TelegramAPIError as exc:
+        # ربات ادمین کانال نیست یا کانال اشتباه است: کاربر را پشت در نگه نمی‌داریم
+        log.info("membership check failed for app %s (%s): %s", ctx.app["id"], chat, exc)
+        ok = True
+    cache[chat] = ok
+    return ok
+
+
+async def _rule_ok(ctx: Ctx, r: dict) -> bool:
+    k, op = r["k"], r["op"]
+    if k == "member":
+        res = await is_member(ctx, r["a"])
+        return not res if op == "not" else res
+    if k == "tag":
+        res = r["b"].strip("#") in tags_of(ctx)
+        return not res if op == "not" else res
+    if k == "hour":
+        t = iran_now()
+        m = re.match(r"^\s*(\d{1,2})\s*[-–]\s*(\d{1,2})\s*$", r["b"].translate(_DIGITS))
+        if not m:
+            return False
+        a, b = int(m.group(1)), int(m.group(2))
+        res = a <= t.tm_hour < b if a <= b else (t.tm_hour >= a or t.tm_hour < b)
+        return not res if op == "not" else res
+    if k == "day":
+        today = _WEEK[iran_now().tm_wday]
+        days = [d.strip().replace(" ", "") for d in re.split(r"[,،]", r["b"]) if d.strip()]
+        res = today.replace("‌", "") in [d.replace("‌", "") for d in days]
+        return not res if op == "not" else res
+    left = ctx.raw(r["a"])
+    right = ctx.fill_plain(r["b"])
+    ls = "" if left is None else (schema.fa_number(left) if isinstance(left, float) else str(left))
+    if op == "empty":
+        return not ls.strip()
+    if op == "filled":
+        return bool(ls.strip())
+    if op == "has":
+        return right.casefold() in ls.casefold()
+    ln, rn = _as_num(left), _as_num(right)
+    if ln is not None and rn is not None:
+        return {"=": ln == rn, "!=": ln != rn, ">": ln > rn, "<": ln < rn, ">=": ln >= rn, "<=": ln <= rn}.get(op, False)
+    a, b = ls.strip().casefold(), right.strip().casefold()
+    return {"=": a == b, "!=": a != b}.get(op, False)
+
+
+async def _rules_ok(ctx: Ctx, st: dict) -> bool:
+    res = [await _rule_ok(ctx, r) for r in st["rules"]]
+    return any(res) if st["mode"] == "or" else all(res)
+
+
+def _calc(ctx: Ctx, st: dict) -> None:
+    v = ctx.vars.get(st["var"])
+    if not v or v["formula"]:
+        return
+    target = ctx.globals if v["scope"] == "bot" else ctx.user.setdefault("vars", {})
+    if v["type"] == "number":
+        try:
+            n = schema.evaluate(st["value"], ctx.raw) if st["value"] else 0.0
+        except schema.FormulaError:
+            n = schema.to_number(ctx.fill_plain(st["value"]))
+        cur = schema.to_number(target.get(v["name"], v["init"]))
+        target[v["name"]] = cur + n if st["op"] == "+" else cur - n if st["op"] == "-" else n
+    else:
+        target[v["name"]] = ctx.fill_plain(st["value"])[:500]
+
+
+def _plain_value(v: object) -> str:
+    """مقدار برای داده‌ها و CSV: عدد با ارقام لاتین تا در اکسل عدد بماند."""
+    if v is None:
+        return ""
+    if isinstance(v, float):
+        return str(int(v)) if v == int(v) else f"{v:.2f}".rstrip("0")
+    return str(v)
+
+
+async def _to_owner(ctx: Ctx, text: str, kb=None) -> None:  # noqa: ANN001
+    try:
+        await ctx.bot.send_message(ctx.app["owner_id"], ("🧪 " if ctx.test else "") + text, reply_markup=kb)
+    except TelegramAPIError:
+        log.info("owner notify failed for app %s (owner has not started the bot?)", ctx.app["id"])
+
+
+async def _send_join(ctx: Ctx, chat_id: int, chat: str, src: str, step: int) -> None:
+    rows = []
+    if chat.startswith("@"):
+        rows.append([InlineKeyboardButton(text="📢 عضویت در کانال", url=f"https://t.me/{chat[1:]}")])
+    rows.append([InlineKeyboardButton(text="✅ عضو شدم", callback_data=_cb("r", src, str(step)), style="success")])
+    await ctx.bot.send_message(chat_id, f"برای ادامه، اول عضو {html.escape(chat)} شو 👇", reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+
+
+async def run_steps(ctx: Ctx, chat_id: int, msg: dict, start: int = 0):  # noqa: ANN201, C901
+    """None یعنی همین پیام فرستاده شود؛ شناسهٔ پیام یعنی پرش؛ STOP یعنی فعلاً هیچ."""
+    steps = msg.get("steps") or []
+    for i in range(start, len(steps)):
+        st = steps[i]
+        t = st["type"]
+        if t == "calc":
+            _calc(ctx, st)
+        elif t == "if":
+            target = st["yes"] if await _rules_ok(ctx, st) else st["no"]
+            if target and target != msg["id"]:
+                return target
+        elif t == "random":
+            pick = random.choice(st["to"])
+            if pick != msg["id"]:
+                return pick
+        elif t == "delay":
+            # مکث کوتاه همین‌جا (جمعاً تا ۱۰ ثانیه در هر پیام کاربر)، بلندتر در صف پس‌زمینه
+            slept = ctx.__dict__.get("_slept", 0)
+            if st["sec"] <= 8 and slept + st["sec"] <= 10:
+                ctx.__dict__["_slept"] = slept + st["sec"]
+                try:
+                    await ctx.bot.send_chat_action(chat_id, "typing")
+                except TelegramAPIError:
+                    pass
+                await asyncio.sleep(st["sec"])
+                continue
+            await store.add_job(ctx.db, ctx.app["id"], ctx.user["tg_id"], msg["id"], i + 1, ctx.test, store.now() + st["sec"])
+            return STOP
+        elif t == "member":
+            if not await is_member(ctx, st["chat"]):
+                if st["no"] and st["no"] != msg["id"]:
+                    return st["no"]
+                await _send_join(ctx, chat_id, st["chat"], msg["id"], i)
+                return STOP
+        elif t == "notify":
+            await _to_owner(ctx, "🔔 " + ctx.fill(st["text"]))
+        elif t == "tag":
+            tags = [x for x in tags_of(ctx) if x != st["tag"]]
+            if st["op"] == "add":
+                tags.append(st["tag"])
+            ctx.user.setdefault("vars", {})["#tags"] = tags[-30:]
+        elif t == "save":
+            data = {v: _plain_value(ctx.raw(v)) for v in st["vars"]}
+            await store.add_row(ctx.db, ctx.app["id"], st["form"], ctx.user["tg_id"], data, ctx.test)
+            if st["notify"]:
+                lines = "\n".join(f"<b>{html.escape(k)}:</b> {html.escape(v)}" for k, v in data.items())
+                await _to_owner(ctx, f"📝 <b>{html.escape(st['form'])}</b> · جواب تازه\n{lines}")
+    return None
+
+
+async def run_due(db, clients) -> int:  # noqa: ANN001
+    """ادامهٔ «مکث»های رسیده. اجراکنندهٔ پس‌زمینه (runtime) و هر وبهوک آن را صدا می‌زنند."""
+    done = 0
+    for job in await store.take_due(db):
+        try:
+            app = await db.get_app(job["app_id"])
+            bot = clients.for_app(app) if app else None
+            if bot is None:
+                continue
+            u = await store.get_user(db, app["id"], job["tg_id"])
+            tg_user = User(id=job["tg_id"], is_bot=False, first_name=u.get("first_name") or "دوست", username=u.get("username") or None)
+            ctx = await _ctx(bot, db, app, tg_user, force_test=bool(job["test"]))
+            msg = schema.find(ctx.doc, job["msg_id"]) if ctx else None
+            if msg is None:
+                continue
+            await send(ctx, job["tg_id"], msg, step=job["step"])
+            await _persist(ctx)
+            done += 1
+        except TelegramForbiddenError:
+            continue
+        except Exception:  # noqa: BLE001
+            log.exception("delayed job %s failed", job["id"])
+    return done
+
+
+# ---------------------------------------------------------------- پرسش
+_EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[A-Za-z]{2,24}$")
+_DATE = re.compile(r"^\s*(\d{4})\s*[/\-.]\s*(\d{1,2})\s*[/\-.]\s*(\d{1,2})\s*$")
+_CHECK_ERR = {"number": "لطفاً یک عدد بفرست 🙂", "phone": "شماره را درست بفرست (مثل ۰۹۱۲۳۴۵۶۷۸۹) یا دکمهٔ «ارسال شماره» را بزن 🙂",
+              "email": "ایمیل درست نیست؛ مثل name@example.com بفرست 🙂", "date": "تاریخ را مثل ۱۴۰۵/۰۷/۱۰ بفرست 🙂",
+              "photo": "لطفاً یک عکس بفرست 📷", "choice": "لطفاً یکی از گزینه‌ها را بفرست 🙂", "text": "لطفاً جوابت را به صورت متن بفرست 🙂"}
+
+
+def check_answer(wait: dict, message: Message) -> tuple[bool, str]:
+    """جواب پرسش را با نوعش می‌سنجد؛ (درست است؟، مقداری که ذخیره می‌شود)."""
+    check = wait.get("check") or "text"
+    text = (message.text or message.caption or "").strip()
+    if check == "photo":
+        return (True, message.photo[-1].file_id) if message.photo else (False, "")
+    if check == "phone":
+        if message.contact:
+            return True, message.contact.phone_number
+        d = re.sub(r"[\s\-()]", "", text.translate(_DIGITS))
+        m = re.fullmatch(r"(?:\+?98|0098|0)?(9\d{9})", d)
+        return (True, "0" + m.group(1)) if m else (False, "")
+    if not text:
+        return False, ""
+    if check == "number":
+        n = _as_num(text)
+        if n is None or ("min" in wait and n < wait["min"]) or ("max" in wait and n > wait["max"]):
+            return False, ""
+        return True, str(int(n)) if n == int(n) else str(n)
+    if check == "email":
+        return (True, text) if _EMAIL.match(text) else (False, "")
+    if check == "date":
+        m = _DATE.match(text.translate(_DIGITS))
+        if not m or not (1 <= int(m.group(2)) <= 12 and 1 <= int(m.group(3)) <= 31):
+            return False, ""
+        return True, f"{m.group(1)}/{int(m.group(2)):02d}/{int(m.group(3)):02d}".translate(schema._FA)
+    if check == "choice":
+        for c in wait.get("choices") or []:
+            if c.casefold() == text.casefold():
+                return True, c
+        return False, ""
+    return True, text
+
+
+def _check_error(ctx: Ctx, wait: dict) -> str:
+    if wait.get("error"):
+        return ctx.fill(wait["error"])
+    err = _CHECK_ERR.get(wait.get("check") or "text", _CHECK_ERR["text"])
+    if wait.get("check") == "number" and ("min" in wait or "max" in wait):
+        lo = schema.fa_number(wait["min"]) if "min" in wait else ""
+        hi = schema.fa_number(wait["max"]) if "max" in wait else ""
+        err = f"لطفاً یک عدد {'بین ' + lo + ' تا ' + hi if lo and hi else ('از ' + lo + ' به بالا' if lo else 'تا ' + hi)} بفرست 🙂"
+    return err
 
 
 # ---------------------------------------------------------------- ورودی‌ها
@@ -455,11 +717,17 @@ async def on_message(bot: Bot, db, app, message: Message) -> bool:  # noqa: ANN0
     # منتظر جواب (پرسش یا پشتیبانی)
     wait = st.get("wait")
     if wait and not text.startswith("/"):
-        st.pop("wait", None)
         if wait["kind"] == "support":
+            st.pop("wait", None)
             await _to_admin(ctx, message)
         else:
-            value = text or (message.contact.phone_number if message.contact else "") or (message.caption or "")
+            ok, value = check_answer(wait, message)
+            if not ok:
+                # جواب نادرست: پیام خطا و هنوز منتظر همان پرسش
+                await bot.send_message(chat, _check_error(ctx, wait))
+                await _persist(ctx)
+                return True
+            st.pop("wait", None)
             ctx.save_var(wait["var"], value)
         if wait.get("to"):
             await goto(ctx, chat, wait["to"])
@@ -542,6 +810,20 @@ async def on_callback(bot: Bot, db, app, call: CallbackQuery) -> bool:  # noqa: 
     _, kind, src, bid = parts
     ctx = await _ctx(bot, db, app, call.from_user)
     msg = schema.find(ctx.doc, src) if ctx else None
+    if kind == "r" and ctx is not None and msg is not None and bid.isdigit():
+        i = int(bid)
+        st = (msg.get("steps") or [])[i] if i < len(msg.get("steps") or []) else None
+        if st and st["type"] == "member" and not await is_member(ctx, st["chat"]):
+            await call.answer("هنوز عضو کانال نشدی 🙂", show_alert=True)
+            return True
+        await call.answer("ممنون! ✅")
+        try:
+            await call.message.delete()
+        except TelegramAPIError:
+            pass
+        await send(ctx, call.message.chat.id, msg, step=i + 1)
+        await _persist(ctx)
+        return True
     btn = schema.find_button(msg, bid) if msg else None
     if ctx is None or btn is None:
         await call.answer("این دکمه دیگر کار نمی‌کند؛ /start را بزن.", show_alert=True)

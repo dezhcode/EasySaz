@@ -53,6 +53,12 @@ OPERATIONS (applied in order; ids created earlier in the list can be referenced 
 {"op":"keys","msg":"m_x","rows":[[KEY]]}  replace the reply keyboard ([] removes it); KEY = {"text":"📱 ارسال شماره","style":"","act":{"type":"contact","var":"شماره","to":"m_y"}}; key acts: text{to}, contact{var,to}, location{var,to}, poll{to}, app{url}
 {"op":"del","msg":"m_x"}   {"op":"var","name":"قیمت","type":"text|number|bool|date","init":"0","formula":"{قیمت} × ۰٫۹"}   {"op":"del_var","name":"..."}
 {"op":"start","msg":"m_x"}   {"op":"fallback","msg":"m_x"}  (fallback = reply to anything not understood)
+{"op":"steps","msg":"m_x","steps":[STEP]}  replace the logic steps that run (in order) right before m_x is sent ([] removes them):
+  {"type":"if","rules":[{"k":"var|tag|hour|day|member","a":"VAR or @channel","op":"= != > < >= <= has empty filled not","b":"value"}],"mode":"and|or","yes":"m_a","no":"m_b"}  (yes/no "" = just send m_x; hour b "9-18", day b "جمعه,شنبه")
+  {"type":"calc","var":"امتیاز","op":"=|+|-","value":"10 or {a} × 2"}  {"type":"random","to":["m_a","m_b"]}  {"type":"delay","sec":3600}
+  {"type":"member","chat":"@channel","no":""}  (channel gate; the bot must be the channel admin)  {"type":"notify","text":"to the owner, may use {vars}"}
+  {"type":"tag","tag":"vip","op":"add|remove"}  {"type":"save","form":"ثبت‌نام","vars":["نام","شماره"],"notify":true}  (stores a row in the owner's «داده‌ها» tab)
+Validated ask: "wait":{"var":"سن","to":"m_z","check":"text|number|phone|email|date|photo|choice","min":1,"max":120,"choices":["..."],"error":"Persian retry hint"}. For a form: one message per question, each waits into its own var, the last one has a "save" step then thanks.
 
 DESIGN RULES:
 - Every "to"/"then" points to an existing message or one created in the same answer; every new message is reachable (from START, a button, a command or a keyword).
@@ -113,13 +119,15 @@ def outline(doc: dict, text_len: int = 140, full: str | None = None) -> str:
             extra.append(f"then {m['then']}")
         if m.get("wait"):
             w = m["wait"]
-            extra.append(f"wait {w.get('var') or w.get('kind')}→{w.get('to') or '-'}")
+            extra.append(f"wait {w.get('var') or w.get('kind')}" + (f"({w['check']})" if w.get("check") else "") + f"→{w.get('to') or '-'}")
         if m.get("media"):
             extra.append(m["media"]["type"])
         lines.append(f"[{m['id']}] «{m['name']}»" + (" " + " · ".join(extra) if extra else ""))
         t = _plain(m.get("text", ""))
         if text_len and t:
             lines.append("  " + (t if full == m["id"] else _short(t, text_len)))
+        if m.get("steps"):
+            lines.append("  steps: " + _short(json.dumps(m["steps"], ensure_ascii=False, separators=(",", ":")), 300))
         if m.get("kb") == "inline" and m.get("rows"):
             lines.append("  buttons: " + _rows(m["rows"]))
         if m.get("kb") == "reply" and m.get("keys"):
@@ -219,7 +227,7 @@ def _blank_msg(mid: str) -> dict:
     return {"id": mid, "name": "پیام", "text": "", "media": None, "kb": "none", "rows": [], "keys": [],
             "kbopt": {"resize": True, "once": False, "persist": False, "placeholder": ""},
             "opts": {"replace": True, "typing": False, "effect": "", "preview": False, "silent": False, "protect": False, "remove_kb": False},
-            "cmd": "", "kw": [], "then": "", "wait": None, "group": ""}
+            "cmd": "", "kw": [], "then": "", "wait": None, "steps": [], "group": ""}
 
 
 class _Ids:
@@ -268,6 +276,15 @@ def apply_ops(doc: dict, ops: list[dict]) -> tuple[dict, list[str]]:
             a["to"] = target(a.get("to"))
         return a
 
+    def fix_step(st: dict) -> dict:
+        st = dict(st)
+        for f in ("yes", "no"):
+            if f in st:
+                st[f] = target(st.get(f))
+        if isinstance(st.get("to"), list):
+            st["to"] = [target(x) for x in st["to"] if x]
+        return st
+
     def new_btn_id(key: bool) -> str:
         p, n = ("k" if key else "b"), 1
         while f"{p}_{n}" in btn_ids:
@@ -312,6 +329,7 @@ def apply_ops(doc: dict, ops: list[dict]) -> tuple[dict, list[str]]:
                     m["wait"] = {"kind": "support", "to": target(w.get("to"))}
                 elif isinstance(w, dict) and w.get("var"):
                     m["wait"] = {"kind": "var", "var": str(w["var"]), "to": target(w.get("to"))}
+                    m["wait"].update({k: w[k] for k in ("check", "min", "max", "choices", "error") if k in w})
                 elif isinstance(w, dict) and (w.get("kind") == "support" or w.get("support")):
                     m["wait"] = {"kind": "support", "to": target(w.get("to"))}
                 else:
@@ -344,6 +362,12 @@ def apply_ops(doc: dict, ops: list[dict]) -> tuple[dict, list[str]]:
                 elif m["kb"] == "reply":
                     m["kb"] = "none"
                     m["opts"]["remove_kb"] = True
+        elif kind == "steps":
+            m = msgs.get(mid(op.get("msg")))
+            if m is None:
+                problems.append(f"steps operation targets message {op.get('msg')!r} that does not exist.")
+                continue
+            m["steps"] = [fix_step(st) for st in (op.get("steps") if isinstance(op.get("steps"), list) else []) if isinstance(st, dict)]
         elif kind == "del":
             m_id = mid(op.get("msg") or op.get("id"))
             if m_id in msgs:
@@ -395,6 +419,12 @@ def apply_ops(doc: dict, ops: list[dict]) -> tuple[dict, list[str]]:
                 problems.append(f"[{m['id']}] then → missing message {m[f]!r}.")
         if m.get("wait") and m["wait"].get("to") and m["wait"]["to"] not in msgs:
             problems.append(f"[{m['id']}] wait → missing message {m['wait']['to']!r}.")
+        for st in m.get("steps") or []:
+            for to in step_targets({"steps": [st]}):
+                if to not in msgs:
+                    problems.append(f"[{m['id']}] {st.get('type')} step → missing message {to!r}.")
+            if schema._step(st, set(vars_)) is None:
+                problems.append(f"[{m['id']}] step {json.dumps(st, ensure_ascii=False)[:120]} is invalid (unknown type, variable or channel, or missing fields).")
         if m.get("wait") and m["wait"].get("kind") == "var" and m["wait"]["var"] not in vars_:
             problems.append(f"[{m['id']}] waits for variable {m['wait']['var']!r} that does not exist.")
         if not _plain(m.get("text", "")) and not m.get("media"):
@@ -419,7 +449,16 @@ def reachable(doc: dict) -> set[str]:
         m = by[mid]
         todo += [m.get("then")] + [(m.get("wait") or {}).get("to")]
         todo += [b["act"].get("to") for r in (m["rows"] + m["keys"]) for b in r]
+        todo += step_targets(m)
     return seen
+
+
+def step_targets(m: dict) -> list[str]:
+    """پیام‌هایی که «کار»های یک پیام به آن‌ها می‌پرند."""
+    out: list[str] = []
+    for st in m.get("steps") or []:
+        out += [st.get("yes"), st.get("no")] + list(st.get("to") or [])
+    return [x for x in out if x]
 
 
 def insights(doc: dict) -> list[dict]:
@@ -479,6 +518,11 @@ def diff(old: dict, new: dict) -> list[dict]:
                 out.append({"k": "mod", "t": f"دکمه‌های «{m['name']}»"})
         if (a.get("then"), json.dumps(a.get("wait"), sort_keys=True)) != (m.get("then"), json.dumps(m.get("wait"), sort_keys=True)):
             out.append({"k": "mod", "t": f"ادامهٔ «{m['name']}»"})
+        if json.dumps(a.get("steps") or [], sort_keys=True) != json.dumps(m.get("steps") or [], sort_keys=True):
+            out.append({"k": "mod", "t": f"کارهای «{m['name']}»"})
+    for m in new["msgs"]:
+        if m["id"] not in o and m.get("steps"):
+            out.append({"k": "add", "t": f"{schema.fa_number(len(m['steps']))} کار در «{m['name']}»"})
     for m in old.get("msgs", []):
         if m["id"] not in n:
             out.append({"k": "del", "t": f"پیام «{m['name']}»"})

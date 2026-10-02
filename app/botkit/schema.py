@@ -14,6 +14,12 @@
   preview, silent, protect, remove_kb} ، cmd (/help) ، kw [کلمه…] ،
   then (پیام بعدی در همان مرحله) ، wait {kind: var|support, var, to} ، group (جزء)
 
+کارها (steps): پیش از فرستادن پیام به ترتیب اجرا می‌شوند؛ شرط و تصادفی می‌توانند به پیام دیگری بپرند.
+  if{rules[{k: var|tag|hour|day|member, a, op, b}], mode: and|or, yes, no}  calc{var, op: =|+|-, value}
+  random{to[…]}  delay{sec}  member{chat, no}  notify{text}  tag{tag, op: add|remove}
+  save{form, vars[…], notify}
+پرسش: wait{kind: var, var, to, check: text|number|phone|email|date|photo|choice, min, max, choices[…], error}
+
 دکمهٔ شیشه‌ای: {id, text, style, icon, act}
   act: goto{to, set?} | url{url} | copy{text} | app{url} | share{text}
        | pay{stars, title, to} | alert{text, popup} | none
@@ -53,6 +59,14 @@ EFFECTS = {
     "🔥": "5104841245755180586", "👍": "5107584321108051014", "👎": "5104858069142078462",
     "❤️": "5159385139981059251", "🎉": "5046509860389126442", "💩": "5046589136895476101",
 }
+
+STEP_TYPES = ("if", "calc", "random", "delay", "member", "notify", "tag", "save")
+CHECKS = ("text", "number", "phone", "email", "date", "photo", "choice")
+RULE_KINDS = ("var", "tag", "hour", "day", "member")
+RULE_OPS = ("=", "!=", ">", "<", ">=", "<=", "has", "empty", "filled", "in", "not")
+MAX_STEPS = 12
+MAX_DELAY = 30 * 86400
+CHAT_RE = re.compile(r"^(@[A-Za-z][A-Za-z0-9_]{3,31}|-100\d{6,14})$")
 
 # متغیرهای آماده از تلگرام (نامشان در متن مثل {نام})
 BUILTINS = ("نام", "نام کامل", "یوزرنیم", "شناسه", "تاریخ امروز", "ساعت")
@@ -513,6 +527,92 @@ def _rows(raw: object, ids: set[str], var_names: set[str], key: bool) -> list[li
     return rows
 
 
+def _num(v: object, lo: float, hi: float) -> float | None:
+    try:
+        n = float(str(v).translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")).replace("٫", "."))
+    except (TypeError, ValueError):
+        return None
+    return max(lo, min(hi, n))
+
+
+def _rule(raw: object, var_names: set[str]) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+    k = raw.get("k") if raw.get("k") in RULE_KINDS else "var"
+    op = raw.get("op") if raw.get("op") in RULE_OPS else "="
+    a = _one_line(raw.get("a"), 40)
+    if k == "var":
+        a = _var_name(a)
+        if not a or (a not in var_names and a not in BUILTINS):
+            return None
+    elif k == "member":
+        a = a if CHAT_RE.match(a) else ""
+        if not a:
+            return None
+        op = "not" if op == "not" else "in"
+    elif k == "tag":
+        op = "not" if op == "not" else "has"
+    return {"k": k, "a": a, "op": op, "b": _one_line(raw.get("b"), 120)}
+
+
+def _step(raw: object, var_names: set[str]) -> dict | None:
+    if not isinstance(raw, dict) or raw.get("type") not in STEP_TYPES:
+        return None
+    t = raw["type"]
+    if t == "if":
+        rules = [r for r in (_rule(x, var_names) for x in (raw.get("rules") if isinstance(raw.get("rules"), list) else [])[:6]) if r]
+        if not rules:
+            return None
+        return {"type": "if", "rules": rules, "mode": "or" if raw.get("mode") == "or" else "and",
+                "yes": _id(raw.get("yes")), "no": _id(raw.get("no"))}
+    if t == "calc":
+        v = _var_name(raw.get("var"))
+        if v not in var_names:
+            return None
+        return {"type": "calc", "var": v, "op": raw.get("op") if raw.get("op") in ("=", "+", "-") else "=", "value": _one_line(raw.get("value"), 300)}
+    if t == "random":
+        to = [x for x in (_id(y) for y in (raw.get("to") if isinstance(raw.get("to"), list) else [])[:8]) if x]
+        return {"type": "random", "to": to} if to else None
+    if t == "delay":
+        sec = _num(raw.get("sec"), 1, MAX_DELAY)
+        return {"type": "delay", "sec": int(sec)} if sec else None
+    if t == "member":
+        chat = _one_line(raw.get("chat"), 40)
+        return {"type": "member", "chat": chat, "no": _id(raw.get("no"))} if CHAT_RE.match(chat) else None
+    if t == "notify":
+        text = _s(raw.get("text"), 800)
+        return {"type": "notify", "text": text} if text else None
+    if t == "tag":
+        tag = _one_line(raw.get("tag"), 24).strip("#")
+        return {"type": "tag", "tag": tag, "op": "remove" if raw.get("op") == "remove" else "add"} if tag else None
+    if t == "save":
+        form = _one_line(raw.get("form"), 40)
+        vs = [v for v in (_var_name(x) for x in (raw.get("vars") if isinstance(raw.get("vars"), list) else [])[:20]) if v and (v in var_names or v in BUILTINS)]
+        return {"type": "save", "form": form, "vars": list(dict.fromkeys(vs)), "notify": bool(raw.get("notify"))} if form and vs else None
+    return None
+
+
+def _wait(wait: dict, var_names: set[str]) -> dict | None:
+    if wait.get("kind") == "support":
+        return {"kind": "support", "to": _id(wait.get("to"))}
+    if wait.get("kind") == "var" and _var_name(wait.get("var")) in var_names:
+        out = {"kind": "var", "var": _var_name(wait.get("var")), "to": _id(wait.get("to"))}
+        check = wait.get("check") if wait.get("check") in CHECKS else "text"
+        if check != "text" or wait.get("error"):
+            out["check"] = check
+            if check == "number":
+                lo, hi = _num(wait.get("min"), -1e12, 1e12), _num(wait.get("max"), -1e12, 1e12)
+                if lo is not None:
+                    out["min"] = lo
+                if hi is not None:
+                    out["max"] = hi
+            if check == "choice":
+                out["choices"] = [c for c in (_one_line(x, 40) for x in (wait.get("choices") if isinstance(wait.get("choices"), list) else [])[:12]) if c]
+            out["error"] = _one_line(wait.get("error"), 200)
+        return out
+    return None
+
+
 def _msg(raw: dict, var_names: set[str], btn_ids: set[str]) -> dict:
     mid = _id(raw.get("id"))
     media = raw.get("media") if isinstance(raw.get("media"), dict) else None
@@ -526,12 +626,8 @@ def _msg(raw: dict, var_names: set[str], btn_ids: set[str]) -> dict:
     ko = raw.get("kbopt") if isinstance(raw.get("kbopt"), dict) else {}
     o = raw.get("opts") if isinstance(raw.get("opts"), dict) else {}
     eff = str(o.get("effect") or "")
-    wait = raw.get("wait") if isinstance(raw.get("wait"), dict) else {}
-    w_out = None
-    if wait.get("kind") == "support":
-        w_out = {"kind": "support", "to": _id(wait.get("to"))}
-    elif wait.get("kind") == "var" and _var_name(wait.get("var")) in var_names:
-        w_out = {"kind": "var", "var": _var_name(wait.get("var")), "to": _id(wait.get("to"))}
+    w_out = _wait(raw.get("wait") if isinstance(raw.get("wait"), dict) else {}, var_names)
+    steps = [x for x in (_step(st, var_names) for st in (raw.get("steps") if isinstance(raw.get("steps"), list) else [])[:MAX_STEPS]) if x]
     cmd = _s(raw.get("cmd"), 33).lower()
     kws = [k for k in (_one_line(x, 40) for x in (raw.get("kw") if isinstance(raw.get("kw"), list) else [])[:12]) if k]
     return {
@@ -551,6 +647,7 @@ def _msg(raw: dict, var_names: set[str], btn_ids: set[str]) -> dict:
         "kw": kws,
         "then": _id(raw.get("then")),
         "wait": w_out,
+        "steps": steps,
         "group": _id(raw.get("group")),
     }
 
@@ -620,6 +717,13 @@ def clean_doc(raw: object) -> dict:
             m["then"] = ""
         if m["wait"] and m["wait"].get("to") not in seen:
             m["wait"]["to"] = ""
+        for st in m["steps"]:
+            for f in ("yes", "no"):
+                if f in st and (st[f] not in seen):
+                    st[f] = ""
+            if st["type"] == "random":
+                st["to"] = [x for x in st["to"] if x in seen]
+        m["steps"] = [st for st in m["steps"] if st["type"] != "random" or st["to"]]
         for row in m["rows"] + m["keys"]:
             for b in row:
                 if "to" in b["act"] and b["act"]["to"] not in seen:

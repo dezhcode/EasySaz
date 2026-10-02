@@ -428,8 +428,8 @@ async def on_message(bot: Bot, db, app, message: Message) -> bool:  # noqa: ANN0
                 await message.reply("این کاربر ربات را بسته است.")
             return True
 
-    if is_owner and text in ("/start test", "/test"):
-        await start_test(bot, db, app, u)
+    if is_owner and (text in ("/start test", "/test") or text.startswith("/start t_")):
+        await start_test(bot, db, app, u, text[len("/start t_"):] if text.startswith("/start t_") else "")
         return True
     if is_owner and text == "/exit":
         await store.set_user(db, app["id"], u.id, test=0, state={})

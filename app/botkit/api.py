@@ -19,13 +19,12 @@ from __future__ import annotations
 import logging
 import re
 
-from aiogram.exceptions import TelegramAPIError, TelegramBadRequest, TelegramForbiddenError
-from aiogram.types import User
+from aiogram.exceptions import TelegramAPIError
 
 from ..clients import LinkError
 from ..config import config
 from .. import plans
-from . import agent, ai_client, engine, schema, store
+from . import agent, ai_client, schema, store
 
 log = logging.getLogger("easysaz.botkit.api")
 
@@ -160,22 +159,13 @@ class BotApi:
         doc = self._clean(body.get("doc")) if isinstance(body.get("doc"), dict) else None
         if doc is not None:
             await store.save_draft(self.db, app["id"], doc)
-        bot = self.clients.for_app(app)
-        if bot is None:
+        if not app["bot_username"]:
             raise _err(400, "توکن ربات خوانده نشد؛ دوباره وصلش کن")
-        owner = User(id=user.id, is_bot=False, first_name=user.first_name or "تو", username=user.username or None)
-        link = f"https://t.me/{app['bot_username']}"
-        try:
-            await engine.start_test(bot, self.db, app, owner, str(body.get("from") or ""))
-        except TelegramForbiddenError:
-            return {"need_start": True, "link": link + "?start=test"}
-        except TelegramBadRequest as exc:
-            if "chat not found" in str(exc).lower():
-                return {"need_start": True, "link": link + "?start=test"}
-            raise _err(400, f"تلگرام پیام را قبول نکرد: {exc.message}") from exc
-        except TelegramAPIError as exc:
-            raise _err(400, f"ارتباط با تلگرام نشد: {exc.message}") from exc
-        return {"ok": True, "link": link}
+        # تست از خود ربات واقعی: مینی‌اپ جمع می‌شود و چت ربات با لینک استارت باز می‌شود؛
+        # ربات با /start test (یا t_<پیام>) حالت تست را روشن می‌کند و پیش‌نویس را جلوی چشم صاحبش می‌فرستد.
+        frm = schema._id(body.get("from"))
+        payload = f"t_{frm}" if frm and doc is not None and schema.find(doc, frm) else "test"
+        return {"ok": True, "link": f"https://t.me/{app['bot_username']}?start={payload}"}
 
     # ------------------------------------------------------------ ایموجی
     async def emoji_pack(self, init_data: str, body: dict) -> dict:

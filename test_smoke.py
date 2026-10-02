@@ -1018,12 +1018,18 @@ def test_botkit() -> None:  # noqa: C901
 
     n0 = len(FakeSession.calls)
     st, res = jcall("POST", "/api/bot/test", {"id": app_id, "doc": BOT_DOC})
+    quiet = [p for b, m, p in FakeSession.calls[n0:] if b == "2000002" and m == "SendMessage"]
+    ok(st == 200 and res["link"] == "https://t.me/cafe_bot?start=test" and not quiet,
+       "تست: لینک استارت ربات واقعی؛ تا خود صاحب ربات استارت نکند پیامی نمی‌رود")
+    st, res2 = jcall("POST", "/api/bot/test", {"id": app_id, "doc": BOT_DOC, "from": "m_more"})
+    ok(res2["link"].endswith("?start=t_m_more"), "تست از همان پیام: لینک ?start=t_<پیام>")
+    n0 = len(FakeSession.calls)
+    chook(cmsg(7, text="/start test"))
     sent = [p for b, m, p in FakeSession.calls[n0:] if b == "2000002" and m == "SendMessage"]
-    ok(st == 200 and res["link"] == "https://t.me/cafe_bot" and len(sent) == 2 and "حالت تست" in sent[0]["text"],
-       "تست: پیام حالت تست و پیام شروع در چت واقعی صاحب ربات")
+    ok(len(sent) == 2 and "حالت تست" in sent[0]["text"], "/start test در چت ربات: پیام حالت تست و پیام شروع پیش‌نویس")
     wl = sent[1]
     kb = wl["reply_markup"]["inline_keyboard"]
-    ok("سلام Ali" in wl["text"] and "۸۶۴٬۰۰۰" in wl["text"] and "tg-emoji" not in wl["text"] and "📷" in wl["text"],
+    ok("سلام Sara" in wl["text"] and "۸۶۴٬۰۰۰" in wl["text"] and "tg-emoji" not in wl["text"] and "📷" in wl["text"],
        "متغیرها و فرمول جایگذاری؛ بدون پریمیوم ایموجی سفارشی معمولی می‌شود")
     ok(kb[0][0]["style"] == "primary" and "icon_custom_emoji_id" not in kb[0][0] and kb[0][0]["callback_data"] == "bk|g|m_welcome|b_more"
        and kb[0][1]["copy_text"]["text"] == "CODE-7" and kb[2][0]["web_app"]["url"].endswith(f"/a/{slug}")
@@ -1126,6 +1132,10 @@ def test_botkit() -> None:  # noqa: C901
 def test_ai() -> None:  # noqa: C901
     print("دستیار ساخت ربات با گفتگو")
     import sqlite3
+
+    from app.webapp import api as web_api
+
+    web_api._RATE.clear()  # سقف دقیقه‌ای نوشتن؛ این بخش پشت بخش‌های پرنوشتن اجرا می‌شود
 
     from app.botkit import agent, ai_client
     from app.config import config

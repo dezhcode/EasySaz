@@ -12,6 +12,7 @@
   POST /api/bot/ai_send        پیام تازه به دستیار (کار پس‌زمینه؛ شمارهٔ نوبت برمی‌گردد)
   GET  /api/bot/ai_poll?id=&turn=  متن در حال تایپ، جای صف، نتیجه و پیش‌نویس تازه
   POST /api/bot/ai_undo        برگرداندن پیش‌نویس به پیش از یک نوبت
+  POST /api/bot/ai_stop        توقف نوبت در جریان (پیش‌نویس دست نمی‌خورد)
 """
 from __future__ import annotations
 
@@ -31,7 +32,18 @@ log = logging.getLogger("easysaz.botkit.api")
 PACK_RE = re.compile(r"(?:t\.me/addemoji/|addemoji/)?([A-Za-z0-9_]{3,64})/?$")
 
 ACTIONS = {"": "GET", "save": "POST", "publish": "POST", "off": "POST", "test": "POST", "takeover": "POST",
-           "emoji_pack": "POST", "emoji_del": "POST", "ai": "GET", "ai_send": "POST", "ai_poll": "GET", "ai_undo": "POST"}
+           "emoji_pack": "POST", "emoji_del": "POST", "ai": "GET", "ai_send": "POST", "ai_poll": "GET", "ai_undo": "POST", "ai_stop": "POST"}
+
+
+def _image_b64(raw: object) -> str | None:
+    """عکس پیوست دستیار: data URL یا base64 خالص، حداکثر حدود ۱ مگابایت."""
+    if not isinstance(raw, str) or not raw:
+        return None
+    m = re.match(r"^data:image/(?:jpeg|png|webp);base64,", raw)
+    b64 = raw[m.end():] if m else raw
+    if len(b64) > 800_000 or not re.fullmatch(r"[A-Za-z0-9+/=\s]+", b64[:2000]):
+        raise _err(400, "عکس خیلی بزرگ یا نامعتبر است")
+    return b64
 
 
 def _err(status: int, message: str):  # noqa: ANN202
@@ -190,8 +202,9 @@ class BotApi:
     async def ai(self, init_data: str, query: dict) -> dict:
         user, plan, app = await self._ctx(init_data, query.get("id"))
         await agent.expire_stale(self.db)
+        doc = await store.load(self.db, app["id"]) or schema.empty_doc(app["name"])
         return {"enabled": ai_client.enabled(), "turns": await agent.history(self.db, app["id"]),
-                "quota": await self._quota(user.id, plan), "max_ask": agent.MAX_ASK}
+                "quota": await self._quota(user.id, plan), "max_ask": agent.MAX_ASK, "insights": agent.insights(doc)}
 
     async def ai_send(self, init_data: str, body: dict) -> dict:
         user, plan, app = await self._ctx(init_data, body.get("id"), write=True)
@@ -211,7 +224,12 @@ class BotApi:
         base = self._clean(body["doc"]) if isinstance(body.get("doc"), dict) else (await store.load(self.db, app["id"]) or schema.empty_doc(app["name"]))
         await store.save_draft(self.db, app["id"], base)
         focus = schema._id(body.get("focus")) or None
-        turn = await agent.start_job(self.db, app["id"], user.id, base, ask, focus)
+        image = _image_b64(body.get("image"))
+        row = await store.flow_row(self.db, app["id"])
+        info = {"BOT_NAME": app["bot_name"] or app["name"], "BOT_USERNAME": ("@" + app["bot_username"]) if app["bot_username"] else "(not connected yet)",
+                "MINI_APP_NAME": app["name"], "MINI_APP_URL": config.page_url(app["slug"]),
+                "PUBLISHED": "yes" if row and row["published"] else "not yet"}
+        turn = await agent.start_job(self.db, app["id"], user.id, base, ("📷 " if image else "") + ask, focus, info, image)
         return {"turn": turn, "pos": await agent.queue_pos(self.db, turn), "quota": {"used": q["used"] + 1, "limit": q["limit"]}}
 
     async def ai_poll(self, init_data: str, query: dict) -> dict:
@@ -232,6 +250,16 @@ class BotApi:
         if row["status"] == "done":
             out["doc"] = await store.load(self.db, app["id"])
         return out
+
+    async def ai_stop(self, init_data: str, body: dict) -> dict:
+        _u, _p, app = await self._ctx(init_data, body.get("id"), write=True)
+        try:
+            turn_id = int(body.get("turn") or 0)
+        except (TypeError, ValueError):
+            turn_id = 0
+        await self.db.execute("UPDATE bk_ai_turns SET status = 'error', error = ?, updated_at = ? WHERE id = ? AND app_id = ? AND status IN ('queued','running')",
+                              ("متوقفش کردی؛ پیش‌نویس دست نخورد", store.now(), turn_id, app["id"]))
+        return {"turns": await agent.history(self.db, app["id"])}
 
     async def ai_undo(self, init_data: str, body: dict) -> dict:
         _u, _p, app = await self._ctx(init_data, body.get("id"), write=True)

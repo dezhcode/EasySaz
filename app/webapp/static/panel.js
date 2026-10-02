@@ -3093,7 +3093,7 @@
     $('hello-s').textContent = first ? `سلام ${first}` : 'سلام';
     $('home-av').textContent = (first || 'م').trim().charAt(0);
     const vh = (tg && tg.viewportStableHeight) || window.innerHeight || 720;
-    const phH = Math.max(260, Math.min(440, vh - 400));
+    const phH = Math.max(240, Math.min(420, vh - 500));  // جا برای دستیار زیر کاروسل
     const w = Math.round((phH - 12) * 390 / 844) + 12;
     const rail = $('vt-rail');
     rail.style.setProperty('--pw', w + 'px');
@@ -3138,6 +3138,7 @@
     };
     const start = Math.max(0, S.me.apps.findIndex(isCur));
     requestAnimationFrame(() => { centerSlide(start, false); setVt(start); });
+    renderHomeAI();
     if (S.me.apps.some(a => !isCur(a) && !S.previews[a.id])) {
       loadPreviews(() => {
         if (S.screen !== 'home' || !S.vt) return;
@@ -3145,6 +3146,48 @@
         if (S.vt.idx >= 0) renderVtInfo(S.vt.idx);
       });
     }
+  }
+  /* دستیار ساخت ربات از همین خانه: روی مینی‌اپی که الان وسط کاروسل است (bot.js، بخش دستیار) */
+  const HAI_IDEAS = [
+    ['🛍 فروشگاه', 'یه ربات فروشگاه می‌خوام که محصولاتم رو نشون بده و مشتری بتونه سفارش بده'],
+    ['📝 ثبت‌نام کلاس', 'یه ربات برای ثبت‌نام کلاس می‌خوام که دوره‌ها رو با قیمت نشون بده و شماره تماس بگیره'],
+    ['🎧 پشتیبانی', 'یه ربات پشتیبانی می‌خوام با سؤالات پرتکرار و دکمه‌ای که پیام کاربر رو برای من بفرسته'],
+    ['📣 معرفی کانال', 'یه ربات برای کانالم می‌خوام که خوش‌آمد بگه و مینی‌اپم رو باز کنه'],
+  ];
+  function homeAiTarget() {
+    const sl = S.vt && S.vt.slides[S.vt.idx];
+    return (sl && sl.app) || (S.me.apps.find(isCur)) || S.me.apps[0] || null;
+  }
+  function openAgent(a, opts) {
+    if (!a || !window.EasySazBot) return;
+    haptic();
+    window.EasySazBot.open(a.id, 'ai', Object.assign({ fromHome: true }, opts || {}));
+  }
+  function renderHomeAI() {
+    const box = $('home-ai');
+    if (!box) return;
+    const a = homeAiTarget();
+    box.hidden = !a;
+    if (!a) return;
+    box.textContent = '';
+    const ask = h('button', 'hai-ask');
+    ask.type = 'button';
+    const orb = h('span', 'hai-orb');
+    orb.appendChild(ico('sparkle'));
+    const t = h('span', 'hai-t');
+    t.append(h('b', '', 'دستیار ایزی‌ساز'), h('span', 'hai-ph', `بگو چه رباتی برای «${a.name}» بسازم…`));
+    const send = h('span', 'hai-send');
+    send.appendChild(ico('up'));
+    ask.append(orb, t, send);
+    ask.addEventListener('click', () => openAgent(a, { focus: true }));
+    const chips = h('div', 'hai-chips');
+    HAI_IDEAS.forEach(([label, text]) => {
+      const c = h('button', 'hai-chip', label);
+      c.type = 'button';
+      c.addEventListener('click', () => openAgent(a, { send: text }));
+      chips.appendChild(c);
+    });
+    box.append(ask, chips);
   }
   function centerSlide(i, smooth) {
     const rail = $('vt-rail');
@@ -3169,6 +3212,7 @@
   function setVt(i) {
     if (!S.vt || i === S.vt.idx) return;
     S.vt.idx = i;
+    renderHomeAI();
     S.vt.slides.forEach((sl, k) => sl.el.classList.toggle('on', k === i));
     Array.from($('vt-dots').children).forEach((d, k) => d.classList.toggle('on', k === i));
     renderVtInfo(i);
@@ -5522,6 +5566,7 @@
     confirm: confirmBox,
     me: () => S.me,
     openDash: id => openDash(id),
+    home: () => tab('home'),
   };
   /* کد ورود سایت از لینک ربات (#weblogin=…) یا startapp=wl_… ؛ یک بار مصرف می‌شود */
   function pendingWebLogin() {

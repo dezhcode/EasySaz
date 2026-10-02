@@ -12,6 +12,8 @@
   --spring:cubic-bezier(.34,1.3,.5,1);
   --safe-t:0px;
   --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-l:0px;
+  --safe-r:0px;
   --pad:var(--space-5);
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
@@ -116,7 +118,7 @@ button.grow-row:active,div.grow-row:active{background:var(--ground)}
 .icon-btn{width:40px; height:40px; border-radius:var(--radius-md); background:var(--surface); border:1px solid var(--line); color:var(--ink-2); display:grid; place-items:center; flex:none}
 .icon-btn .ico{width:20px; height:20px}
 .icon-btn.on{background:var(--ink); color:var(--on-ink); border-color:var(--ink)}
-.foot{position:fixed; left:0; right:0; bottom:0; z-index:5; padding:12px var(--pad) calc(var(--safe-b) + 16px); background:var(--ground); border-top:1px solid var(--line)}
+.foot{position:fixed; left:var(--safe-l); right:var(--safe-r); bottom:0; z-index:5; padding:12px var(--pad) calc(var(--safe-b) + 16px); background:var(--ground); border-top:1px solid var(--line)}
 
 /* ═══ برچسب و ریل تب ═══ */
 .badge,.pill{display:inline-flex; align-items:center; gap:7px; height:26px; padding:0 11px; border-radius:13px; background:var(--surface); border:1px solid var(--line); font-size:11.5px; font-weight:600; color:var(--ink); white-space:nowrap}
@@ -226,7 +228,7 @@ button.grow-row:active,div.grow-row:active{background:var(--ground)}
 
 /* داک ابزار (ن۴): چسبیده به پایین، تمام‌عرض. بالا نوار وضعیت (صفحه، بخش‌ها،
    ذخیره | سهم کامپوننت)، پایین دکمه‌های مربعی و «افزودن بخش» پهن وسط. */
-.dock{position:fixed; z-index:30; left:0; right:0; bottom:0; background:var(--surface); border-top:1px solid var(--line);
+.dock{position:fixed; z-index:30; left:var(--safe-l); right:var(--safe-r); bottom:0; background:var(--surface); border-top:1px solid var(--line);
   box-shadow:0 -8px 20px -14px rgba(10,22,51,.25); padding-bottom:max(var(--safe-b), 10px); transition:transform .3s var(--ease)}
 .dock-st{height:30px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 16px; border-bottom:1px solid var(--ground)}
 .dock-st .status{min-width:0; overflow:hidden}
@@ -280,7 +282,7 @@ body.has-sub{overflow:hidden}
 .pv-box .pv-page .pg-tabbar{position:static; flex:none; margin:8px 12px 0}
 .pv-box .pg-editable{cursor:default}
 .sbody{padding:4px 16px 8px}
-.sfoot{position:fixed; left:0; right:0; bottom:0; z-index:6; display:flex; gap:8px; align-items:center; padding:10px 14px calc(var(--safe-b) + 14px); background:var(--surface); border-top:1px solid var(--line)}
+.sfoot{position:fixed; left:var(--safe-l); right:var(--safe-r); bottom:0; z-index:6; display:flex; gap:8px; align-items:center; padding:10px 14px calc(var(--safe-b) + 14px); background:var(--surface); border-top:1px solid var(--line)}
 .sfoot .btn{height:48px; flex:1; padding:0 10px; font-size:14px}
 .sfoot .btn.sq{flex:none; width:52px}
 .sfoot .btn.sq span{display:none}
@@ -406,7 +408,7 @@ body.has-sub{overflow:hidden}
 /* ═══ شیت ═══ */
 .scrim{position:fixed; inset:0; z-index:50; background:var(--scrim); opacity:0; pointer-events:none; transition:opacity .25s}
 .scrim.on{opacity:1; pointer-events:auto}
-.sheet{position:fixed; z-index:51; left:0; right:0; bottom:0; max-height:88vh; overflow-y:auto; overscroll-behavior:contain;
+.sheet{position:fixed; z-index:51; left:var(--safe-l); right:var(--safe-r); bottom:0; max-height:min(88vh, calc(var(--tg-viewport-stable-height, 100vh) - var(--safe-t) - 16px)); overflow-y:auto; overscroll-behavior:contain;
   background:var(--surface); border-radius:var(--radius-xl) var(--radius-xl) 0 0; padding:10px var(--pad) calc(var(--safe-b) + 26px);
   box-shadow:var(--shadow-sheet); transform:translateY(105%); visibility:hidden; transition:transform .38s var(--ease), visibility 0s .38s}
 .sheet.on{transform:none; visibility:visible; transition:transform .38s var(--ease)}
@@ -887,7 +889,7 @@ h1,h2{margin:0; font:inherit}
 .td-feat .grow span{font-size:12px; color:var(--ink-3)}
 .td-chips{display:flex; flex-wrap:wrap; gap:6px}
 .td-chips .chip{height:32px; padding:0 12px; border-radius:16px; background:var(--surface); font-size:12.5px; font-weight:700; display:inline-flex; align-items:center; box-shadow:0 1px 0 var(--line)}
-.td-foot{position:fixed; z-index:6; left:0; right:0; bottom:0; background:var(--surface); border-top:1px solid var(--line); padding:12px var(--pad) calc(var(--safe-b) + 16px); display:flex; align-items:center; gap:12px}
+.td-foot{position:fixed; z-index:6; left:var(--safe-l); right:var(--safe-r); bottom:0; background:var(--surface); border-top:1px solid var(--line); padding:12px var(--pad) calc(var(--safe-b) + 16px); display:flex; align-items:center; gap:12px}
 .td-foot .grow{display:flex; flex-direction:column; line-height:1.4}
 .td-foot b{font-size:14px; font-weight:800}
 .td-foot .grow span{font-size:12px; color:var(--ink-3)}
@@ -943,7 +945,7 @@ h1,h2{margin:0; font:inherit}
 .pthumb i:nth-child(2){flex:1; background:var(--brand-tint)}
 .link-btn{font-size:12.5px; font-weight:800; color:var(--brand); display:inline-flex; align-items:center; gap:4px}
 .link-btn .ico{width:15px; height:15px}
-.ad-foot{position:fixed; z-index:6; left:0; right:0; bottom:0; background:var(--surface); border-top:1px solid var(--line); padding:10px var(--pad) calc(var(--safe-b) + 16px); display:flex; gap:8px}
+.ad-foot{position:fixed; z-index:6; left:var(--safe-l); right:var(--safe-r); bottom:0; background:var(--surface); border-top:1px solid var(--line); padding:10px var(--pad) calc(var(--safe-b) + 16px); display:flex; gap:8px}
 .ad-foot .btn{height:50px; border-radius:16px}
 .ad-foot .btn .ico{width:18px; height:18px}
 body.has-sub .ad-foot{transform:translateY(160%)}
@@ -989,7 +991,7 @@ body.has-sub .ad-foot{transform:translateY(160%)}
 .plan-business .plan-buy{background:var(--act-ink)}
 
 /* ناوبری پایین (آتلیه روی منشور): سفید، چسبیده، برچسب زیر همه، نقطه زیر تب فعال */
-.nav{position:fixed; z-index:40; left:0; right:0; bottom:0; background:var(--nav-bg); border-top:1px solid var(--line);
+.nav{position:fixed; z-index:40; left:var(--safe-l); right:var(--safe-r); bottom:0; background:var(--nav-bg); border-top:1px solid var(--line);
   display:flex; align-items:center; gap:4px; padding:6px 10px max(var(--safe-b), 12px)}
 .nav-i{flex:1; height:56px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:var(--nav-icon)}
 .nav-i .ico{width:22px; height:22px; stroke-width:1.6; transition:transform .15s var(--ease)}
@@ -1427,7 +1429,7 @@ button.tile:active{transform:scale(.98)}
 .mgp-src .ico{width:11px; height:11px}
 .mgp-empty{display:flex; flex-direction:column; gap:4px; padding:22px 6px; text-align:center}
 .mgp-empty span{font-size:12.5px; color:var(--ink-3)}
-.mgp-fab{position:fixed; left:16px; right:16px; bottom:calc(var(--tg-safe-bottom, 0px) + 22px); height:54px; z-index:6; box-shadow:0 16px 30px -14px rgba(75,46,232,.7)}
+.mgp-fab{position:fixed; left:16px; right:16px; bottom:calc(var(--safe-b) + 22px); height:54px; z-index:6; box-shadow:0 16px 30px -14px rgba(75,46,232,.7)}
 .mgp-cover{position:relative; height:120px; border-radius:20px; overflow:hidden; background:linear-gradient(140deg, #E8EEFF, var(--surface-sunk)); display:flex; align-items:flex-end; gap:8px; padding:10px}
 .mgp-cover.has{height:180px}
 .mgp-cover img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
@@ -1463,6 +1465,10 @@ button.tile:active{transform:scale(.98)}
 .mgp-link{display:flex; align-items:center; gap:8px; padding:8px 8px 8px 12px; border-radius:14px; background:var(--surface); font-size:12px; overflow:hidden}
 .mgp-link .grow{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .mgp-del{align-self:flex-start}
-.mgp-foot{position:fixed; left:0; right:0; bottom:0; z-index:6; display:flex; gap:8px; padding:10px 14px calc(var(--tg-safe-bottom, 0px) + 18px); background:var(--surface); box-shadow:0 -1px 0 var(--line)}
+.mgp-foot{position:fixed; left:var(--safe-l); right:var(--safe-r); bottom:0; z-index:6; display:flex; gap:8px; padding:10px 14px calc(var(--safe-b) + 18px); background:var(--surface); box-shadow:0 -1px 0 var(--line)}
 .mgp-foot .btn{flex:1}
 .mgp-foot .btn-p{flex:1.6}
+
+/* تمام‌صفحهٔ تلگرام: لبه‌های چپ و راست (افقی) و پایین بالای خط خانه */
+body{padding-left:var(--safe-l); padding-right:var(--safe-r)}
+.sub,.scr-full{padding-left:var(--safe-l); padding-right:var(--safe-r)}

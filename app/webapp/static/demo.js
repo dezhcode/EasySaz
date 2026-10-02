@@ -235,7 +235,8 @@
     };
   }
   function botApi(path, body, d, find) {
-    const id = path.indexOf('bot?id=') === 0 ? decodeURIComponent(path.split('=')[1]) : body && body.id;
+    const qs = path.indexOf('?') > 0 ? new URLSearchParams(path.slice(path.indexOf('?') + 1)) : null;
+    const id = qs ? qs.get('id') : body && body.id;
     const a = find(id);
     if (!a) return fail(404, 'مینی‌اپ پیدا نشد');
     if (!a.bk) {
@@ -265,7 +266,75 @@
       return Promise.resolve({ added: add.length, emoji: bk.emoji });
     }
     if (path === 'bot/emoji_del') { bk.emoji = bk.emoji.filter(e => e.id !== body.emoji); save(d); return Promise.resolve({ emoji: bk.emoji }); }
+    if (path.indexOf('bot/ai') === 0) return aiDemo(path, body, qs, bk, d, copy);
     return fail(404, 'پیدا نشد');
+  }
+
+  /* دستیار ساخت ربات در نسخهٔ نمایشی: جواب‌های آماده با تایپ تدریجی، بدون سرویس هوش مصنوعی */
+  function aiDemo(path, body, qs, bk, d, copy) {
+    bk.ai = bk.ai || { turns: [], used: 0 };
+    const A = bk.ai;
+    const view = t => ({ id: t.id, ask: t.ask, say: t.status === 'done' ? t.say : t.say.slice(0, Math.max(0, Math.floor((Date.now() - t.t0 - 700) / 28))),
+      status: t.status, error: '', result: t.result, created_at: Math.floor(t.t0 / 1000),
+      can_undo: t.status === 'done' && !!(t.result.changes || []).length && !t.result.undone });
+    if (path.indexOf('bot/ai?') === 0) return Promise.resolve({ enabled: true, turns: A.turns.map(view), quota: { used: A.used, limit: 20 }, max_ask: 800 });
+    if (path === 'bot/ai_send') {
+      if (A.turns.some(t => t.status !== 'done')) return fail(409, 'دستیار هنوز روی پیام قبلی کار می‌کند');
+      const before = copy(body.doc || bk.doc);
+      const plan = demoPlan(body.text, before);
+      const t = { id: A.turns.length + 1, ask: body.text, say: plan.say, status: 'running', t0: Date.now(), result: {}, before, after: plan.doc, res: plan.res };
+      A.turns.push(t); A.used++; save(d);
+      return Promise.resolve({ turn: t.id, pos: 0, quota: { used: A.used, limit: 20 } });
+    }
+    if (path.indexOf('bot/ai_poll?') === 0) {
+      const t = A.turns.find(x => x.id === Number(qs.get('turn')));
+      if (!t) return fail(404, 'پیدا نشد');
+      if (t.status !== 'done' && Date.now() - t.t0 > 700 + t.say.length * 28 + 900) {
+        t.status = 'done'; t.result = t.res;
+        if (t.after) bk.doc = copy(t.after);
+        save(d);
+      }
+      return Promise.resolve(Object.assign({ turn: view(t) }, t.status === 'done' ? { doc: copy(bk.doc) } : {}));
+    }
+    if (path === 'bot/ai_undo') {
+      const t = A.turns.find(x => x.id === body.turn);
+      if (!t) return fail(404, 'پیدا نشد');
+      bk.doc = copy(t.before);
+      A.turns.filter(x => x.id >= t.id).forEach(x => { x.result = Object.assign({}, x.result, { undone: true }); });
+      save(d);
+      return Promise.resolve({ doc: copy(bk.doc), turns: A.turns.map(view) });
+    }
+    return fail(404, 'پیدا نشد');
+  }
+  function demoPlan(text, doc) {
+    const copy = o => JSON.parse(JSON.stringify(o));
+    const msg = (id, name, txt, extra) => Object.assign({ id, name, text: txt, media: null, kb: 'none', rows: [], keys: [],
+      kbopt: { resize: true, once: false, persist: false, placeholder: '' },
+      opts: { replace: true, typing: false, effect: '', preview: false, silent: false, protect: false, remove_kb: false }, cmd: '', kw: [], then: '', wait: null, group: '' }, extra || {});
+    const btn = (id, t, style, to) => ({ id, text: t, style, icon: '', act: { type: 'goto', to } });
+    const stats = x => ({ msgs: x.msgs.length, buttons: x.msgs.reduce((n, m) => n + m.rows.concat(m.keys).reduce((a, r) => a + r.length, 0), 0), vars: x.vars.length });
+    const pv = x => { const m = x.msgs.find(y => y.id === x.start); return m && { id: m.id, name: m.name, text: m.text, kb: m.kb, rows: (m.kb === 'reply' ? m.keys : m.rows).map(r => r.map(b => ({ text: b.text, style: b.style }))) }; };
+    if (/سبز/.test(text) && doc.msgs.some(m => m.rows.some(r => r.some(b => /ثبت/.test(b.text))))) {
+      const x = copy(doc);
+      let name = '';
+      x.msgs.forEach(m => m.rows.forEach(r => r.forEach(b => { if (/ثبت/.test(b.text)) { b.style = 'success'; name = b.text; } })));
+      return { say: 'سبزش کردم ✅ حالا دکمهٔ ثبت‌نام بیشتر به چشم می‌آد.', doc: x,
+        res: { changes: [{ k: 'mod', t: `دکمهٔ «${name}» ← سبز` }], more: 0, chips: ['۱۰٪ تخفیف بذار', 'یه دکمهٔ اینستاگرام هم بذار'], stats: stats(x), preview: pv(x), warnings: [] } };
+    }
+    if (/ربات|بساز|کلاس|فروشگاه|ثبت|دوره|نوبت|پشتیبانی/.test(text)) {
+      const x = { v: 1, start: 'm_welcome', fallback: '', comps: [], vars: [{ name: 'شماره', type: 'text', scope: 'user', init: '', formula: '' }], msgs: [
+        msg('m_welcome', 'خوش‌آمد', 'سلام {نام} 👋\nبه <b>کلاس عکاسی سارا</b> خوش اومدی. کدوم دوره رو می‌خوای ببینی؟', { kb: 'inline', rows: [[btn('b_1', '📚 دوره‌ها', 'primary', 'm_courses')], [btn('b_2', '📝 ثبت‌نام', '', 'm_reg'), btn('b_3', '❓ سؤال دارم', '', 'm_faq')]] }),
+        msg('m_courses', 'دوره‌ها', '📷 <b>مقدماتی</b>: [قیمت]\n🎞 <b>پیشرفته</b>: [قیمت]', { kb: 'inline', rows: [[btn('b_4', '📝 ثبت‌نام', 'success', 'm_reg')], [btn('b_5', '↩️ برگشت', '', 'm_welcome')]] }),
+        msg('m_reg', 'ثبت‌نام', 'برای ثبت‌نام، شماره‌ت رو با دکمهٔ پایین بفرست 👇', { kb: 'reply', keys: [[{ id: 'k_1', text: '📱 ارسال شماره', style: 'primary', icon: '', act: { type: 'contact', var: 'شماره', to: 'm_thanks' } }]] }),
+        msg('m_thanks', 'ممنون', 'ثبت شد ✅ به‌زودی باهات تماس می‌گیریم.', { opts: { replace: true, typing: false, effect: '', preview: false, silent: false, protect: false, remove_kb: true } }),
+        msg('m_faq', 'سؤالات', 'سؤالت رو بنویس؛ همین‌جا جواب می‌دیم 🙂', { kb: 'inline', rows: [[btn('b_6', '↩️ برگشت', '', 'm_welcome')]] }),
+      ] };
+      return { say: 'ساختمش ✅ یه پیام خوش‌آمد با دکمهٔ دوره‌ها، صفحهٔ دوره‌ها با قیمت، و ثبت‌نام با دکمهٔ «ارسال شماره».', doc: x,
+        res: { changes: [{ k: 'mod', t: 'متن «خوش‌آمد»' }, { k: 'add', t: 'پیام «دوره‌ها» با ۲ دکمه' }, { k: 'add', t: 'پیام «ثبت‌نام» با ۱ دکمه' }, { k: 'add', t: 'پیام «ممنون»' }, { k: 'add', t: 'پیام «سؤالات» با ۱ دکمه' }, { k: 'add', t: 'متغیر {شماره}' }],
+          more: 0, chips: ['دکمهٔ «ثبت‌نام» رو سبز کن', 'قیمت‌ها رو بنویس', 'یه دکمهٔ اینستاگرام هم بذار'], stats: stats(x), preview: pv(x), warnings: ['جاهای «[…]» را با اطلاعات خودت پر کن'] } };
+    }
+    return { say: 'این نسخهٔ نمایشی است 🙂 بگو «یه ربات برای کلاس عکاسیم بساز» تا ببینی دستیار چطور می‌سازد.', doc: null,
+      res: { changes: [], more: 0, chips: ['یه ربات برای کلاس عکاسیم بساز'], stats: stats(doc), preview: null, warnings: [] } };
   }
 
   /* پاسخ /api/page/demo برای صفحهٔ منتشرشده */

@@ -371,3 +371,81 @@ textarea.bk-in{min-height:84px; line-height:1.8}
   .bk-sheet{left:50%; right:auto; width:560px; transform:translate(-50%,100%)}
   .bk-sheet.on{transform:translate(-50%,0)}
 }
+
+/* ---------- دستیار ساخت ربات با گفتگو ---------- */
+:root{--ai-g:linear-gradient(135deg,#6A4BFF 0%,#4B2EE8 45%,#2A8BD6 100%)}
+.bk-ai-tile{position:relative; overflow:hidden; display:flex; flex-direction:column; align-items:flex-start; gap:8px; width:calc(100% - 28px); margin:14px 14px 4px; padding:18px; border-radius:24px;
+  background:var(--ai-g); color:#fff; text-align:right; box-shadow:0 18px 34px -22px #4B2EE8}
+.bk-ai-tile::before{content:''; position:absolute; left:-36px; top:-46px; width:170px; height:170px; border-radius:50%; background:rgba(255,255,255,.12)}
+.bk-ai-tile-i{width:44px; height:44px; border-radius:15px; background:rgba(255,255,255,.2); display:grid; place-items:center}
+.bk-ai-tile-i .ico{width:24px; height:24px}
+.bk-ai-tile b{font-size:19px; font-weight:800}
+.bk-ai-tile-s{font-size:13px; line-height:1.8; opacity:.92}
+.bk-ai-tile-b{margin-top:2px; height:38px; padding:0 16px; border-radius:19px; background:#fff; color:var(--brand); font-size:14px; font-weight:800; display:inline-flex; align-items:center; gap:6px}
+.bk-ai-tile-b .ico{width:15px; height:15px; stroke-width:2.4}
+
+.bk-ai{position:fixed; inset:0; z-index:40; display:flex; flex-direction:column; background:var(--ground)}
+.bk-ai.in{animation:bkin .24s var(--ease) both}
+.bk-ai.out{animation:bkout .22s var(--ease) both}
+.bk-ai-av{width:30px; height:30px; border-radius:11px; background:var(--ai-g); color:#fff; display:grid; place-items:center; flex:none; box-shadow:0 6px 14px -8px #4B2EE8}
+.bk-ai-av .ico{width:17px; height:17px}
+.bk-top .bk-ai-av{width:38px; height:38px; border-radius:13px}
+.bk-ai-chat{flex:1; overflow:auto; padding:16px 12px 20px; display:flex; flex-direction:column; gap:12px; -webkit-overflow-scrolling:touch}
+.bk-ai-say{align-self:flex-start; display:flex; align-items:flex-end; gap:8px; max-width:92%}
+.bk-ai-b{padding:9px 12px; border-radius:18px 18px 18px 6px; background:var(--surface); font-size:14px; line-height:1.9; box-shadow:0 1px 0 rgba(23,20,43,.06); white-space:pre-wrap; overflow-wrap:anywhere}
+.bk-ai-me{align-self:flex-end; max-width:82%; padding:9px 12px; border-radius:18px 18px 6px 18px; background:var(--brand); color:#fff; font-size:14px; line-height:1.85; white-space:pre-wrap; overflow-wrap:anywhere}
+.bk-caret{display:inline-block; width:2px; height:16px; margin:0 2px; vertical-align:-3px; background:var(--brand); animation:bkblink 1s steps(2) infinite}
+@keyframes bkblink{50%{opacity:0}}
+.bk-dots{display:flex; gap:5px; padding:14px 14px}
+.bk-dots i{width:7px; height:7px; border-radius:50%; background:var(--ink-3); opacity:.35; animation:bkdot 1.2s infinite}
+.bk-dots i:nth-child(2){animation-delay:.2s}.bk-dots i:nth-child(3){animation-delay:.4s}
+@keyframes bkdot{30%{opacity:1; transform:translateY(-3px)}}
+.bk-ai-chips{align-self:flex-start; display:flex; flex-wrap:wrap; gap:6px; padding-right:38px}
+.bk-ai-chip{height:34px; padding:0 13px; border-radius:17px; background:var(--surface); color:var(--brand); font-size:13px; font-weight:700; box-shadow:inset 0 0 0 1.5px rgba(75,46,232,.32)}
+.bk-ai-chip:active{background:var(--brand-tint)}
+.bk-ai-card{align-self:flex-start; width:min(calc(100% - 38px), 340px); margin-right:38px; display:flex; flex-direction:column; gap:10px; padding:14px; border-radius:20px; background:var(--surface);
+  box-shadow:0 10px 24px -18px rgba(23,20,43,.5), 0 0 0 1px rgba(23,20,43,.05)}
+.bk-ai-card.ok{box-shadow:0 10px 24px -18px rgba(23,20,43,.5), inset 0 0 0 1.5px rgba(18,160,113,.35)}
+.bk-ai-card.warn{box-shadow:inset 0 0 0 1.5px #F1E2B5}
+.bk-ai-card.brand{box-shadow:inset 0 0 0 1.5px rgba(75,46,232,.3)}
+.bk-ai-card.undone{opacity:.62}
+.bk-ai-card p{margin:0; font-size:13px; line-height:1.8; color:var(--ink-3)}
+.bk-ai-card-h{display:flex; align-items:center; gap:8px}
+.bk-ai-card-h b{font-size:14.5px; font-weight:800}
+.bk-ai-ci{width:24px; height:24px; border-radius:50%; display:grid; place-items:center; flex:none; background:var(--brand-tint); color:var(--brand)}
+.bk-ai-ci .ico{width:13px; height:13px; stroke-width:2.8}
+.bk-ai-card.ok .bk-ai-ci{background:#0B7A55; color:#fff}
+.bk-ai-card.warn .bk-ai-ci{background:#FFF1D6; color:#9A6A12}
+.bk-spin{width:20px; height:20px; border-radius:50%; border:2.5px solid var(--brand-tint); border-top-color:var(--brand); box-sizing:border-box; flex:none; animation:bkspin .8s linear infinite}
+.bk-ai-pv{padding:10px; border-radius:14px; background:var(--chat); display:flex; flex-direction:column; gap:4px}
+.bk-ai-pv .bk-bub{width:100%; font-size:13px; line-height:1.8; padding:7px 9px 3px}
+.bk-ai-pv .bk-keys{width:100%; margin-top:0; gap:4px}
+.bk-ai-pv .bk-key{height:32px; font-size:12px}
+.bk-ai-stats{display:flex; gap:6px}
+.bk-ai-stats span{flex:1; display:flex; flex-direction:column; align-items:center; padding:7px 0; border-radius:12px; background:var(--surface-sunk); line-height:1.3}
+.bk-ai-stats b{font-size:17px; font-weight:800}
+.bk-ai-stats i{font-style:normal; font-size:11.5px; color:var(--ink-3)}
+.bk-ai-diff{display:flex; flex-direction:column; gap:6px}
+.bk-ai-d{display:flex; align-items:flex-start; gap:8px; font-size:13px; line-height:1.6}
+.bk-ai-d.more{color:var(--ink-3); padding-right:28px}
+.bk-ai-dk{width:20px; height:20px; border-radius:6px; display:grid; place-items:center; flex:none; font-weight:800; font-size:13px}
+.bk-ai-d.add .bk-ai-dk{background:rgba(11,122,85,.12); color:#0B7A55}
+.bk-ai-d.mod .bk-ai-dk{background:var(--brand-tint); color:var(--brand)}
+.bk-ai-d.del .bk-ai-dk{background:rgba(192,57,43,.1); color:#C0392B}
+.bk-ai-w{font-size:12.5px; line-height:1.7; color:#7A5410; background:#FFF6DE; border-radius:10px; padding:6px 10px}
+.bk-ai-acts{display:flex; flex-wrap:wrap; gap:6px}
+.bk-ai-act{flex:1 1 40%; min-width:0; height:40px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:13px; font-weight:800; white-space:nowrap}
+.bk-ai-act .ico{width:15px; height:15px; stroke-width:2.3}
+.bk-ai-act.t{background:var(--tgb); color:#fff}
+.bk-ai-act.p{background:var(--brand); color:#fff}
+.bk-ai-act.s{background:var(--surface-sunk); color:var(--ink)}
+.bk-ai-act.o{color:var(--ink-2); box-shadow:inset 0 0 0 1.5px var(--line); flex-basis:100%}
+.bk-ai-act.t .ico{fill:currentColor; stroke-width:1.4}
+.bk-ai-in{flex:none; padding:8px 12px calc(12px + var(--safe-b)); background:var(--surface); border-top:1px solid var(--line); display:flex; flex-direction:column; gap:6px}
+.bk-ai-q{font-size:11.5px; color:var(--ink-3); text-align:center}
+.bk-ai-row{display:flex; align-items:flex-end; gap:8px}
+.bk-ai-row textarea{flex:1; min-height:42px; max-height:140px; resize:none; border:0; outline:0; border-radius:21px; background:var(--surface-sunk); padding:10px 16px; font:inherit; font-size:15px; line-height:1.5; color:var(--ink)}
+.bk-ai-send{width:42px; height:42px; border-radius:50%; background:var(--brand); color:#fff; display:grid; place-items:center; flex:none}
+.bk-ai-send .ico{width:18px; height:18px}
+.bk-ai-send.off{background:#D9D6E6}
+.bk-ai-send.off .ico{animation:none}

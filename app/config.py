@@ -54,6 +54,11 @@ class Config:
     tg_proxy: str = os.getenv("TG_PROXY", "").strip()
     tg_api_base: str = os.getenv("TG_API_BASE", "").strip()
 
+    # ===== دستیار هوش مصنوعی (ساخت ربات با گفتگو) =====
+    # کلید را مدیر سرویس می‌دهد؛ فقط سمت سرور می‌ماند (هرگز در گیت یا مرورگر)
+    ai_key: str = os.getenv("EASYSAZ_AI_KEY", "").strip()
+    ai_base_url: str = (os.getenv("EASYSAZ_AI_URL", "").strip() or "https://dezhcode.pyho.ir").rstrip("/")
+
     # ===== مسیرها =====
     db_path: str = _abs_path(os.getenv("DB_PATH", "").strip() or "data/easysaz.db")
     log_path: str = _abs_path(os.getenv("LOG_PATH", "").strip() or "logs/easysaz.log")

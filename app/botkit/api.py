@@ -8,6 +8,10 @@
   POST /api/bot/takeover       اجرای ربات روی ایزی‌ساز (وبهوک)
   POST /api/bot/emoji_pack     افزودن یک بستهٔ ایموجی با لینک t.me/addemoji/…
   POST /api/bot/emoji_del      حذف یک ایموجی از کتابخانه
+  GET  /api/bot/ai?id=         گفتگوی دستیار ساخت ربات، سهم امروز
+  POST /api/bot/ai_send        پیام تازه به دستیار (کار پس‌زمینه؛ شمارهٔ نوبت برمی‌گردد)
+  GET  /api/bot/ai_poll?id=&turn=  متن در حال تایپ، جای صف، نتیجه و پیش‌نویس تازه
+  POST /api/bot/ai_undo        برگرداندن پیش‌نویس به پیش از یک نوبت
 """
 from __future__ import annotations
 
@@ -19,14 +23,15 @@ from aiogram.types import User
 
 from ..clients import LinkError
 from ..config import config
-from . import engine, schema, store
+from .. import plans
+from . import agent, ai_client, engine, schema, store
 
 log = logging.getLogger("easysaz.botkit.api")
 
 PACK_RE = re.compile(r"(?:t\.me/addemoji/|addemoji/)?([A-Za-z0-9_]{3,64})/?$")
 
 ACTIONS = {"": "GET", "save": "POST", "publish": "POST", "off": "POST", "test": "POST", "takeover": "POST",
-           "emoji_pack": "POST", "emoji_del": "POST"}
+           "emoji_pack": "POST", "emoji_del": "POST", "ai": "GET", "ai_send": "POST", "ai_poll": "GET", "ai_undo": "POST"}
 
 
 def _err(status: int, message: str):  # noqa: ANN202
@@ -67,6 +72,8 @@ class BotApi:
     async def handle(self, action: str, init_data: str, query: dict, body: dict) -> dict:
         if action == "":
             return await self.get(init_data, query.get("id"))
+        if action in ("ai", "ai_poll"):
+            return await getattr(self, action)(init_data, query)
         return await getattr(self, action)(init_data, body)
 
     # ------------------------------------------------------------ خواندن
@@ -174,6 +181,75 @@ class BotApi:
         _u, _p, app = await self._ctx(init_data, body.get("id"), write=True)
         await store.emoji_remove(self.db, app["id"], str(body.get("emoji") or ""))
         return {"emoji": await store.emoji_list(self.db, app["id"])}
+
+    # ------------------------------------------------------------ دستیار هوش مصنوعی
+    async def _quota(self, user_id: int, plan) -> dict:  # noqa: ANN001
+        p = plan if isinstance(plan, plans.Plan) else plans.get(getattr(plan, "key", None))
+        return {"used": await agent.used_today(self.db, user_id), "limit": p.ai_daily}
+
+    async def ai(self, init_data: str, query: dict) -> dict:
+        user, plan, app = await self._ctx(init_data, query.get("id"))
+        await agent.expire_stale(self.db)
+        return {"enabled": ai_client.enabled(), "turns": await agent.history(self.db, app["id"]),
+                "quota": await self._quota(user.id, plan), "max_ask": agent.MAX_ASK}
+
+    async def ai_send(self, init_data: str, body: dict) -> dict:
+        user, plan, app = await self._ctx(init_data, body.get("id"), write=True)
+        if not ai_client.enabled():
+            raise _err(503, "دستیار هوش مصنوعی روی این سرور روشن نشده")
+        ask = schema._s(body.get("text"), agent.MAX_ASK)
+        if not ask:
+            raise _err(400, "پیامت خالی است")
+        q = await self._quota(user.id, plan)
+        if q["used"] >= q["limit"]:
+            raise _err(429, f"سهم امروزت ({schema.fa_number(q['limit'])} پیام) تمام شد؛ فردا دوباره")
+        busy = await self.db.fetchone("SELECT id FROM bk_ai_turns WHERE app_id = ? AND status IN ('queued','running') AND updated_at > ?",
+                                      (app["id"], store.now() - agent.STALE))
+        if busy:
+            raise _err(409, "دستیار هنوز روی پیام قبلی کار می‌کند")
+        # پایه همان چیزی است که کاربر الان در مینی‌اپ می‌بیند
+        base = self._clean(body["doc"]) if isinstance(body.get("doc"), dict) else (await store.load(self.db, app["id"]) or schema.empty_doc(app["name"]))
+        await store.save_draft(self.db, app["id"], base)
+        focus = schema._id(body.get("focus")) or None
+        turn = await agent.start_job(self.db, app["id"], user.id, base, ask, focus)
+        return {"turn": turn, "pos": await agent.queue_pos(self.db, turn), "quota": {"used": q["used"] + 1, "limit": q["limit"]}}
+
+    async def ai_poll(self, init_data: str, query: dict) -> dict:
+        _u, _p, app = await self._ctx(init_data, query.get("id"))
+        try:
+            turn_id = int(query.get("turn") or 0)
+        except (TypeError, ValueError):
+            turn_id = 0
+        row = await self.db.fetchone("SELECT * FROM bk_ai_turns WHERE id = ? AND app_id = ?", (turn_id, app["id"]))
+        if not row:
+            raise _err(404, "پیدا نشد")
+        if row["status"] in ("queued", "running") and row["updated_at"] < store.now() - agent.STALE:
+            await agent.expire_stale(self.db)
+            row = await self.db.fetchone("SELECT * FROM bk_ai_turns WHERE id = ?", (turn_id,))
+        out = {"turn": agent.turn_json(row)}
+        if row["status"] == "queued":
+            out["pos"] = await agent.queue_pos(self.db, turn_id)
+        if row["status"] == "done":
+            out["doc"] = await store.load(self.db, app["id"])
+        return out
+
+    async def ai_undo(self, init_data: str, body: dict) -> dict:
+        _u, _p, app = await self._ctx(init_data, body.get("id"), write=True)
+        try:
+            turn_id = int(body.get("turn") or 0)
+        except (TypeError, ValueError):
+            turn_id = 0
+        row = await self.db.fetchone("SELECT * FROM bk_ai_turns WHERE id = ? AND app_id = ? AND status = 'done'", (turn_id, app["id"]))
+        if not row or not row["doc_before"]:
+            raise _err(404, "این نقطه برای برگشت پیدا نشد")
+        doc = self._clean(store._loads(row["doc_before"], {}))
+        await store.save_draft(self.db, app["id"], doc)
+        # این نوبت و بعدی‌ها «برگردانده‌شده» علامت می‌خورند
+        for r in await self.db.fetchall("SELECT id, result FROM bk_ai_turns WHERE app_id = ? AND id >= ? AND status = 'done'", (app["id"], turn_id)):
+            res = store._loads(r["result"], {})
+            res["undone"] = True
+            await self.db.execute("UPDATE bk_ai_turns SET result = ? WHERE id = ?", (store._dumps(res), r["id"]))
+        return {"doc": doc, "turns": await agent.history(self.db, app["id"])}
 
 
 async def fetch_pack(bot, name: str) -> tuple[list[tuple[str, str]], str]:  # noqa: ANN001

@@ -9,6 +9,7 @@ from aiogram.types import CallbackQuery, Message
 from .. import keyboards as kb
 from .. import texts
 from ..db import Database
+from .intro import send_intro
 
 router = Router(name="start")
 
@@ -54,7 +55,23 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext,
 
         await show_apps(message, message.from_user.id, db, edit=False)
         return
+    if await db.claim_intro(message.from_user.id):
+        # اولین /start: اول ویدیوی معرفی، بعد منوی اصلی (پیام جدا تا دکمه‌های منو متن را ویرایش کنند)
+        await send_intro(message.bot, message.chat.id, db)
     await message.answer(texts.HOME, reply_markup=kb.home())
+
+
+@router.message(Command("intro"))
+async def cmd_intro(message: Message, db: Database) -> None:
+    if not await send_intro(message.bot, message.chat.id, db):
+        await message.answer(texts.INTRO_MISSING, reply_markup=kb.back_home())
+
+
+@router.callback_query(F.data == "intro")
+async def cb_intro(call: CallbackQuery, db: Database) -> None:
+    await call.answer()
+    if not await send_intro(call.bot, call.message.chat.id, db):
+        await call.message.answer(texts.INTRO_MISSING, reply_markup=kb.back_home())
 
 
 @router.message(Command("help"))

@@ -151,6 +151,7 @@ MAIN_COMMANDS = [
     BotCommand(command="myapp", description="مینی اپ من"),
     BotCommand(command="plans", description="پلن‌ها"),
     BotCommand(command="help", description="راهنما"),
+    BotCommand(command="intro", description="معرفی ۳۵ ثانیه‌ای"),
 ]
 
 

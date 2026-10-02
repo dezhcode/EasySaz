@@ -105,6 +105,8 @@ MIGRATIONS = [
     "ALTER TABLE apps ADD COLUMN channel_title TEXT",
     # ربات‌ساز: ایموجی پریمیوم فقط وقتی کار می‌کند که سازندهٔ ربات پریمیوم باشد
     "ALTER TABLE users ADD COLUMN is_premium INTEGER NOT NULL DEFAULT 0",
+    # ویدیوی معرفی فقط در اولین /start خودکار پخش می‌شود
+    "ALTER TABLE users ADD COLUMN intro_seen INTEGER NOT NULL DEFAULT 0",
 ]
 
 _SLUG_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789"  # بدون l/o/0/1 که با هم قاطی می شوند
@@ -203,6 +205,10 @@ class Database:
             "first_name = excluded.first_name, lang = excluded.lang, last_seen = excluded.last_seen",
             (tg_id, username, first_name, lang, t, t),
         )
+
+    async def claim_intro(self, tg_id: int) -> bool:
+        """اولین بار True می‌دهد و علامت می‌زند؛ /start دوباره (یا تکرار وبهوک) ویدیو را دوباره نمی‌فرستد."""
+        return await self.execute("UPDATE users SET intro_seen = 1 WHERE tg_id = ? AND intro_seen = 0", (tg_id,)) > 0
 
     async def get_user(self, tg_id: int) -> aiosqlite.Row | None:
         return await self.fetchone("SELECT * FROM users WHERE tg_id = ?", (tg_id,))

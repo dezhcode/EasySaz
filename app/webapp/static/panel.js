@@ -141,9 +141,28 @@
     const bg = getComputedStyle(document.documentElement).getPropertyValue('--ground').trim();
     if (tg) {
       try { tg.setHeaderColor(bg); tg.setBackgroundColor(bg); tg.setBottomBarColor && tg.setBottomBarColor(bg); } catch (e) {}
-      const sa = tg.safeAreaInset || {}, ca = tg.contentSafeAreaInset || {};
-      document.documentElement.style.setProperty('--safe-t', ((sa.top || 0) + (ca.top || 0)) + 'px');
+      applyInsets();
     }
+  }
+  /* تمام‌صفحه و ناحیهٔ امن (Bot API 8.0): safeAreaInset = ناچ، نوار وضعیت و خط خانه؛
+     contentSafeAreaInset = جایی که دکمه‌های خود تلگرام (بستن/برگشت و «⋯») روی صفحه می‌نشینند.
+     بالای هر نوار و برگه باید زیر مجموع این دو باشد و پایین آن بالای خط خانه. */
+  function applyInsets() {
+    const sa = tg.safeAreaInset || {}, ca = tg.contentSafeAreaInset || {};
+    const st = document.documentElement.style;
+    const px = (a, b) => ((Number(a) || 0) + (Number(b) || 0)) + 'px';
+    st.setProperty('--safe-t', px(sa.top, ca.top));
+    st.setProperty('--safe-b', `max(env(safe-area-inset-bottom, 0px), ${px(sa.bottom, ca.bottom)})`);
+    st.setProperty('--safe-l', px(sa.left, ca.left));
+    st.setProperty('--safe-r', px(sa.right, ca.right));
+    document.documentElement.classList.toggle('tg-fs', !!tg.isFullscreen);
+  }
+  const MOBILE = ['android', 'android_x', 'ios'];
+  function goFullscreen() {
+    // فقط گوشی: روی دسکتاپ تمام‌صفحه یعنی کل مانیتور، که برای پنل ساخت مناسب نیست
+    if (!tg || !tg.requestFullscreen || tg.isFullscreen || !MOBILE.includes(tg.platform)) return;
+    if (!(tg.isVersionAtLeast && tg.isVersionAtLeast('8.0'))) return;
+    try { tg.requestFullscreen(); } catch (e) {}
   }
 
   function toast(text, warn) {
@@ -5542,8 +5561,10 @@
         else if (S.screen === 'onboard' && S.me && S.me.apps.length) tab('home');
       });
       tg.onEvent('themeChanged', () => { applyChrome(); if (S.doc && S.screen === 'editor') renderAll(); });
-      tg.onEvent('safeAreaChanged', applyChrome);
-      tg.onEvent('contentSafeAreaChanged', applyChrome);
+      tg.onEvent('safeAreaChanged', applyInsets);
+      tg.onEvent('contentSafeAreaChanged', applyInsets);
+      tg.onEvent('fullscreenChanged', applyInsets);
+      tg.onEvent('viewportChanged', applyInsets);
     }
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyChrome(); if (S.doc && S.screen === 'editor') renderAll(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden && S.app && S.saveState === 'busy') saveNow(); });
@@ -5590,6 +5611,7 @@
     if (tg) {
       tg.ready();
       tg.expand();
+      goFullscreen();
       try { tg.disableVerticalSwipes(); } catch (e) {}
       try { tg.enableClosingConfirmation(); } catch (e) {}
     }

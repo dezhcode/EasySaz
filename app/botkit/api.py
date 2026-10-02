@@ -283,7 +283,8 @@ class BotApi:
     # ------------------------------------------------------------ دستیار هوش مصنوعی
     async def _quota(self, user_id: int, plan) -> dict:  # noqa: ANN001
         p = plan if isinstance(plan, plans.Plan) else plans.get(getattr(plan, "key", None))
-        return {"used": await agent.used_today(self.db, user_id), "limit": p.ai_daily}
+        # limit ۰ یعنی نامحدود (مینی‌اپ هم شمارنده و پیام «سهم تمام شد» را نشان نمی‌دهد)
+        return {"used": await agent.used_today(self.db, user_id), "limit": p.ai_daily if config.ai_limit else 0}
 
     async def ai(self, init_data: str, query: dict) -> dict:
         user, plan, app = await self._ctx(init_data, query.get("id"))
@@ -300,7 +301,7 @@ class BotApi:
         if not ask:
             raise _err(400, "پیامت خالی است")
         q = await self._quota(user.id, plan)
-        if q["used"] >= q["limit"]:
+        if q["limit"] and q["used"] >= q["limit"]:
             raise _err(429, f"سهم امروزت ({schema.fa_number(q['limit'])} پیام) تمام شد؛ فردا دوباره")
         busy = await self.db.fetchone("SELECT id FROM bk_ai_turns WHERE app_id = ? AND status IN ('queued','running') AND updated_at > ?",
                                       (app["id"], store.now() - agent.STALE))

@@ -58,6 +58,8 @@ class Config:
     # کلید را مدیر سرویس می‌دهد؛ فقط سمت سرور می‌ماند (هرگز در گیت یا مرورگر)
     ai_key: str = os.getenv("EASYSAZ_AI_KEY", "").strip()
     ai_base_url: str = (os.getenv("EASYSAZ_AI_URL", "").strip() or "https://dezhcode.pyho.ir").rstrip("/")
+    # سهم روزانهٔ دستیار: فعلاً نامحدود؛ EASYSAZ_AI_LIMIT=plan سهم هر پلن (app/plans.py) را روشن می‌کند
+    ai_limit: bool = os.getenv("EASYSAZ_AI_LIMIT", "").strip().lower() in ("plan", "on", "1", "yes")
 
     # ===== مسیرها =====
     db_path: str = _abs_path(os.getenv("DB_PATH", "").strip() or "data/easysaz.db")

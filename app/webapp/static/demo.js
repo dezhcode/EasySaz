@@ -348,26 +348,45 @@
   function aiDemo(path, body, qs, bk, d, copy) {
     bk.ai = bk.ai || { turns: [], used: 0 };
     const A = bk.ai;
-    const view = t => ({ id: t.id, ask: t.ask, say: t.status === 'done' ? t.say : t.say.slice(0, Math.max(0, Math.floor((Date.now() - t.t0 - 700) / 28))),
-      status: t.status, error: t.error || '', result: t.result, created_at: Math.floor(t.t0 / 1000),
-      can_undo: t.status === 'done' && !!(t.result.changes || []).length && !t.result.undone });
+    const T = t => {   // زمان‌بندی نمایشی: فکر ← نوشتن ← ساختن ← بررسی
+      const think = 900, write = think + t.say.length * 22, build = write + (t.names.length ? 700 + t.names.length * 420 : 500), check = build + 500;
+      return { think, write, build, check };
+    };
+    const view = t => {
+      const el = Date.now() - t.t0, tm = T(t);
+      const v = { id: t.id, ask: t.ask, status: t.status, error: t.error || '', result: t.result, created_at: Math.floor(t.t0 / 1000), updated_at: Math.floor(Date.now() / 1000),
+        say: t.status === 'done' ? t.say : t.say.slice(0, Math.max(0, Math.floor((el - tm.think) / 22))),
+        can_undo: t.status === 'done' && !!(t.result.changes || []).length && !t.result.undone, has_after: !!t.after && t.status === 'done' };
+      if (t.status === 'running') {
+        v.phase = el < tm.think ? 'think' : el < tm.write ? 'write' : el < tm.build ? (t.res.ask ? 'ask' : t.res.plan ? 'plan' : 'build') : 'check';
+        const n = el < tm.write ? 0 : Math.min(t.names.length, Math.floor((el - tm.write) / 420) + 1);
+        v.progress = v.phase === 'build' || v.phase === 'check' ? { ops: n * 2, msgs: t.names.slice(0, n) } : {};
+        v.started_at = Math.floor(t.t0 / 1000);
+      }
+      return v;
+    };
+    const finish = t => {
+      if (t.status === 'running' && Date.now() - t.t0 > T(t).check) {
+        t.status = 'done'; t.result = t.res;
+        if (t.after && (t.res.changes || []).length) bk.doc = copy(t.after); else t.after = null;
+        save(d);
+      }
+    };
     if (path.indexOf('bot/ai?') === 0) return Promise.resolve({ enabled: true, turns: A.turns.map(view), quota: { used: A.used, limit: 20 }, max_ask: 800, insights: [] });
     if (path === 'bot/ai_send') {
+      A.turns.forEach(finish);
       if (A.turns.some(t => t.status === 'running')) return fail(409, 'دستیار هنوز روی پیام قبلی کار می‌کند');
       const before = copy(body.doc || bk.doc);
-      const plan = demoPlan(body.text, before);
-      const t = { id: A.turns.length + 1, ask: (body.image ? '📷 ' : '') + body.text, say: plan.say, status: 'running', t0: Date.now(), result: {}, before, after: plan.doc, res: plan.res };
+      const plan = demoPlan(body.text, before, A, body.focus);
+      const names = plan.names || ((plan.res.previews || []).map(x => x.name));
+      const t = { id: A.turns.length + 1, ask: (body.image ? '📷 ' : '') + body.text, say: plan.say, status: 'running', t0: Date.now(), result: {}, before, after: plan.doc, res: plan.res, names };
       A.turns.push(t); A.used++; save(d);
       return Promise.resolve({ turn: t.id, pos: 0, quota: { used: A.used, limit: 20 } });
     }
     if (path.indexOf('bot/ai_poll?') === 0) {
       const t = A.turns.find(x => x.id === Number(qs.get('turn')));
       if (!t) return fail(404, 'پیدا نشد');
-      if (t.status === 'running' && Date.now() - t.t0 > 700 + t.say.length * 28 + 900) {
-        t.status = 'done'; t.result = t.res;
-        if (t.after) bk.doc = copy(t.after);
-        save(d);
-      }
+      finish(t);
       return Promise.resolve(Object.assign({ turn: view(t) }, t.status === 'done' ? { doc: copy(bk.doc) } : {}));
     }
     if (path === 'bot/ai_stop') {
@@ -375,17 +394,45 @@
       save(d);
       return Promise.resolve({ turns: A.turns.map(view) });
     }
+    const mark = keep => A.turns.forEach(x => { if ((x.result.changes || []).length) x.result = Object.assign({}, x.result, { undone: !keep(x) }); });
     if (path === 'bot/ai_undo') {
       const t = A.turns.find(x => x.id === body.turn);
       if (!t) return fail(404, 'پیدا نشد');
       bk.doc = copy(t.before);
-      A.turns.filter(x => x.id >= t.id).forEach(x => { x.result = Object.assign({}, x.result, { undone: true }); });
+      mark(x => x.id < t.id && !x.result.undone);
       save(d);
       return Promise.resolve({ doc: copy(bk.doc), turns: A.turns.map(view) });
     }
+    if (path === 'bot/ai_restore') {
+      if (body.published) {
+        if (!bk.pub) return fail(404, 'هنوز نسخهٔ منتشرشده‌ای نیست');
+        bk.doc = copy(bk.pub); mark(() => false);
+      } else {
+        const t = A.turns.find(x => x.id === body.turn);
+        if (!t || !t.after) return fail(404, 'این نسخه پیدا نشد');
+        bk.doc = copy(t.after); mark(x => x.id <= t.id);
+      }
+      save(d);
+      return Promise.resolve({ doc: copy(bk.doc), turns: A.turns.map(view) });
+    }
+    if (path.indexOf('bot/ai_compare?') === 0) {
+      const t = A.turns.find(x => x.id === Number(qs.get('turn')));
+      if (!t || !t.after) return fail(404, 'این نسخه پیدا نشد');
+      const pv = m => m && { text: m.text, kb: m.kb, rows: (m.kb === 'inline' ? m.rows : m.kb === 'reply' ? m.keys : []).map(r => r.map(b => ({ text: b.text, style: b.style }))) };
+      const o = {}, n = {};
+      t.before.msgs.forEach(m => { o[m.id] = m; });
+      t.after.msgs.forEach(m => { n[m.id] = m; });
+      const items = [];
+      Object.keys(n).concat(Object.keys(o).filter(k => !n[k])).forEach(id => {
+        const a = o[id], b = n[id];
+        if (a && b && JSON.stringify(pv(a)) === JSON.stringify(pv(b)) && a.name === b.name) return;
+        items.push({ id, name: (b || a).name, kind: !a ? 'add' : !b ? 'del' : 'mod', before: pv(a), after: pv(b) });
+      });
+      return Promise.resolve({ items: items.slice(0, 8) });
+    }
     return fail(404, 'پیدا نشد');
   }
-  function demoPlan(text, doc) {
+  function demoPlan(text, doc, A, focus) {
     const copy = o => JSON.parse(JSON.stringify(o));
     const msg = (id, name, txt, extra) => Object.assign({ id, name, text: txt, media: null, kb: 'none', rows: [], keys: [],
       kbopt: { resize: true, once: false, persist: false, placeholder: '' },
@@ -409,14 +456,67 @@
       return { previews: list.slice(0, 3), previews_more: Math.max(0, list.length - 3) };
     };
     const pv = x => { const m = x.msgs.find(y => y.id === x.start); return m && { id: m.id, name: m.name, text: m.text, kb: m.kb, rows: (m.kb === 'reply' ? m.keys : m.rows).map(r => r.map(b => ({ text: b.text, style: b.style }))) }; };
+    A = A || {};
+    if (focus) {
+      const x = copy(doc);
+      const m = x.msgs.find(y => y.id === focus);
+      if (!m) return { say: 'این پیام پیدا نشد.', doc: null, res: { changes: [], chips: [] } };
+      let what = 'متن «' + m.name + '»';
+      if (/کوتاه/.test(text)) m.text = m.text.split('\n')[0];
+      else if (/دکمه/.test(text) && /اضافه/.test(text)) { m.kb = m.kb === 'none' ? 'inline' : m.kb; if (m.kb === 'inline') m.rows.push([btn('b_x' + Date.now() % 1000, '📞 تماس با ما', '', m.id)]); what = 'دکمه‌های «' + m.name + '»'; }
+      else if (/رنگ/.test(text)) { m.rows.forEach((r, i) => r.forEach((b, k) => { b.style = i === 0 && k === 0 ? 'primary' : /ثبت|تأیید/.test(b.text) ? 'success' : b.style; })); what = 'دکمه‌های «' + m.name + '»'; }
+      else m.text = m.text.replace(/\.?\s*$/, '') + ' 🌟\nهر سؤالی داشتی همین‌جا بپرس؛ با کمال میل کمکت می‌کنیم 🙌';
+      return { say: 'انجام شد ✅ فقط «' + m.name + '» عوض شد.', doc: x,
+        res: { title: /کوتاه/.test(text) ? 'متن کوتاه‌تر' : /رنگ/.test(text) ? 'رنگ دکمه‌ها' : /دکمه/.test(text) ? 'دکمهٔ تازه' : 'متن جذاب‌تر',
+          changes: [{ k: 'mod', t: what }], more: 0, chips: [], stats: stats(x), preview: pv(x), ...pvs(doc, x), warnings: [] } };
+    }
+    // C: فروشگاه تازه ← دو سؤال ← نقشه ← بساز
+    const flow = A.flow || '';
+    if (!flow && /فروشگاه|بفروش|سفارش/.test(text)) {
+      A.flow = 'q1';
+      return { say: 'عالیه! چند سؤال کوتاه تا دقیق همان چیزی را بسازم که می‌خواهی 👇', doc: null,
+        res: { title: '', changes: [], chips: [], ask: { q: 'مشتری چطور پول بدهد؟', step: 1, of: 2, options: [
+          { e: '💳', t: 'کارت‌به‌کارت', d: 'عکس رسید برایت می‌آید' }, { e: '🚚', t: 'پرداخت در محل', d: 'موقع تحویل' }, { e: '⭐', t: 'ستارهٔ تلگرام', d: 'برای کالای دیجیتال' }] } } };
+    }
+    if (flow === 'q1' && !/^رد کن/.test(text)) {
+      A.flow = 'q2';
+      return { say: 'ثبت شد 👌 یک سؤال دیگر:', doc: null,
+        res: { title: '', changes: [], chips: [], ask: { q: 'ارسال کجا انجام می‌شود؟', step: 2, of: 2, options: [
+          { e: '🏙', t: 'فقط شهر خودم', d: 'با پیک' }, { e: '📦', t: 'سراسر ایران', d: 'با پست' }, { e: '🏪', t: 'تحویل حضوری', d: 'از مغازه' }] } } };
+    }
+    if (flow === 'q1' || flow === 'q2') {
+      A.flow = 'plan';
+      return { say: 'این نقشه را پیشنهاد می‌کنم؛ اگر خوب است **«بساز»** را بزن:', doc: null,
+        res: { title: 'نقشهٔ ربات', changes: [], chips: [], plan: [
+          { t: 'خوش‌آمد', d: 'محصولات · سبد خرید · تماس', lv: 0 }, { t: 'تماس', d: 'شماره و ساعت کاری', lv: 1 },
+          { t: 'زمان تحویل', d: 'بعد از ثبت سفارش', lv: 1 }, { t: 'تشکر', d: 'پیام پایانی خرید', lv: 2 }] } };
+    }
+    if (flow === 'plan' && /بساز|باشه|خوبه|اوکی/.test(text)) {
+      A.flow = '';
+      const x = copy(doc);
+      const w = x.msgs.find(m => m.id === x.start) || x.msgs[0];
+      w.text = 'سلام {نام} 👋\nبه فروشگاه ما خوش اومدی 🛍\nمحصولات رو ببین، به سبد اضافه کن و سفارش بده.';
+      w.kb = 'inline';
+      w.rows = [[{ id: 'b_shop', text: '🛍 محصولات', style: 'primary', icon: '', act: { type: 'shop', cat: '' } }, { id: 'b_cart', text: '🧺 سبد خرید', style: '', icon: '', act: { type: 'cart' } }], [btn('b_ct', '📞 تماس', '', 'm_contact')]];
+      x.msgs = x.msgs.filter(m => !['m_contact', 'm_when', 'm_bye'].includes(m.id));
+      x.msgs.push(msg('m_contact', 'تماس', '📞 [شماره تماس]\n⏰ هر روز ۹ تا ۲۱', { kb: 'inline', rows: [[btn('b_bk', '↩️ برگشت', '', w.id)]] }),
+        msg('m_when', 'زمان تحویل', 'سفارشت ثبت شد 🎉 زمان تحویل رو انتخاب کن:', { kb: 'inline', rows: [[btn('b_t1', 'امروز ۱۸ تا ۲۰', '', 'm_bye'), btn('b_t2', 'فردا ۱۰ تا ۱۲', '', 'm_bye')]] }),
+        msg('m_bye', 'تشکر', 'ممنون از خریدت 🌱 به‌زودی می‌رسه.'));
+      x.shop = Object.assign({}, x.shop || {}, { after: 'm_when' });
+      return { say: 'ساختمش ✅ طبق نقشه:\n- **خوش‌آمد** با دکمه‌های محصولات، سبد خرید و تماس\n- **تماس** با شماره و ساعت کاری\n- **زمان تحویل** بعد از ثبت سفارش و **تشکر**\n\nمحصولات رو در «داده‌ها ← محصولات» اضافه کن.', doc: x,
+        names: ['خوش‌آمد', 'تماس', 'زمان تحویل', 'تشکر'],
+        res: { title: 'فروشگاه', changes: [{ k: 'mod', t: 'متن و دکمه‌های «خوش‌آمد»' }, { k: 'add', t: 'پیام «تماس»' }, { k: 'add', t: 'پیام «زمان تحویل» با ۲ دکمه' }, { k: 'add', t: 'پیام «تشکر»' }, { k: 'mod', t: 'تنظیمات فروشگاه: پیام بعد از سفارش' }],
+          more: 0, chips: ['کد تخفیف اضافه کن', 'دکمه‌ها رو رنگی کن'], stats: stats(x), preview: pv(x), ...pvs(doc, x), warnings: ['جاهای «[…]» را با اطلاعات خودت پر کن'] } };
+    }
+    A.flow = '';
     if (/سبز/.test(text) && doc.msgs.some(m => m.rows.some(r => r.some(b => /ثبت/.test(b.text))))) {
       const x = copy(doc);
       let name = '';
       x.msgs.forEach(m => m.rows.forEach(r => r.forEach(b => { if (/ثبت/.test(b.text)) { b.style = 'success'; name = b.text; } })));
       return { say: 'سبزش کردم ✅\nحالا دکمهٔ **' + name + '** بیشتر به چشم می‌آد و کاربر راحت‌تر ثبت‌نام می‌کنه.\n\n**پیشنهاد بعدی:** برای دورهٔ پیشرفته یه تخفیف ۱۰٪ بذار.', doc: x,
-        res: { changes: [{ k: 'mod', t: `دکمهٔ «${name}» ← سبز` }], more: 0, chips: ['۱۰٪ تخفیف بذار', 'یه دکمهٔ اینستاگرام هم بذار'], stats: stats(x), preview: pv(x), ...pvs(doc, x), warnings: [] } };
+        res: { title: 'دکمهٔ سبز', changes: [{ k: 'mod', t: `دکمهٔ «${name}» ← سبز` }], more: 0, chips: ['۱۰٪ تخفیف بذار', 'یه دکمهٔ اینستاگرام هم بذار'], stats: stats(x), preview: pv(x), ...pvs(doc, x), warnings: [] } };
     }
-    if (/ربات|بساز|کلاس|فروشگاه|ثبت|دوره|نوبت|پشتیبانی/.test(text)) {
+    if (/ربات|بساز|کلاس|ثبت|دوره|نوبت|پشتیبانی/.test(text)) {
       const x = { v: 1, start: 'm_welcome', fallback: '', comps: [], vars: [{ name: 'شماره', type: 'text', scope: 'user', init: '', formula: '' }], msgs: [
         msg('m_welcome', 'خوش‌آمد', 'سلام {نام} 👋\nبه <b>کلاس عکاسی سارا</b> خوش اومدی. کدوم دوره رو می‌خوای ببینی؟', { kb: 'inline', rows: [[btn('b_1', '📚 دوره‌ها', 'primary', 'm_courses')], [btn('b_2', '📝 ثبت‌نام', '', 'm_reg'), btn('b_3', '❓ سؤال دارم', '', 'm_faq')]] }),
         msg('m_courses', 'دوره‌ها', '📷 <b>مقدماتی</b>: [قیمت]\n🎞 <b>پیشرفته</b>: [قیمت]', { kb: 'inline', rows: [[btn('b_4', '📝 ثبت‌نام', 'success', 'm_reg')], [btn('b_5', '↩️ برگشت', '', 'm_welcome')]] }),
@@ -425,7 +525,7 @@
         msg('m_faq', 'سؤالات', 'سؤالت رو بنویس؛ همین‌جا جواب می‌دیم 🙂', { kb: 'inline', rows: [[btn('b_6', '↩️ برگشت', '', 'm_welcome')]] }),
       ] };
       return { say: 'ساختمش ✅ ربات ثبت‌نام کلاس عکاسی آماده است.\n\n**چی ساختم**\n- پیام **خوش‌آمد** با اسم کاربر و سه دکمه\n- صفحهٔ **دوره‌ها** با قیمت هر دوره\n- **ثبت‌نام** با دکمهٔ «📱 ارسال شماره» و ذخیره در {شماره}\n- پیام **ممنون** بعد از ثبت شماره\n- صفحهٔ **سؤالات** با دکمهٔ برگشت\n\nجاهای «[قیمت]» رو با قیمت واقعی پر کن.\n\n**پیشنهاد بعدی:** دکمهٔ ثبت‌نام رو سبز کن تا بیشتر دیده بشه.', doc: x,
-        res: { changes: [{ k: 'mod', t: 'متن «خوش‌آمد»' }, { k: 'add', t: 'پیام «دوره‌ها» با ۲ دکمه' }, { k: 'add', t: 'پیام «ثبت‌نام» با ۱ دکمه' }, { k: 'add', t: 'پیام «ممنون»' }, { k: 'add', t: 'پیام «سؤالات» با ۱ دکمه' }, { k: 'add', t: 'متغیر {شماره}' }],
+        res: { title: 'ربات ثبت‌نام', changes: [{ k: 'mod', t: 'متن «خوش‌آمد»' }, { k: 'add', t: 'پیام «دوره‌ها» با ۲ دکمه' }, { k: 'add', t: 'پیام «ثبت‌نام» با ۱ دکمه' }, { k: 'add', t: 'پیام «ممنون»' }, { k: 'add', t: 'پیام «سؤالات» با ۱ دکمه' }, { k: 'add', t: 'متغیر {شماره}' }],
           more: 0, chips: ['دکمهٔ «ثبت‌نام» رو سبز کن', 'قیمت‌ها رو بنویس', 'یه دکمهٔ اینستاگرام هم بذار'], stats: stats(x), preview: pv(x), ...pvs(doc, x), warnings: ['جاهای «[…]» را با اطلاعات خودت پر کن'] } };
     }
     return { say: 'این نسخهٔ نمایشی است 🙂 بگو «یه ربات برای کلاس عکاسیم بساز» تا ببینی دستیار چطور می‌سازد.', doc: null,

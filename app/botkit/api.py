@@ -13,6 +13,8 @@
   GET  /api/bot/ai_poll?id=&turn=  متن در حال تایپ، جای صف، نتیجه و پیش‌نویس تازه
   POST /api/bot/ai_undo        برگرداندن پیش‌نویس به پیش از یک نوبت
   POST /api/bot/ai_stop        توقف نوبت در جریان (پیش‌نویس دست نمی‌خورد)
+  POST /api/bot/ai_restore     برگشت پیش‌نویس به «نسخهٔ» بعد از یک نوبت (یا نسخهٔ منتشرشده)
+  GET  /api/bot/ai_compare?id=&turn=  قبل و بعد پیام‌های عوض‌شده در یک نوبت
   GET  /api/bot/data?id=&form= فرم‌ها و جواب‌های ثبت‌شده با کار «ثبت در داده‌ها»
   POST /api/bot/data_export    فایل CSV یک فرم در چت صاحب ربات
   GET  /api/bot/shop?id=       محصولات، دسته‌ها، شمار سفارش‌ها
@@ -43,7 +45,7 @@ log = logging.getLogger("easysaz.botkit.api")
 PACK_RE = re.compile(r"(?:t\.me/addemoji/|addemoji/)?([A-Za-z0-9_]{3,64})/?$")
 
 ACTIONS = {"": "GET", "save": "POST", "publish": "POST", "off": "POST", "test": "POST", "takeover": "POST",
-           "emoji_pack": "POST", "emoji_del": "POST", "ai": "GET", "ai_send": "POST", "ai_poll": "GET", "ai_undo": "POST", "ai_stop": "POST",
+           "emoji_pack": "POST", "emoji_del": "POST", "ai": "GET", "ai_send": "POST", "ai_poll": "GET", "ai_undo": "POST", "ai_stop": "POST", "ai_restore": "POST", "ai_compare": "GET",
            "data": "GET", "data_export": "POST", "shop": "GET", "product_save": "POST", "product_del": "POST",
            "orders": "GET", "order_status": "POST"}
 
@@ -97,7 +99,7 @@ class BotApi:
     async def handle(self, action: str, init_data: str, query: dict, body: dict) -> dict:
         if action == "":
             return await self.get(init_data, query.get("id"))
-        if action in ("ai", "ai_poll", "data", "shop", "orders"):
+        if action in ("ai", "ai_poll", "ai_compare", "data", "shop", "orders"):
             return await getattr(self, action)(init_data, query)
         return await getattr(self, action)(init_data, body)
 
@@ -357,11 +359,52 @@ class BotApi:
         doc = self._clean(store._loads(row["doc_before"], {}))
         await store.save_draft(self.db, app["id"], doc)
         # این نوبت و بعدی‌ها «برگردانده‌شده» علامت می‌خورند
-        for r in await self.db.fetchall("SELECT id, result FROM bk_ai_turns WHERE app_id = ? AND id >= ? AND status = 'done'", (app["id"], turn_id)):
-            res = store._loads(r["result"], {})
-            res["undone"] = True
-            await self.db.execute("UPDATE bk_ai_turns SET result = ? WHERE id = ?", (store._dumps(res), r["id"]))
+        await self._mark_undone(app["id"], lambda tid: tid >= turn_id)
         return {"doc": doc, "turns": await agent.history(self.db, app["id"])}
+
+    async def _mark_undone(self, app_id: int, undone) -> None:  # noqa: ANN001
+        for r in await self.db.fetchall("SELECT id, result FROM bk_ai_turns WHERE app_id = ? AND status = 'done'", (app_id,)):
+            res = store._loads(r["result"], {})
+            if not res.get("changes"):
+                continue
+            want = bool(undone(r["id"]))
+            if bool(res.get("undone")) != want:
+                res["undone"] = want
+                await self.db.execute("UPDATE bk_ai_turns SET result = ? WHERE id = ?", (store._dumps(res), r["id"]))
+
+    async def ai_restore(self, init_data: str, body: dict) -> dict:
+        """«برگرد به نسخهٔ k»: پیش‌نویس همان می‌شود که بعد از نوبت k بود؛ نوبت‌های بعدی کم‌رنگ می‌شوند
+        و می‌شود دوباره به جلو برگشت. published=true یعنی پیش‌نویس = نسخهٔ منتشرشده."""
+        _u, _p, app = await self._ctx(init_data, body.get("id"), write=True)
+        if body.get("published"):
+            doc = await store.load(self.db, app["id"], published=True)
+            if doc is None:
+                raise _err(404, "هنوز نسخهٔ منتشرشده‌ای نیست")
+            await store.save_draft(self.db, app["id"], doc)
+            await self._mark_undone(app["id"], lambda tid: True)
+            return {"doc": doc, "turns": await agent.history(self.db, app["id"])}
+        try:
+            turn_id = int(body.get("turn") or 0)
+        except (TypeError, ValueError):
+            turn_id = 0
+        row = await self.db.fetchone("SELECT doc_after FROM bk_ai_turns WHERE id = ? AND app_id = ? AND status = 'done'", (turn_id, app["id"]))
+        if not row or not row["doc_after"]:
+            raise _err(404, "این نسخه پیدا نشد")
+        doc = self._clean(store._loads(row["doc_after"], {}))
+        await store.save_draft(self.db, app["id"], doc)
+        await self._mark_undone(app["id"], lambda tid: tid > turn_id)
+        return {"doc": doc, "turns": await agent.history(self.db, app["id"])}
+
+    async def ai_compare(self, init_data: str, query: dict) -> dict:
+        _u, _p, app = await self._ctx(init_data, query.get("id"))
+        try:
+            turn_id = int(query.get("turn") or 0)
+        except (TypeError, ValueError):
+            turn_id = 0
+        row = await self.db.fetchone("SELECT doc_before, doc_after FROM bk_ai_turns WHERE id = ? AND app_id = ? AND status = 'done'", (turn_id, app["id"]))
+        if not row or not row["doc_after"]:
+            raise _err(404, "این نسخه پیدا نشد")
+        return {"items": agent.compare(store._loads(row["doc_before"], {}), store._loads(row["doc_after"], {}))}
 
 
 async def fetch_pack(bot, name: str) -> tuple[list[tuple[str, str]], str]:  # noqa: ANN001

@@ -1320,6 +1320,67 @@ def test_ai() -> None:  # noqa: C901
     ok(st in (403, 404), "نوبت دستیار دیگران هم")
     from app.webapp import api as web_api
 
+    # ---- نسخهٔ ۳: سؤال با گزینه، نقشه، مرحله‌های کار، نسخه‌ها
+    web_api._RATE.clear()
+    con.execute("DELETE FROM bk_ai_turns WHERE app_id = ?", (app_id,))
+    con.commit()
+    st, g = jcall("GET", f"/api/bot?id={app_id}")
+    d0 = g["doc"]
+    ask_json = {"ops": [], "chips": ["x"], "ask": {"q": "مشتری چطور پول بدهد؟", "step": 1, "of": 3,
+                "options": [{"e": "💳", "t": "کارت‌به‌کارت", "d": "رسید"}, {"e": "🚚", "t": "در محل"}, "ستاره"]}}
+    script[:] = [(0.0, "چند سؤال کوتاه 👇\n@@OPS\n" + json.dumps(ask_json, ensure_ascii=False))]
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "یه فروشگاه بساز", "doc": d0})
+    t = wait_turn(res["turn"])["turn"]
+    ok(t["result"]["ask"]["q"] == "مشتری چطور پول بدهد؟" and len(t["result"]["ask"]["options"]) == 3 and t["result"]["chips"] == []
+       and not t["result"]["changes"], "سؤال با گزینه: بدون تغییر پیش‌نویس، گزینه‌ها و شمارهٔ سؤال")
+    plan_json = {"ops": [], "title": "نقشه", "plan": [{"t": "خوش‌آمد", "d": "محصولات · سبد", "lv": 0}, {"t": "محصولات", "d": "کارت", "lv": 1}]}
+    script[:] = [(0.0, "این نقشه را پیشنهاد می‌کنم\n@@OPS\n" + json.dumps(plan_json, ensure_ascii=False))]
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "کارت‌به‌کارت", "doc": d0})
+    t = wait_turn(res["turn"])["turn"]
+    ok([x["t"] for x in t["result"]["plan"]] == ["خوش‌آمد", "محصولات"] and t["result"]["plan"][1]["lv"] == 1, "نقشهٔ ربات پیش از ساختن")
+    ok("asked: مشتری چطور پول بدهد؟" in prompts[-1], "سؤال قبلی در تاریخچهٔ پرامپت")
+
+    long_say = "ساختمش ✅ " + "این یک توضیح طولانی دربارهٔ رباتی است که ساخته شد. " * 8
+    build_a = long_say + "\n@@OPS\n" + json.dumps({"title": "صفحهٔ محصولات", "ops": [
+        {"op": "msg", "id": "m_prod", "name": "محصولات", "text": "🛍 محصولات ما"},
+        {"op": "buttons", "msg": d0["start"], "rows": [[{"text": "🛍 محصولات", "act": {"type": "goto", "to": "m_prod"}}]]}], "chips": ["سبد"]}, ensure_ascii=False)
+    script[:] = [(0.05, build_a)]
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "بساز", "doc": d0})
+    ta = res["turn"]
+    phases, seen_msgs = set(), set()
+    for _ in range(300):
+        st, pr = jcall("GET", f"/api/bot/ai_poll?id={app_id}&turn={ta}")
+        if pr["turn"]["status"] in ("done", "error"):
+            break
+        phases.add(pr["turn"].get("phase"))
+        seen_msgs.update((pr["turn"].get("progress") or {}).get("msgs", []))
+        time.sleep(0.02)
+    ok({"write", "build"} <= phases and "محصولات" in seen_msgs and pr["turn"].get("started_at") is None,
+       "مرحله‌های واقعی کار (نوشتن، ساختن) و نام پیام‌هایی که در حال ساخته شدن‌اند")
+    ta_turn = pr["turn"]
+    ok(ta_turn["result"]["title"] == "صفحهٔ محصولات" and ta_turn["has_after"], "عنوان نسخه و پیش‌نویس بعد از نوبت ذخیره می‌شود")
+    st, cmp = jcall("GET", f"/api/bot/ai_compare?id={app_id}&turn={ta}")
+    kinds = {i["name"]: i["kind"] for i in cmp["items"]}
+    prod = next(i for i in cmp["items"] if i["name"] == "محصولات")
+    ok(st == 200 and kinds.get("محصولات") == "add" and prod["before"] is None and "محصولات ما" in prod["after"]["text"]
+       and any(k == "mod" for k in kinds.values()), "مقایسهٔ قبل و بعد پیام‌های همان نوبت")
+    doc_a = pr["doc"]
+    build_b = "رنگی شد ✅\n@@OPS\n" + json.dumps({"title": "رنگ دکمه", "ops": [
+        {"op": "buttons", "msg": d0["start"], "rows": [[{"text": "🛍 محصولات", "style": "success", "act": {"type": "goto", "to": "m_prod"}}]]}]}, ensure_ascii=False)
+    script[:] = [(0.0, build_b)]
+    st, res = jcall("POST", "/api/bot/ai_send", {"id": app_id, "text": "سبزش کن", "doc": doc_a})
+    tb = res["turn"]
+    doc_b = wait_turn(tb)["doc"]
+    st, rs = jcall("POST", "/api/bot/ai_restore", {"id": app_id, "turn": ta})
+    undone = {x["id"]: bool(x["result"].get("undone")) for x in rs["turns"]}
+    ok(st == 200 and rs["doc"] == doc_a and undone[tb] and not undone[ta], "برگشت به نسخهٔ قبل: پیش‌نویس همان نسخه و نوبت بعدی کم‌رنگ")
+    st, rs = jcall("POST", "/api/bot/ai_restore", {"id": app_id, "turn": tb})
+    undone = {x["id"]: bool(x["result"].get("undone")) for x in rs["turns"]}
+    ok(st == 200 and rs["doc"] == doc_b and not undone[tb], "دوباره جلو: نسخهٔ بعدی برمی‌گردد")
+    st, _ = jcall("POST", "/api/bot/ai_restore", {"id": app_id, "turn": 999999})
+    ok(st == 404, "نسخهٔ ناموجود")
+    st, _ = jcall("GET", f"/api/bot/ai_compare?id={app_id}&turn={ta}", uid=8)
+    ok(st in (403, 404), "نسخه‌های ربات دیگران دیده نمی‌شود")
     web_api._RATE.clear()  # این بخش چند نوشتن پشت سر هم داشت؛ بخش‌های بعد سقف دقیقه‌ای خودشان را دارند
 
 

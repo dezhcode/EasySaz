@@ -34,7 +34,9 @@ STALE = 240              # کاری که این‌قدر بی‌خبر بمان�
 TEHRAN = 12600           # +۳:۳۰ برای شروع روز در سهم روزانه
 OPS_MARK = "@@OPS"
 
-RULES = """You are EasySaz's bot-building agent: a senior Telegram bot designer inside a no-code builder. The user (Persian, usually non-technical) says what they want; you build it by emitting operations on the bot document. You never publish, never set bot tokens or card numbers, and never invent facts the user did not give (prices, phones, links, addresses, dates): use a placeholder like «[قیمت دوره]» and mention it. If something essential is unclear, ask ONE short question (ops: []) with 2-4 likely answers as chips; otherwise build right away and completely.
+RULES = """You are EasySaz's bot-building agent: a senior Telegram bot designer inside a no-code builder. The user (Persian, usually non-technical) says what they want; you build it by emitting operations on the bot document. You never publish, never set bot tokens or card numbers, and never invent facts the user did not give (prices, phones, links, addresses, dates): use a placeholder like «[قیمت دوره]» and mention it. Small or clear requests: build right away and completely.
+
+ASK, THEN PLAN (new or nearly empty bot, or a big vague request): do not build yet. Ask at most 3 short questions, ONE per answer, as "ask" with ops []: {"q":"مشتری چطور پول بدهد؟","options":[{"e":"💳","t":"کارت‌به‌کارت","d":"عکس رسید برایت می‌آید"}],"step":1,"of":3} (2-4 options, e = one emoji, d = a few words). Then propose "plan" with ops []: [{"t":"خوش‌آمد","d":"محصولات · سبد · تماس","lv":0},{"t":"محصولات","d":"کارت با عکس","lv":1}] (3-10 items; t = the exact message names you will create; lv = depth 0-2) and say it is built on «بساز». When the user approves (بساز / باشه / yes) build exactly that plan.
 
 A bot is messages connected by buttons; START is sent on /start.
 Message: id (a-z0-9_, starts with a letter, 3-25 chars, e.g. m_courses), name (short Persian label), text (Telegram HTML only: <b> <i> <u> <s> <code> <a href> <blockquote>; \\n new line; variables as {name}; built-ins {نام} {نام کامل} {یوزرنیم} {شناسه} {تاریخ امروز} {ساعت}).
@@ -42,7 +44,7 @@ Message: id (a-z0-9_, starts with a letter, 3-25 chars, e.g. m_courses), name (s
 OUTPUT FORMAT (strict):
 1) Persian Markdown for the user: short lines, **bold** key words, "- " bullets, no tables, headings at most "###". After building: one sentence, a "**چی ساختم**" list (max 6 bullets, plain words), optionally "**پیشنهاد بعدی:** ...". Under 900 characters, every sentence/bullet on its own line.
 2) A line with exactly: @@OPS
-3) One JSON object: {"ops":[...],"chips":["...","..."]}  (2-4 short Persian next steps)
+3) One JSON object: {"title":"...","ops":[...],"chips":["...","..."]} (+ "ask" or "plan" when used). title = 2-4 Persian words naming what changed (e.g. "کد تخفیف"); chips = 2-4 short Persian next steps (not with "ask").
 
 OPERATIONS (in order; ids created earlier can be referenced later):
 {"op":"msg","id":"m_x","name":"...","text":"...","start":true,"cmd":"/x","kw":["..."],"then":"m_y","wait":WAIT,"media":{"type":"photo|video","url":"https://..."},"typing":true,"effect":"🎉|❤️|👍|🔥","protect":true,"silent":true}  create, or update only given fields.
@@ -172,8 +174,36 @@ def build_prompt(doc: dict, history: list[dict], ask: str, focus: str | None = N
 
 # ================================================================ خواندن جواب
 class Reply:
-    def __init__(self, say: str, ops: list[dict], chips: list[str], ok: bool, problem: str = "") -> None:
+    def __init__(self, say: str, ops: list[dict], chips: list[str], ok: bool, problem: str = "", title: str = "",
+                 ask: dict | None = None, plan: list[dict] | None = None) -> None:
         self.say, self.ops, self.chips, self.ok, self.problem = say, ops, chips, ok, problem
+        self.title, self.ask, self.plan = title, ask, plan or []
+
+
+def _ask(raw: object) -> dict | None:
+    """سؤال با گزینه: {q, options[{e, t, d}], step, of}"""
+    if not isinstance(raw, dict):
+        return None
+    q = schema._one_line(raw.get("q"), 140)
+    opts = []
+    for o in (raw.get("options") if isinstance(raw.get("options"), list) else [])[:4]:
+        if isinstance(o, str):
+            o = {"t": o}
+        if isinstance(o, dict) and schema._one_line(o.get("t"), 40):
+            opts.append({"e": schema._one_line(o.get("e"), 4), "t": schema._one_line(o.get("t"), 40), "d": schema._one_line(o.get("d"), 60)})
+    if not q or len(opts) < 2:
+        return None
+    step = int(schema._num(raw.get("step"), 1, 5) or 1)
+    of = int(schema._num(raw.get("of"), 1, 5) or 1)
+    return {"q": q, "options": opts, "step": step, "of": max(of, step)}
+
+
+def _plan(raw: object) -> list[dict]:
+    out = []
+    for it in (raw if isinstance(raw, list) else [])[:12]:
+        if isinstance(it, dict) and schema._one_line(it.get("t"), 40):
+            out.append({"t": schema._one_line(it.get("t"), 40), "d": schema._one_line(it.get("d"), 80), "lv": int(schema._num(it.get("lv"), 0, 2) or 0)})
+    return out
 
 
 def visible(text: str) -> str:
@@ -214,7 +244,10 @@ def parse(raw: str) -> Reply:
         return Reply(visible(say), [], [], False, f"The JSON after @@OPS was invalid ({exc}).")
     ops = [o for o in (obj.get("ops") if isinstance(obj, dict) and isinstance(obj.get("ops"), list) else []) if isinstance(o, dict)]
     chips = [schema._one_line(c, 40) for c in (obj.get("chips") if isinstance(obj, dict) and isinstance(obj.get("chips"), list) else [])]
-    return Reply(visible(say).strip(), ops[:80], [c for c in chips if c][:4], True)
+    o = obj if isinstance(obj, dict) else {}
+    ask, plan = _ask(o.get("ask")), _plan(o.get("plan"))
+    return Reply(visible(say).strip(), ops[:80], [] if ask else [c for c in chips if c][:4], True,
+                 title=schema._one_line(o.get("title"), 40), ask=ask if not ops else None, plan=plan if not ops else [])
 
 
 # ================================================================ اجرای عملیات
@@ -601,6 +634,26 @@ def previews(old: dict, new: dict, limit: int = 3) -> tuple[list[dict], int]:
     return out[:limit], max(0, len(out) - limit)
 
 
+def _pv(m: dict | None) -> dict | None:
+    if m is None:
+        return None
+    rows = m["rows"] if m["kb"] == "inline" else m["keys"] if m["kb"] == "reply" else []
+    return {"text": m["text"], "kb": m["kb"], "rows": [[{"text": b["text"], "style": b["style"]} for b in r] for r in rows]}
+
+
+def compare(old: dict, new: dict, limit: int = 8) -> list[dict]:
+    """پیام‌های عوض‌شده بین دو نسخه، قبل و بعد کنار هم."""
+    o = {m["id"]: m for m in old.get("msgs", [])}
+    n = {m["id"]: m for m in new.get("msgs", [])}
+    out = []
+    for mid in list(n) + [x for x in o if x not in n]:
+        a, b = o.get(mid), n.get(mid)
+        if a is not None and b is not None and _pv(a) == _pv(b) and a["name"] == b["name"]:
+            continue
+        out.append({"id": mid, "name": (b or a)["name"], "kind": "add" if a is None else "del" if b is None else "mod", "before": _pv(a), "after": _pv(b)})
+    return out[:limit]
+
+
 def preview(doc: dict) -> dict | None:
     """پیام شروع برای پیش‌نمایش کارت نتیجه."""
     m = schema.find(doc, doc.get("start") or "")
@@ -629,9 +682,16 @@ async def history(db, app_id: int, limit: int = 30) -> list[dict]:  # noqa: ANN0
 
 def turn_json(r) -> dict:  # noqa: ANN001
     res = store._loads(r["result"], {})
-    return {"id": r["id"], "ask": r["ask"], "say": r["say"] or (r["partial"] if r["status"] != "error" else ""),
-            "status": r["status"], "error": r["error"], "result": res, "created_at": r["created_at"],
-            "can_undo": r["status"] == "done" and bool(r["doc_before"]) and bool(res.get("changes")) and not res.get("undone")}
+    keys = r.keys()
+    out = {"id": r["id"], "ask": r["ask"], "say": r["say"] or (r["partial"] if r["status"] != "error" else ""),
+           "status": r["status"], "error": r["error"], "result": res, "created_at": r["created_at"], "updated_at": r["updated_at"],
+           "can_undo": r["status"] == "done" and bool(r["doc_before"]) and bool(res.get("changes")) and not res.get("undone"),
+           "has_after": "doc_after" in keys and bool(r["doc_after"])}
+    if r["status"] in ("queued", "running"):
+        out["phase"] = (r["phase"] if "phase" in keys else "") or ("queue" if r["status"] == "queued" else "think")
+        out["progress"] = store._loads(r["progress"], {}) if "progress" in keys else {}
+        out["started_at"] = (r["started_at"] if "started_at" in keys else None) or r["created_at"]
+    return out
 
 
 async def queue_pos(db, turn_id: int) -> int:  # noqa: ANN001
@@ -684,6 +744,25 @@ async def _check(db, turn_id: int) -> None:  # noqa: ANN001
         raise Cancelled()
 
 
+_OP_RE = re.compile(r'"op"\s*:\s*"(\w+)"')
+_NAME_RE = re.compile(r'"op"\s*:\s*"msg"[^{}]*?"name"\s*:\s*"([^"\\]{1,40})"')
+
+
+def progress_of(raw: str) -> tuple[str, dict]:
+    """مرحلهٔ کار از روی متنی که تا الان رسیده: think → write → build؛ و پیام‌هایی که در حال ساخته شدن‌اند."""
+    i = raw.find(OPS_MARK)
+    if i < 0:
+        j = raw.find('{"ops"')
+        i = j if j >= 0 else raw.find('{"title"')
+    if i < 0:
+        return ("write" if visible(raw) else "think"), {}
+    tail = raw[i:]
+    names = list(dict.fromkeys(_NAME_RE.findall(tail)))
+    ops = _OP_RE.findall(tail)
+    kind = "ask" if '"ask"' in tail and not ops else "plan" if '"plan"' in tail and not ops else "build"
+    return kind, {"ops": len(ops), "msgs": names[-12:]}
+
+
 async def _ask_model(db, turn_id: int, prompt: str, image_b64: str | None = None) -> str:  # noqa: ANN001
     buf: list[str] = []
     last = 0.0
@@ -693,7 +772,9 @@ async def _ask_model(db, turn_id: int, prompt: str, image_b64: str | None = None
         if now - last > 0.3:
             last = now
             await _check(db, turn_id)
-            await _set(db, turn_id, partial=visible("".join(buf)))
+            raw = "".join(buf)
+            phase, prog = progress_of(raw)
+            await _set(db, turn_id, partial=visible(raw), phase=phase, progress=store._dumps(prog))
     await _check(db, turn_id)
     return "".join(buf)
 
@@ -705,13 +786,18 @@ async def _run(db, turn_id: int, app_id: int, base: dict, ask: str, focus: str |
             row = await db.fetchone("SELECT status FROM bk_ai_turns WHERE id = ?", (turn_id,))
             if not row or row["status"] != "queued":
                 return
-            await _set(db, turn_id, status="running")
+            await _set(db, turn_id, status="running", phase="think", started_at=int(time.time()))
             past = await db.fetchall("SELECT ask, say, result FROM bk_ai_turns WHERE app_id = ? AND id < ? AND status = 'done' ORDER BY id DESC LIMIT 6",
                                      (app_id, turn_id))
             hist = []
             for r in reversed(past):
                 res = store._loads(r["result"], {})
-                hist.append({"ask": r["ask"], "say": r["say"], "note": "; ".join(c["t"] for c in res.get("changes", [])[:6])})
+                note = "; ".join(c["t"] for c in res.get("changes", [])[:6])
+                if res.get("ask"):
+                    note = "asked: " + res["ask"]["q"] + " (" + " / ".join(o["t"] for o in res["ask"]["options"]) + ")"
+                if res.get("plan"):
+                    note = "proposed plan: " + ", ".join(x["t"] for x in res["plan"])
+                hist.append({"ask": r["ask"], "say": r["say"], "note": note})
             prompt = build_prompt(base, hist, ask, focus, info=info, image=bool(image_b64))
             raw = await _ask_model(db, turn_id, prompt, image_b64)
             rep = parse(raw)
@@ -722,7 +808,7 @@ async def _run(db, turn_id: int, app_id: int, base: dict, ask: str, focus: str |
                 # یک بار تعمیر خودکار با فهرست دقیق مشکل‌ها
                 issue = rep.problem if not rep.ok else "\n".join(f"- {p}" for p in problems[:12])
                 log.info("ai repair turn %s: %s", turn_id, issue[:300])
-                await _set(db, turn_id, partial=visible(raw) + "\n\n_دارم دوباره بررسی می‌کنم…_")
+                await _set(db, turn_id, partial=visible(raw), phase="fix")
                 raw2 = await ai_client.complete(build_prompt(base, hist, ask, focus, repair=issue, info=info, image=bool(image_b64)), image_b64)
                 await _check(db, turn_id)
                 rep2 = parse(raw2)
@@ -732,6 +818,7 @@ async def _run(db, turn_id: int, app_id: int, base: dict, ask: str, focus: str |
                 elif not rep.ok:
                     rep.say = rep2.say or rep.say
             await _check(db, turn_id)
+            await _set(db, turn_id, phase="check")
             if not rep.ok:
                 # دستیار قالب را رعایت نکرد: فقط متنش را نشان می‌دهیم و به پیش‌نویس دست نمی‌زنیم
                 rep = Reply(rep.say or "متوجه نشدم چه چیزی بسازم؛ کمی دقیق‌تر بگو 🙏", [], [], True)
@@ -739,7 +826,10 @@ async def _run(db, turn_id: int, app_id: int, base: dict, ask: str, focus: str |
             changes = diff(base, new_doc) if rep.ops else []
             if changes:
                 await store.save_draft(db, app_id, new_doc)
+                await _set(db, turn_id, doc_after=store._dumps(new_doc))
+            title = rep.title or (changes[0]["t"][:40] if changes else "")
             result = {"changes": changes[:14], "more": max(0, len(changes) - 14), "chips": rep.chips, "stats": stats(new_doc),
+                      "title": title, "ask": rep.ask, "plan": rep.plan,
                       "preview": preview(new_doc) if changes else None,
                       "previews": previews(base, new_doc)[0] if changes else [],
                       "previews_more": previews(base, new_doc)[1] if changes else 0,

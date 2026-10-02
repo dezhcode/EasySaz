@@ -216,10 +216,13 @@
         { name: 'شماره', type: 'text', scope: 'user', init: '', formula: '' },
         { name: 'سن', type: 'number', scope: 'user', init: '', formula: '' },
       ], comps: [],
+      shop: { pay: ['card', 'cod'], card: '6037 9911 2233 4455', card_name: 'سارا محمدی', stars_rate: 0, ship: 50000,
+        coupons: [{ code: 'SARA10', pct: 10, amount: 0 }], ask_info: true, info_text: '', after: '', unit: 'تومان' },
       msgs: [
         m('m_welcome', 'خوش‌آمد', 'سلام {نام} 👋\nبه ربات <b>' + escapeHtml(name) + '</b> خوش اومدی. چی دوست داری ببینی؟', { kb: 'inline', rows: [
           [b('b_courses', '📚 دوره‌ها', 'primary', { type: 'goto', to: 'm_courses' }), b('b_price', '💰 قیمت‌ها', '', { type: 'goto', to: 'm_price' })],
           [b('b_reg', '📝 ثبت‌نام در کلاس', 'success', { type: 'goto', to: 'm_reg' })],
+          [b('b_shop', '🛍 فروشگاه', '', { type: 'shop', cat: '' }), b('b_cart', '🧺 سبد خرید', '', { type: 'cart' })],
         ] }),
         m('m_courses', 'دوره‌ها', '<b>دوره‌های این فصل</b>\nعکاسی پرتره · عکاسی با موبایل · نور و ترکیب‌بندی', { kb: 'inline', rows: [
           [b('b_app', '🎓 دیدن دوره‌ها', 'primary', { type: 'app', url: '' })], [b('b_back1', '↩️ برگشت', '', { type: 'goto', to: 'm_welcome' })],
@@ -241,6 +244,33 @@
         m('m_vip', 'جایزهٔ ویژه', '🏆 تو جزو شاگردهای ویژه‌ای! کد تخفیف: <b>VIP-50</b>'),
       ],
     };
+  }
+  function demoShop(bk) {
+    if (bk.products) return;
+    const ph = c => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c[0]}"/><stop offset="1" stop-color="${c[1]}"/></linearGradient></defs><rect width="120" height="120" fill="url(#g)"/><circle cx="60" cy="62" r="28" fill="#fff" opacity=".9"/><circle cx="60" cy="62" r="18" fill="${c[2]}"/></svg>`);
+    bk.products = [
+      { id: 1, title: 'کارگاه پرتره (۴ جلسه)', descr: 'نور، ژست و ترکیب‌بندی پرتره', price: 2400000, stock: 8, cat: 'کارگاه', photo: ph(['#F6C9A8', '#E2603C', '#E8A050']), active: true, pos: 1 },
+      { id: 2, title: 'عکاسی با موبایل', descr: 'دورهٔ آنلاین، دسترسی همیشگی', price: 890000, stock: -1, cat: 'آنلاین', photo: ph(['#2B2350', '#6A4BFF', '#F5D061']), active: true, pos: 2 },
+      { id: 3, title: 'پریست لایت‌روم', descr: '۱۲ پریست رنگ گرم', price: 220000, stock: 0, cat: 'فایل', photo: ph(['#BFE3C9', '#2E8B57', '#F2F2F2']), active: true, pos: 3 },
+      { id: 4, title: 'جلسهٔ خصوصی نقد عکس', descr: 'یک ساعت، آنلاین', price: 650000, stock: 3, cat: 'آنلاین', photo: ph(['#BFD9FF', '#2A6BE0', '#FFFFFF']), active: true, pos: 4 },
+    ];
+    const t = now();
+    const it = (p, q) => ({ pid: p.id, title: p.title, price: p.price, qty: q });
+    const P = bk.products;
+    bk.orders = [
+      { id: 6, num: 1006, tg_id: 1, items: [it(P[0], 1)], subtotal: 2400000, discount: 240000, ship: 0, total: 2160000, coupon: 'SARA10', pay: 'card', stars: 0, status: 'new', info: 'مریم رضایی\n۰۹۱۲۳۴۵۶۷۸۹\nتهران، ونک', receipt: true, test: false, at: t - 1200, name: 'مریم', username: 'maryam' },
+      { id: 5, num: 1005, tg_id: 2, items: [it(P[1], 1), it(P[3], 1)], subtotal: 1540000, discount: 0, ship: 0, total: 1540000, coupon: '', pay: 'card', stars: 0, status: 'pending', info: 'علی', receipt: false, test: false, at: t - 5400, name: 'علی', username: '' },
+      { id: 4, num: 1004, tg_id: 3, items: [it(P[1], 1)], subtotal: 890000, discount: 0, ship: 0, total: 890000, coupon: '', pay: 'cod', stars: 0, status: 'sent', info: 'رضا، کرج', receipt: false, test: false, at: t - 9000, name: 'رضا', username: 'reza' },
+      { id: 3, num: 1003, tg_id: 4, items: [it(P[2], 2)], subtotal: 440000, discount: 0, ship: 0, total: 440000, coupon: '', pay: 'card', stars: 0, status: 'done', info: '', receipt: true, test: false, at: t - 90000, name: 'نگار', username: '' },
+    ];
+  }
+  function shopJson(bk) {
+    const c = { pending: 0, new: 0, paid: 0, sent: 0, done: 0, canceled: 0 };
+    bk.orders.forEach(o => { c[o.status]++; });
+    const today = bk.orders.filter(o => o.at > now() - 86400 && o.status !== 'pending' && o.status !== 'canceled');
+    c.today = today.length;
+    c.today_total = today.reduce((n, o) => n + o.total, 0);
+    return { products: bk.products, cats: [...new Set(bk.products.map(p => p.cat).filter(Boolean))].sort(), counts: c, max: 300 };
   }
   function demoRows() {
     const ppl = [['سارا', '22', '09123456789'], ['علی', '31', '09352221100'], ['مریم', '19', '09017774545'], ['رضا', '27', '09198081234'], ['نگار', '24', '09121112233'], ['امید', '35', '09367778899']];
@@ -284,6 +314,30 @@
       const out = { forms: [{ form: 'ثبت‌نام کلاس', count: rows.length, last: rows[0].at, today: rows.filter(r => r.at > now() - 86400).length }] };
       if (qs.get('form')) { out.form = qs.get('form'); out.rows = qs.get('form') === 'ثبت‌نام کلاس' ? rows : []; }
       return Promise.resolve(out);
+    }
+    if (path.indexOf('bot/shop?') === 0) { demoShop(bk); return Promise.resolve(shopJson(bk)); }
+    if (path === 'bot/product_save') {
+      demoShop(bk);
+      const w = copy(body.product);
+      if (!w.title) return fail(400, 'نام محصول لازم است');
+      let p = bk.products.find(x => x.id === w.id);
+      if (p) Object.assign(p, w); else { p = Object.assign(w, { id: Date.now() % 100000, pos: bk.products.length + 1 }); bk.products.push(p); }
+      save(d);
+      return Promise.resolve(Object.assign({ product: p }, shopJson(bk)));
+    }
+    if (path === 'bot/product_del') { demoShop(bk); bk.products = bk.products.filter(x => x.id !== body.product); save(d); return Promise.resolve(shopJson(bk)); }
+    if (path.indexOf('bot/orders?') === 0) {
+      demoShop(bk);
+      const st = qs.get('status');
+      return Promise.resolve({ orders: bk.orders.filter(o => !st || o.status === st), counts: shopJson(bk).counts });
+    }
+    if (path === 'bot/order_status') {
+      demoShop(bk);
+      const o = bk.orders.find(x => x.id === body.order);
+      if (!o) return fail(404, 'سفارش پیدا نشد');
+      o.status = body.status;
+      save(d);
+      return Promise.resolve({ order: o, counts: shopJson(bk).counts });
     }
     if (path === 'bot/data_export') return Promise.resolve({ ok: true, count: demoRows().length });
     if (path.indexOf('bot/ai') === 0) return aiDemo(path, body, qs, bk, d, copy);

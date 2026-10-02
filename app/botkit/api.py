@@ -15,6 +15,11 @@
   POST /api/bot/ai_stop        توقف نوبت در جریان (پیش‌نویس دست نمی‌خورد)
   GET  /api/bot/data?id=&form= فرم‌ها و جواب‌های ثبت‌شده با کار «ثبت در داده‌ها»
   POST /api/bot/data_export    فایل CSV یک فرم در چت صاحب ربات
+  GET  /api/bot/shop?id=       محصولات، دسته‌ها، شمار سفارش‌ها
+  POST /api/bot/product_save   محصول تازه یا ویرایش (عکس، قیمت، موجودی، دسته)
+  POST /api/bot/product_del    حذف محصول
+  GET  /api/bot/orders?id=&status=  سفارش‌ها
+  POST /api/bot/order_status   وضعیت سفارش (به مشتری پیام می‌رود)
 """
 from __future__ import annotations
 
@@ -31,7 +36,7 @@ from aiogram.types import BufferedInputFile
 from ..clients import LinkError
 from ..config import config
 from .. import plans
-from . import agent, ai_client, schema, store
+from . import agent, ai_client, schema, shop, store
 
 log = logging.getLogger("easysaz.botkit.api")
 
@@ -39,7 +44,8 @@ PACK_RE = re.compile(r"(?:t\.me/addemoji/|addemoji/)?([A-Za-z0-9_]{3,64})/?$")
 
 ACTIONS = {"": "GET", "save": "POST", "publish": "POST", "off": "POST", "test": "POST", "takeover": "POST",
            "emoji_pack": "POST", "emoji_del": "POST", "ai": "GET", "ai_send": "POST", "ai_poll": "GET", "ai_undo": "POST", "ai_stop": "POST",
-           "data": "GET", "data_export": "POST"}
+           "data": "GET", "data_export": "POST", "shop": "GET", "product_save": "POST", "product_del": "POST",
+           "orders": "GET", "order_status": "POST"}
 
 
 def _image_b64(raw: object) -> str | None:
@@ -91,7 +97,7 @@ class BotApi:
     async def handle(self, action: str, init_data: str, query: dict, body: dict) -> dict:
         if action == "":
             return await self.get(init_data, query.get("id"))
-        if action in ("ai", "ai_poll", "data"):
+        if action in ("ai", "ai_poll", "data", "shop", "orders"):
             return await getattr(self, action)(init_data, query)
         return await getattr(self, action)(init_data, body)
 
@@ -216,6 +222,44 @@ class BotApi:
             log.info("csv export failed: %s", exc)
             raise _err(400, "ربات ایزی‌ساز نتوانست فایل را بفرستد؛ اول ربات را استارت کن") from exc
         return {"ok": True, "count": len(rows)}
+
+    # ------------------------------------------------------------ فروشگاه
+    async def _shop_json(self, app_id: int) -> dict:
+        items = await shop.products(self.db, app_id)
+        return {"products": items, "cats": sorted({p["cat"] for p in items if p["cat"]}),
+                "counts": await shop.order_counts(self.db, app_id), "max": shop.MAX_PRODUCTS}
+
+    async def shop(self, init_data: str, query: dict) -> dict:
+        _u, _p, app = await self._ctx(init_data, query.get("id"))
+        return await self._shop_json(app["id"])
+
+    async def product_save(self, init_data: str, body: dict) -> dict:
+        _u, _p, app = await self._ctx(init_data, body.get("id"), write=True)
+        try:
+            p = await shop.save_product(self.db, app["id"], body.get("product") or {})
+        except schema.BotDocError as exc:
+            raise _err(400, str(exc)) from exc
+        return {"product": p, **await self._shop_json(app["id"])}
+
+    async def product_del(self, init_data: str, body: dict) -> dict:
+        _u, _p, app = await self._ctx(init_data, body.get("id"), write=True)
+        await shop.delete_product(self.db, app["id"], body.get("product"))
+        return await self._shop_json(app["id"])
+
+    async def orders(self, init_data: str, query: dict) -> dict:
+        _u, _p, app = await self._ctx(init_data, query.get("id"))
+        return {"orders": await shop.orders(self.db, app["id"], str(query.get("status") or "")),
+                "counts": await shop.order_counts(self.db, app["id"])}
+
+    async def order_status(self, init_data: str, body: dict) -> dict:
+        _u, _p, app = await self._ctx(init_data, body.get("id"), write=True)
+        status = str(body.get("status") or "")
+        if status not in shop.STATUSES:
+            raise _err(400, "وضعیت نامعتبر است")
+        o = await shop.set_status(self.db, self.clients.for_app(app), app, body.get("order"), status)
+        if o is None:
+            raise _err(404, "سفارش پیدا نشد")
+        return {"order": o, "counts": await shop.order_counts(self.db, app["id"])}
 
     # ------------------------------------------------------------ ایموجی
     async def emoji_pack(self, init_data: str, body: dict) -> dict:

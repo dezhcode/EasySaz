@@ -1464,6 +1464,144 @@ def test_steps() -> None:  # noqa: C901
     web_api._RATE.clear()
 
 
+def test_shop() -> None:  # noqa: C901
+    print("فروشگاه ربات‌ساز: محصولات، سبد، تخفیف، سفارش و پرداخت")
+    import sqlite3
+
+    from app.webapp import api as web_api
+
+    web_api._RATE.clear()
+    con = sqlite3.connect(os.environ["DB_PATH"])
+    app_id, bot_id = con.execute("SELECT id, bot_id FROM apps WHERE owner_id = 7 ORDER BY id").fetchone()
+    pids = []
+    for title, price, stock, cat in (("کیک شکلاتی", "۴۵۰٬۰۰۰", 8, "کیک"), ("چیزکیک", 380000, 1, "کیک"), ("کاپ‌کیک", 220000, 0, "")):
+        st, res = jcall("POST", "/api/bot/product_save", {"id": app_id, "product": {"title": title, "price": price, "stock": stock, "cat": cat,
+                                                                                    "photo": "https://example.org/a.jpg", "descr": "<b>تازه</b><script>x</script>"}})
+        pids.append(res["product"]["id"])
+    ok(st == 200 and len(res["products"]) == 3 and res["cats"] == ["کیک"] and res["products"][0]["price"] == 450000
+       and res["products"][0]["descr"] == "<b>تازه</b>", "محصول: قیمت با ارقام فارسی، دسته، توضیح امن")
+    st, res = jcall("POST", "/api/bot/product_save", {"id": app_id, "product": {"title": ""}})
+    ok(st == 400, "محصول بی‌نام ذخیره نمی‌شود")
+    st, _ = jcall("GET", f"/api/bot/shop?id={app_id}", uid=8)
+    ok(st in (403, 404), "محصولات مینی‌اپ دیگران دیده نمی‌شود")
+
+    doc = {"start": "m_s", "msgs": [
+        {"id": "m_s", "name": "فروشگاه", "text": "خوش اومدی", "kb": "inline", "rows": [[
+            {"id": "b_shop", "text": "🛍 محصولات", "act": {"type": "shop"}}, {"id": "b_cart", "text": "🧺 سبد", "act": {"type": "cart"}}]]},
+        {"id": "m_after", "name": "زمان تحویل", "text": "زمان تحویل رو انتخاب کن"}],
+        "shop": {"pay": ["card", "cod", "stars"], "card": "6037-9911-2233-4455", "card_name": "سارا", "stars_rate": 5000, "ship": 50000,
+                 "coupons": [{"code": "nar10", "pct": 10}], "ask_info": True, "after": "m_after"}}
+    st, res = jcall("POST", "/api/bot/publish", {"id": app_id, "doc": doc})
+    ok(st == 200 and res["doc"]["shop"]["card"] == "6037 9911 2233 4455" and res["doc"]["shop"]["coupons"][0]["code"] == "NAR10",
+       "تنظیمات فروشگاه در سند ربات پاک‌سازی می‌شود")
+
+    u = 61
+
+    def new(n0: int, method: str, chat: int = u) -> list[dict]:
+        return [p for b, m, p in FakeSession.calls[n0:] if b == str(bot_id) and m == method and p.get("chat_id") == chat]
+
+    chook(cmsg(u, text="/start"), bot_id)
+    n0 = len(FakeSession.calls)
+    chook(ccb(u, "bk|s|m_s|b_shop"), bot_id)
+    card = new(n0, "SendPhoto")
+    kb = card[0]["reply_markup"]["inline_keyboard"] if card else []
+    ok(card and "کیک شکلاتی" in card[0]["caption"] and "۴۵۰٬۰۰۰ تومان" in card[0]["caption"] and kb[0][1]["text"] == "۱ از ۳"
+       and kb[1][0]["callback_data"] == f"bs|a|{pids[0]}", "دکمهٔ «محصولات»: کارت عکس‌دار با ورق‌زدن و افزودن به سبد")
+    chook(ccb(u, f"bs|a|{pids[0]}"), bot_id)
+    ok("اضافه شد" in calls("AnswerCallbackQuery", bot_id)[-1]["text"], "افزودن به سبد")
+    chook(ccb(u, f"bs|a|{pids[1]}"), bot_id)
+    chook(ccb(u, f"bs|a|{pids[1]}"), bot_id)
+    ok("فقط ۱" in calls("AnswerCallbackQuery", bot_id)[-1]["text"], "بیشتر از موجودی به سبد نمی‌رود")
+    n0 = len(FakeSession.calls)
+    chook(ccb(u, "bs|c"), bot_id)
+    cart = new(n0, "EditMessageText") + new(n0, "SendMessage")
+    ok(cart and "۸۸۰٬۰۰۰ تومان" in cart[0]["text"] and "ارسال: ۵۰٬۰۰۰" in cart[0]["text"], "سبد خرید: جمع با هزینهٔ ارسال")
+    chook(ccb(u, "bs|k"), bot_id)
+    n0 = len(FakeSession.calls)
+    chook(cmsg(u, text="nar10"), bot_id)
+    out = new(n0, "SendMessage")
+    ok(len(out) == 2 and "اعمال شد" in out[0]["text"] and "−۸۳٬۰۰۰" in out[1]["text"] and "۷۹۷٬۰۰۰ تومان" in out[1]["text"], "کد تخفیف ۱۰٪")
+    n0 = len(FakeSession.calls)
+    chook(ccb(u, "bs|o"), bot_id)
+    ok("نشانی" in new(n0, "SendMessage")[0]["text"], "ثبت سفارش: نام، شماره و نشانی پرسیده می‌شود")
+    n0 = len(FakeSession.calls)
+    chook(cmsg(u, text="سارا، ۰۹۱۲۱۲۳۴۵۶۷، تهران"), bot_id)
+    pay = new(n0, "SendMessage")[0]
+    btns = [r[0]["callback_data"] for r in pay["reply_markup"]["inline_keyboard"]]
+    ok(btns == ["bs|m|card", "bs|m|cod", "bs|m|stars"] and "۱۶۰ ستاره" in pay["reply_markup"]["inline_keyboard"][2][0]["text"],
+       "روش‌های پرداخت: کارت، ستاره (با نرخ تبدیل)، در محل")
+    n0 = len(FakeSession.calls)
+    chook(ccb(u, "bs|m|card"), bot_id)
+    msg = new(n0, "SendMessage")[0]
+    ok("6037 9911 2233 4455" in msg["text"] and "۱۰۰۱" in msg["text"] and msg["reply_markup"]["inline_keyboard"][0][0]["copy_text"]["text"] == "6037991122334455",
+       "کارت‌به‌کارت: شمارهٔ سفارش، شمارهٔ کارت و دکمهٔ کپی")
+    stock = dict(con.execute("SELECT id, stock FROM bk_products WHERE app_id = ?", (app_id,)).fetchall())
+    ok(stock[pids[0]] == 7 and stock[pids[1]] == 0, "موجودی با ثبت سفارش کم می‌شود")
+    n0 = len(FakeSession.calls)
+    chook(cmsg(u, text="پرداخت کردم"), bot_id)
+    ok("عکس رسید" in new(n0, "SendMessage")[0]["text"], "بدون عکس، رسید پذیرفته نمی‌شود")
+    n0 = len(FakeSession.calls)
+    chook(cmsg(u, photo=[{"file_id": "RCPT1", "file_unique_id": "r1", "width": 90, "height": 90}]), bot_id)
+    owner = new(n0, "SendPhoto", 7)
+    sent = [p["text"] for p in new(n0, "SendMessage")]
+    ok(owner and owner[0]["photo"] == "RCPT1" and "سفارش #۱۰۰۱" in owner[0]["caption"] and "تهران" in owner[0]["caption"]
+       and any("bs|s|" in b["callback_data"] for r in owner[0]["reply_markup"]["inline_keyboard"] for b in r), "رسید با خلاصهٔ سفارش و دکمه‌های وضعیت برای صاحب ربات")
+    ok(any("رسید" in t for t in sent) and "زمان تحویل رو انتخاب کن" in sent, "تأیید به مشتری و پیام «بعد از سفارش»")
+
+    st, res = jcall("GET", f"/api/bot/orders?id={app_id}")
+    o = res["orders"][0]
+    ok(st == 200 and o["num"] == 1001 and o["status"] == "new" and o["total"] == 797000 and o["receipt"] and o["name"] == "Sara"
+       and res["counts"]["new"] == 1, "سفارش‌ها در مینی‌اپ: شماره، جمع، رسید، وضعیت")
+    chook(ccb(u, f"bs|s|{o['id']}|sent"), bot_id)
+    ok("فقط صاحب" in calls("AnswerCallbackQuery", bot_id)[-1]["text"], "مشتری وضعیت سفارش را عوض نمی‌کند")
+    n0 = len(FakeSession.calls)
+    chook(ccb(7, f"bs|s|{o['id']}|sent"), bot_id)
+    ok(any("ارسال شد" in p["text"] for p in new(n0, "SendMessage")), "دکمهٔ صاحب ربات: «ارسال شد» به مشتری خبر می‌دهد")
+    n0 = len(FakeSession.calls)
+    st, res = jcall("POST", "/api/bot/order_status", {"id": app_id, "order": o["id"], "status": "canceled"})
+    stock = dict(con.execute("SELECT id, stock FROM bk_products WHERE app_id = ?", (app_id,)).fetchall())
+    ok(st == 200 and res["order"]["status"] == "canceled" and any("لغو" in p["text"] for p in new(n0, "SendMessage"))
+       and stock[pids[0]] == 8 and stock[pids[1]] == 1, "لغو از مینی‌اپ: پیام به مشتری و برگشت موجودی")
+
+    # ستاره
+    chook(ccb(u, f"bs|a|{pids[0]}"), bot_id)
+    chook(ccb(u, "bs|o"), bot_id)
+    chook(cmsg(u, text="سارا، تهران"), bot_id)
+    n0 = len(FakeSession.calls)
+    chook(ccb(u, "bs|m|stars"), bot_id)
+    inv = new(n0, "SendInvoice")
+    oid = con.execute("SELECT id FROM bk_orders WHERE app_id = ? ORDER BY id DESC", (app_id,)).fetchone()[0]
+    ok(inv and inv[0]["currency"] == "XTR" and inv[0]["prices"][0]["amount"] == 100 and inv[0]["payload"] == f"bs|{oid}", "ستاره: صورت‌حساب XTR با نرخ تبدیل")
+
+    def pcq(amount: int) -> dict:
+        _UPD[0] += 1
+        return {"update_id": _UPD[0], "pre_checkout_query": {"id": f"pc{_UPD[0]}", "from": {"id": u, "is_bot": False, "first_name": "Sara"},
+                                                             "currency": "XTR", "total_amount": amount, "invoice_payload": f"bs|{oid}"}}
+    chook(pcq(5), bot_id)
+    ok(calls("AnswerPreCheckoutQuery", bot_id)[-1]["ok"] is False, "مبلغ نادرست پذیرفته نمی‌شود")
+    chook(pcq(100), bot_id)
+    ok(calls("AnswerPreCheckoutQuery", bot_id)[-1]["ok"] is True, "پیش‌پرداخت درست تأیید می‌شود")
+    n0 = len(FakeSession.calls)
+    chook(cmsg(u, successful_payment={"currency": "XTR", "total_amount": 100, "invoice_payload": f"bs|{oid}",
+                                      "telegram_payment_charge_id": "ch-1", "provider_payment_charge_id": "p-1"}), bot_id)
+    row = con.execute("SELECT status, charge FROM bk_orders WHERE id = ?", (oid,)).fetchone()
+    ok(row == ("paid", "ch-1") and new(n0, "SendMessage", 7) and any("ستاره" in p["text"] or "پرداخت" in p["text"] for p in new(n0, "SendMessage")),
+       "پرداخت ستاره: سفارش پرداخت‌شده و خبر به صاحب ربات")
+
+    # در محل
+    chook(ccb(u, f"bs|a|{pids[1]}"), bot_id)
+    chook(ccb(u, "bs|o"), bot_id)
+    chook(cmsg(u, text="سارا"), bot_id)
+    n0 = len(FakeSession.calls)
+    chook(ccb(u, "bs|m|cod"), bot_id)
+    row = con.execute("SELECT status, pay, num FROM bk_orders WHERE app_id = ? ORDER BY id DESC", (app_id,)).fetchone()
+    ok(row == ("new", "cod", 1003) and new(n0, "SendMessage", 7), "پرداخت در محل: سفارش تازه و خبر فوری")
+    n0 = len(FakeSession.calls)
+    chook(ccb(u, "bs|c"), bot_id)
+    ok("خالی" in (new(n0, "EditMessageText") + new(n0, "SendMessage"))[0]["text"], "بعد از سفارش سبد خالی است")
+    web_api._RATE.clear()
+
+
 if __name__ == "__main__":
     test_blocks()
     test_auth()
@@ -1472,6 +1610,7 @@ if __name__ == "__main__":
     test_botkit()
     test_ai()
     test_steps()
+    test_shop()
     test_site()
     test_mag()
     print(f"\nهمه {PASSED} تست گذشت ✅")
